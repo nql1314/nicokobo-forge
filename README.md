@@ -35,6 +35,10 @@ This is an early `0.1.0` build for **Probably Stolen Demo Steam Build 25382790**
 
 The items, upgrades, unlock costs, and workshop entries come from the content mods you install. Each content mod documents its own controls and requirements. See [release notes](release.md) for this version.
 
+### License
+
+Released under the [MIT License](LICENSE).
+
 ---
 
 ## 中文
@@ -57,3 +61,7 @@ The items, upgrades, unlock costs, and workshop entries come from the content mo
 - 为内容 Mod 提供开局 ID 和周目数据的共用支持。
 
 具体物品、升级、解锁价格和工坊条目由安装的内容 Mod 提供；操作方式和额外依赖请查看相应 Mod 的说明。本版更新内容见[发布记录](release.md)。
+
+### 许可证
+
+本项目基于 [MIT 许可证](LICENSE) 发布。
