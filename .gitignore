@@ -1,0 +1,33 @@
+# 构建产物
+**/bin/
+**/obj/
+output/
+*.cache
+
+# 打包输出（保留发布包）
+dist/*
+!dist/nicokobo-forge/
+!dist/Nicokobo.Forge-*.zip
+dist/nicokobo-forge/*
+!dist/nicokobo-forge/Nicokobo.Forge.dll
+!dist/nicokobo-forge/cover.png
+!dist/nicokobo-forge/README.md
+!dist/nicokobo-forge/release.md
+
+# 用户本地配置
+*.user
+*.suo
+
+# IDE 本地文件
+.vs/
+.idea/
+.vscode/
+
+# 日志与临时文件
+*.log
+*.tmp
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini

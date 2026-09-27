@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Nicokobo.Forge.ExampleTwo</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+  <Target Name="ValidateGameDir" BeforeTargets="ResolveReferences" Condition="'$(GameDir)' == '' Or !Exists('$(GameDir)\GameAssembly.dll')">
+    <Error Text="Set GameDir to the Probably Stolen Demo installation." />
+  </Target>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Nicokobo.Forge/Nicokobo.Forge.csproj" Private="false" />
+    <Reference Include="MelonLoader"><HintPath>$(GameDir)\MelonLoader\net6\MelonLoader.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

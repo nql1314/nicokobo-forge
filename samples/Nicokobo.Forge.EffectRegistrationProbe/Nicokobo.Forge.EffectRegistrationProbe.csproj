@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Nicokobo.Forge.EffectRegistrationProbe</AssemblyName>
+    <RootNamespace>Nicokobo.Forge.EffectRegistrationProbe</RootNamespace>
+    <Version>0.1.0</Version>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <Target Name="ValidateGameDir" BeforeTargets="ResolveReferences" Condition="'$(GameDir)' == '' Or !Exists('$(GameDir)\GameAssembly.dll')">
+    <Error Text="Set GameDir to the Probably Stolen Demo installation." />
+  </Target>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Nicokobo.Forge/Nicokobo.Forge.csproj" Private="false" />
+    <Reference Include="MelonLoader"><HintPath>$(GameDir)\MelonLoader\net6\MelonLoader.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2CppInterop.Runtime"><HintPath>$(GameDir)\MelonLoader\net6\Il2CppInterop.Runtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2Cppmscorlib"><HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\Il2Cppmscorlib.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

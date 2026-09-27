@@ -1,0 +1,11 @@
+<Project>
+  <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')" />
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ModDefaultLogLevel Condition="'$(ModDefaultLogLevel)' == ''">WARN</ModDefaultLogLevel>
+  </PropertyGroup>
+</Project>

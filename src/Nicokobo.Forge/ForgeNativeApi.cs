@@ -1,0 +1,585 @@
+using HarmonyLib;
+using Il2Cpp;
+using Il2CppInterop.Runtime;
+using Nicokobo.Forge.Registration;
+
+namespace Nicokobo.Forge;
+
+public sealed record NativeModuleRegistration(string ItemId, Func<GameItem> Factory,
+    NativeItemOptions? Options = null);
+
+/// <summary>
+/// Build-gated native misc and module item registration for game adapters. The caller owns
+/// item construction and effects; Nicokobo Forge owns the directory hook and ID claim.
+/// </summary>
+public static class ForgeNativeApi
+{
+    private sealed record HeldFactory(Func<GameItem> Managed,
+        Il2CppSystem.Func<GameItem> Native);
+    private sealed record NightShopRefresh(string ItemId, int PurchasedUniqueId,
+        int Attempts, DateTime NotBeforeUtc);
+
+    private static readonly object Gate = new();
+    private static readonly NativeItemCatalog Catalog = new();
+    private static readonly Dictionary<string, HeldFactory> Factories =
+        new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, IntPtr> AppliedDirectories =
+        new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, LocalizedItemText> OwnerDisplayNames =
+        new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, NativeApplicationView> Outcomes =
+        new(StringComparer.Ordinal);
+    private static Action<string>? _log;
+    private static bool _enabled;
+    private static bool _moduleEnabled;
+    private static bool _amenityEnabled;
+    private static bool _nightShopEnabled;
+    private static NightShopRefresh? _pendingNightShopRefresh;
+
+    public static void RegisterOwnerDisplayName(string ownerId, string chinese,
+        string english)
+    {
+        if (string.IsNullOrWhiteSpace(ownerId) ||
+            string.IsNullOrWhiteSpace(chinese) ||
+            string.IsNullOrWhiteSpace(english))
+            throw new ArgumentException("Owner display names and ID are required");
+        var name = new LocalizedItemText(chinese, english);
+        lock (Gate)
+        {
+            if (OwnerDisplayNames.TryGetValue(ownerId, out var existing) &&
+                existing != name)
+                throw new InvalidOperationException(
+                    $"Owner display name already registered: {ownerId}");
+            OwnerDisplayNames[ownerId] = name;
+        }
+    }
+
+    internal static bool TryGetAppliedPresentation(string itemId,
+        out NativeItemOptions? options, out LocalizedItemText? ownerName)
+    {
+        lock (Gate)
+        {
+            options = null;
+            ownerName = null;
+            if (!AppliedDirectories.ContainsKey(itemId) ||
+                !Catalog.TryGet(itemId, out var declaration) ||
+                declaration == null)
+                return false;
+            options = declaration.Options;
+            OwnerDisplayNames.TryGetValue(declaration.OwnerId, out ownerName);
+            return true;
+        }
+    }
+
+    internal static bool IsAppliedItem(string itemId)
+    {
+        lock (Gate)
+            return AppliedDirectories.ContainsKey(itemId) &&
+                Catalog.TryGet(itemId, out _);
+    }
+
+    public static SubmitResult RegisterNode(string ownerId, string nativeItemId,
+        Func<GameItem> factory, NativeItemOptions? options = null)
+        => Register(ownerId, nativeItemId, NativeItemKind.Node, factory, options);
+
+    /// <summary>Register a non-node item in MiscItemDirectory, such as a card.</summary>
+    public static SubmitResult RegisterItem(string ownerId, string nativeItemId,
+        Func<GameItem> factory, NativeItemOptions? options = null)
+        => Register(ownerId, nativeItemId, NativeItemKind.Item, factory, options);
+
+    /// <summary>Register a non-node item in AmenitiesItemDirectory.</summary>
+    public static SubmitResult RegisterAmenity(string ownerId, string nativeItemId,
+        Func<GameItem> factory, NativeItemOptions? options = null)
+        => Register(ownerId, nativeItemId, NativeItemKind.Amenity, factory, options);
+
+    /// <summary>Register a native machine module in ModuleDirectory.</summary>
+    public static SubmitResult RegisterModule(string ownerId, string nativeItemId,
+        Func<GameItem> factory, NativeItemOptions? options = null)
+        => Register(ownerId, nativeItemId, NativeItemKind.Module, factory, options);
+
+    /// <summary>Claim all module IDs together, or leave the catalog unchanged.</summary>
+    public static SubmitResult RegisterModules(string ownerId,
+        IReadOnlyList<NativeModuleRegistration> modules)
+    {
+        if (modules == null)
+            return new(SubmitStatus.Invalid, "Module batch is null");
+        SubmitResult result;
+        Action<string>? log;
+        lock (Gate)
+        {
+            result = Catalog.SubmitBatch(ownerId, modules.Select(module =>
+                new NativeItemBatchEntry(module.ItemId, NativeItemKind.Module,
+                    module.Factory, module.Options)).ToArray());
+            if (result.Status is SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)
+                foreach (var module in modules)
+                    Outcomes.TryAdd(module.ItemId, new(ownerId, module.ItemId,
+                        NativeItemKind.Module.ToString(),
+                        NativeApplicationStatus.Staged, result.Reason));
+            log = _log;
+        }
+        var prefix = result.Status is SubmitStatus.Accepted or SubmitStatus.AlreadyPresent
+            ? "" : "[WARN] ";
+        SafeLog(log, prefix + $"[NicokoboForge/Module] owner={ownerId}; batch={modules.Count}; " +
+            $"status={result.Status}; reason={result.Reason}");
+        return result;
+    }
+
+    private static SubmitResult Register(string ownerId, string nativeItemId,
+        NativeItemKind kind, Func<GameItem> factory, NativeItemOptions? options)
+    {
+        SubmitResult result;
+        Action<string>? log;
+        lock (Gate)
+        {
+            result = Catalog.Submit(ownerId, nativeItemId, kind, factory, options);
+            if (result.Status == SubmitStatus.Accepted)
+                Outcomes[nativeItemId] = new(ownerId, nativeItemId, kind.ToString(),
+                    NativeApplicationStatus.Staged, result.Reason);
+            log = _log;
+        }
+        var prefix = result.Status is SubmitStatus.Accepted or SubmitStatus.AlreadyPresent
+            ? "" : "[WARN] ";
+        SafeLog(log, prefix + $"[NicokoboForge/{kind}] owner={ownerId}; id={nativeItemId}; " +
+            $"status={result.Status}; reason={result.Reason}");
+        return result;
+    }
+
+    /// <summary>Last observed directory application per content ID. Staged means
+    /// no successful directory application has been observed yet.</summary>
+    public static IReadOnlyList<NativeApplicationView> Snapshot()
+    {
+        lock (Gate)
+            return Outcomes.Values.OrderBy(x => x.ContentId,
+                StringComparer.Ordinal).ToArray();
+    }
+
+    internal static void SetLogger(Action<string> log)
+    {
+        NativeItemDeclaration[] staged;
+        lock (Gate)
+        {
+            _log = log;
+            staged = Catalog.Snapshot().ToArray();
+        }
+        foreach (var item in staged)
+            SafeLog(log, $"[NicokoboForge/{item.Kind}] owner={item.OwnerId}; id={item.ItemId}; " +
+                "status=Staged; directory application pending");
+    }
+
+    internal static int StagedCount
+    {
+        get { lock (Gate) return Catalog.Snapshot().Count; }
+    }
+
+    internal static bool ModuleHookInstalled => _moduleEnabled;
+    internal static bool AmenityHookInstalled => _amenityEnabled;
+    internal static bool NightShopHookInstalled => _nightShopEnabled;
+
+    internal static bool Install(HarmonyLib.Harmony harmony, bool allowModule,
+        bool allowAmenity, bool allowNightShop)
+    {
+        _enabled = false;
+        _moduleEnabled = false;
+        _amenityEnabled = false;
+        _nightShopEnabled = false;
+        try
+        {
+            var original = AccessTools.Method(typeof(MiscItemDirectory),
+                nameof(MiscItemDirectory.InitDirectory), Type.EmptyTypes)
+                ?? throw new MissingMethodException(nameof(MiscItemDirectory),
+                    nameof(MiscItemDirectory.InitDirectory));
+            var callback = AccessTools.Method(typeof(ForgeNativeApi), nameof(MiscDirectoryPostfix))
+                ?? throw new MissingMethodException(nameof(ForgeNativeApi),
+                    nameof(MiscDirectoryPostfix));
+            harmony.Patch(original, postfix: new HarmonyMethod(callback));
+            _enabled = true;
+            SafeLog(_log, "[NicokoboForge/NativeItem] miscHook=installed; buildGated=true");
+            if (allowModule)
+            {
+                try
+                {
+                    var moduleOriginal = AccessTools.Method(typeof(ModuleDirectory),
+                        nameof(ModuleDirectory.InitDirectory), Type.EmptyTypes)
+                        ?? throw new MissingMethodException(nameof(ModuleDirectory),
+                            nameof(ModuleDirectory.InitDirectory));
+                    var moduleCallback = AccessTools.Method(typeof(ForgeNativeApi),
+                        nameof(ModuleDirectoryPostfix))
+                        ?? throw new MissingMethodException(nameof(ForgeNativeApi),
+                            nameof(ModuleDirectoryPostfix));
+                    harmony.Patch(moduleOriginal, postfix: new HarmonyMethod(moduleCallback));
+                    _moduleEnabled = true;
+                    SafeLog(_log, "[NicokoboForge/Module] directoryHook=installed; buildGated=true");
+                }
+                catch (Exception ex)
+                {
+                    SafeLog(_log, $"[ERROR] [NicokoboForge/Module] directoryHook=disabled; " +
+                        $"reason={ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            if (allowAmenity)
+            {
+                try
+                {
+                    var amenityOriginal = AccessTools.Method(typeof(AmenitiesItemDirectory),
+                        nameof(AmenitiesItemDirectory.InitDirectory), Type.EmptyTypes)
+                        ?? throw new MissingMethodException(nameof(AmenitiesItemDirectory),
+                            nameof(AmenitiesItemDirectory.InitDirectory));
+                    var amenityCallback = AccessTools.Method(typeof(ForgeNativeApi),
+                        nameof(AmenityDirectoryPostfix))
+                        ?? throw new MissingMethodException(nameof(ForgeNativeApi),
+                            nameof(AmenityDirectoryPostfix));
+                    harmony.Patch(amenityOriginal,
+                        postfix: new HarmonyMethod(amenityCallback));
+                    _amenityEnabled = true;
+                    SafeLog(_log,
+                        "[NicokoboForge/Amenity] directoryHook=installed; buildGated=true");
+                }
+                catch (Exception ex)
+                {
+                    SafeLog(_log, $"[ERROR] [NicokoboForge/Amenity] directoryHook=disabled; " +
+                        $"reason={ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            if (allowNightShop)
+            {
+                try
+                {
+                    var stockOriginal = AccessTools.Method(typeof(StoreClientList),
+                        nameof(StoreClientList.PlaceInventorInventory), [typeof(bool)])
+                        ?? throw new MissingMethodException(nameof(StoreClientList),
+                            nameof(StoreClientList.PlaceInventorInventory));
+                    var stockCallback = AccessTools.Method(typeof(ForgeNativeApi),
+                        nameof(NightShopStockPostfix))
+                        ?? throw new MissingMethodException(nameof(ForgeNativeApi),
+                            nameof(NightShopStockPostfix));
+                    harmony.Patch(stockOriginal, postfix: new HarmonyMethod(stockCallback));
+                    var boughtOriginal = AccessTools.Method(typeof(PlayerStore),
+                        nameof(PlayerStore.OnItemBought), [typeof(GameItem), typeof(int)])
+                        ?? throw new MissingMethodException(nameof(PlayerStore),
+                            nameof(PlayerStore.OnItemBought));
+                    var boughtCallback = AccessTools.Method(typeof(ForgeNativeApi),
+                        nameof(NightShopPurchasePostfix))
+                        ?? throw new MissingMethodException(nameof(ForgeNativeApi),
+                            nameof(NightShopPurchasePostfix));
+                    harmony.Patch(boughtOriginal, postfix: new HarmonyMethod(boughtCallback));
+                    _nightShopEnabled = true;
+                    SafeLog(_log,
+                        "[NicokoboForge/NightShop] stockHook=installed; buildGated=true");
+                }
+                catch (Exception ex)
+                {
+                    SafeLog(_log, $"[ERROR] [NicokoboForge/NightShop] stockHook=disabled; " +
+                        $"reason={ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SafeLog(_log, $"[ERROR] [NicokoboForge/NativeItem] directoryHook=disabled; " +
+                $"reason={ex.GetType().Name}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static void MiscDirectoryPostfix(MiscItemDirectory __instance)
+    {
+        if (_enabled) OnDirectoryReady(__instance, NativeItemKind.Item);
+    }
+
+    private static void ModuleDirectoryPostfix(ModuleDirectory __instance)
+    {
+        if (_moduleEnabled) OnDirectoryReady(__instance, NativeItemKind.Module);
+    }
+
+    private static void AmenityDirectoryPostfix(AmenitiesItemDirectory __instance)
+    {
+        if (_amenityEnabled) OnDirectoryReady(__instance, NativeItemKind.Amenity);
+    }
+
+    private static void OnDirectoryReady(ItemDirectory directory,
+        NativeItemKind directoryKind)
+    {
+        NativeItemDeclaration[] staged;
+        lock (Gate)
+            staged = Catalog.Snapshot().Where(item => directoryKind switch
+            {
+                NativeItemKind.Module => item.Kind == NativeItemKind.Module,
+                NativeItemKind.Amenity => item.Kind == NativeItemKind.Amenity,
+                _ => item.Kind is NativeItemKind.Item or NativeItemKind.Node
+            }).ToArray();
+        foreach (var item in staged)
+            Apply(directory, item);
+    }
+
+    private static void Apply(ItemDirectory directory, NativeItemDeclaration node)
+    {
+        try
+        {
+            if (directory == null || directory.Pointer == IntPtr.Zero)
+                throw new InvalidOperationException("Native item directory is unavailable");
+            if (directory.Has(node.ItemId))
+            {
+                bool ownPrevious;
+                lock (Gate)
+                    ownPrevious = AppliedDirectories.TryGetValue(node.ItemId, out var pointer) &&
+                        pointer == directory.Pointer;
+                SafeLog(_log, $"{(ownPrevious ? "" : "[WARN] ")}[NicokoboForge/{node.Kind}] owner={node.OwnerId}; id={node.ItemId}; " +
+                    $"status={(ownPrevious ? "AlreadyApplied" : "Conflict")}; " +
+                    "native directory already contains ID");
+                SetOutcome(node, ownPrevious ? NativeApplicationStatus.Applied :
+                    NativeApplicationStatus.Conflict,
+                    ownPrevious ? "Native directory still contains owned ID" :
+                        "Native directory already contains ID");
+                return;
+            }
+            if (DirectoryMaster.Has<GameItem>(node.ItemId))
+            {
+                SetOutcome(node, NativeApplicationStatus.Conflict,
+                    "Native item ID exists in another directory");
+                SafeLog(_log, $"[WARN] [NicokoboForge/{node.Kind}] owner={node.OwnerId}; " +
+                    $"id={node.ItemId}; status=Conflict; native ID exists in another directory");
+                return;
+            }
+            HeldFactory held;
+            lock (Gate)
+            {
+                if (!Factories.TryGetValue(node.ItemId, out held!))
+                {
+                    var callback = (Func<GameItem>)node.Factory;
+                    Func<GameItem> managed = () => CreateChecked(node, callback);
+                    var native = DelegateSupport.ConvertDelegate<Il2CppSystem.Func<GameItem>>(managed)
+                        ?? throw new InvalidOperationException("Native delegate conversion failed");
+                    held = new HeldFactory(managed, native);
+                    Factories.Add(node.ItemId, held);
+                }
+            }
+            if (!directory.Add(node.ItemId, held.Native))
+                throw new InvalidOperationException("Native directory rejected node factory");
+            lock (Gate) AppliedDirectories[node.ItemId] = directory.Pointer;
+            SetOutcome(node, NativeApplicationStatus.Applied,
+                "Native directory accepted factory");
+            SafeLog(_log, $"[NicokoboForge/{node.Kind}] owner={node.OwnerId}; id={node.ItemId}; status=Applied");
+        }
+        catch (Exception ex)
+        {
+            SetOutcome(node, NativeApplicationStatus.Failed,
+                $"{ex.GetType().Name}: {ex.Message}");
+            SafeLog(_log, $"[ERROR] [NicokoboForge/{node.Kind}] owner={node.OwnerId}; id={node.ItemId}; " +
+                $"status=Failed; reason={ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private static void SetOutcome(NativeItemDeclaration item,
+        NativeApplicationStatus status, string reason)
+    {
+        lock (Gate)
+            Outcomes[item.ItemId] = new(item.OwnerId, item.ItemId,
+                item.Kind.ToString(), status, reason);
+    }
+
+    private static GameItem CreateChecked(NativeItemDeclaration node, Func<GameItem> callback)
+    {
+        try
+        {
+            var item = callback();
+            if (item == null || item.Pointer == IntPtr.Zero ||
+                item.identifier != node.ItemId ||
+                (node.Kind == NativeItemKind.Node && !item.IsGameItemType("NODE")) ||
+                (node.Kind == NativeItemKind.Module && !item.IsGameItemType("MODULE")) ||
+                (node.Kind is NativeItemKind.Item or NativeItemKind.Amenity &&
+                 (item.IsGameItemType("NODE") || item.IsGameItemType("MODULE"))))
+                throw new InvalidOperationException("Item factory returned an invalid item, ID or type");
+            return item;
+        }
+        catch (Exception ex)
+        {
+            SafeLog(_log, $"[ERROR] [NicokoboForge/{node.Kind}] owner={node.OwnerId}; id={node.ItemId}; " +
+                $"status=FactoryFailed; reason={ex.GetType().Name}: {ex.Message}");
+            throw;
+        }
+    }
+
+    private static void NightShopStockPostfix(bool isVisitingPlayerStore)
+    {
+        if (!_nightShopEnabled || isVisitingPlayerStore) return;
+        try
+        {
+            var store = PlayerStore.Instance;
+            var inventory = EmporiumEntry.Instance?.frontInvinvElement;
+            if (store == null || store.Pointer == IntPtr.Zero || inventory == null ||
+                inventory.Pointer == IntPtr.Zero || inventory.childItems == null)
+                throw new InvalidOperationException("Night-shop inventory is unavailable");
+
+            var present = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < inventory.childItems.Count; index++)
+            {
+                var item = inventory.childItems[index];
+                if (item != null && item.Pointer != IntPtr.Zero &&
+                    !string.IsNullOrWhiteSpace(item.identifier))
+                    present.Add(item.identifier);
+            }
+
+            NativeItemDeclaration[] offers;
+            lock (Gate)
+                offers = Catalog.Snapshot().Where(item =>
+                    item.Options.NightShop != NightShopStockPolicy.None).ToArray();
+            int added = 0;
+            foreach (var offer in offers)
+            {
+                if (present.Contains(offer.ItemId) ||
+                    offer.Options.NightShop == NightShopStockPolicy.Unique &&
+                    store.IsPlayerOwnThisItem(offer.ItemId))
+                    continue;
+                bool available;
+                try { available = offer.Options.IsNightShopAvailable?.Invoke() ?? true; }
+                catch (Exception ex)
+                {
+                    SafeLog(_log, $"[ERROR] [NicokoboForge/NightShop] owner={offer.OwnerId}; " +
+                        $"id={offer.ItemId}; status=AvailabilityFailed; " +
+                        $"reason={ex.GetType().Name}: {ex.Message}");
+                    continue;
+                }
+                if (!available) continue;
+
+                NativeApplicationStatus status;
+                lock (Gate)
+                    status = Outcomes.TryGetValue(offer.ItemId, out var outcome)
+                        ? outcome.Status : NativeApplicationStatus.Staged;
+                if (status != NativeApplicationStatus.Applied) continue;
+
+                GameItem? item = null;
+                try
+                {
+                    item = DirectoryMaster.Item(offer.ItemId, true);
+                    if (item == null || item.Pointer == IntPtr.Zero ||
+                        item.identifier != offer.ItemId)
+                        throw new InvalidOperationException("Registered item could not be created");
+                    store.AddDirectSellingItemToTable(item, false, false, false, 0);
+                    bool accepted = false;
+                    for (int index = 0; index < inventory.childItems.Count; index++)
+                    {
+                        var placed = inventory.childItems[index];
+                        if (placed != null && placed.Pointer == item.Pointer)
+                        {
+                            accepted = true;
+                            break;
+                        }
+                    }
+                    if (!accepted)
+                        throw new InvalidOperationException("Night-shop inventory rejected item");
+                    present.Add(offer.ItemId);
+                    added++;
+                }
+                catch (Exception ex)
+                {
+                    if (item != null && item.Pointer != IntPtr.Zero &&
+                        item.parentInventory == null)
+                        item.Destroy();
+                    SafeLog(_log, $"[ERROR] [NicokoboForge/NightShop] owner={offer.OwnerId}; " +
+                        $"id={offer.ItemId}; status=Failed; " +
+                        $"reason={ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            if (added != 0)
+                SafeLog(_log, $"[NicokoboForge/NightShop] status=Applied; added={added}");
+        }
+        catch (Exception ex)
+        {
+            SafeLog(_log, $"[ERROR] [NicokoboForge/NightShop] status=Failed; " +
+                $"reason={ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private static void NightShopPurchasePostfix(GameItem __0)
+    {
+        if (!_nightShopEnabled || __0 == null || __0.Pointer == IntPtr.Zero) return;
+        NativeItemDeclaration? offer;
+        lock (Gate)
+            offer = Catalog.Snapshot().FirstOrDefault(item =>
+                item.ItemId == __0.identifier &&
+                item.Options.NightShop == NightShopStockPolicy.Repeatable);
+        if (offer == null) return;
+        lock (Gate)
+            _pendingNightShopRefresh = new(offer.ItemId, __0.uniqueId, 0,
+                DateTime.UtcNow.AddMilliseconds(100));
+        SafeLog(_log, $"[NicokoboForge/NightShop] id={offer.ItemId}; " +
+            $"status=RefreshQueued; purchased={__0.uniqueId}");
+    }
+
+    internal static void Update()
+    {
+        NightShopRefresh? pending;
+        lock (Gate) pending = _pendingNightShopRefresh;
+        if (!_nightShopEnabled || pending == null ||
+            DateTime.UtcNow < pending.NotBeforeUtc) return;
+        try
+        {
+            if (HasReplacementStock(pending))
+            {
+                ClearPendingRefresh(pending, "AlreadyAvailable");
+                return;
+            }
+            NightShopStockPostfix(false);
+            if (HasReplacementStock(pending))
+            {
+                ClearPendingRefresh(pending, "Applied");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            SafeLog(_log, $"[NicokoboForge/NightShop] id={pending.ItemId}; " +
+                $"status=RefreshDeferred; reason={ex.GetType().Name}: {ex.Message}");
+        }
+        lock (Gate)
+        {
+            if (_pendingNightShopRefresh != pending) return;
+            int attempts = pending.Attempts + 1;
+            if (attempts >= 40)
+            {
+                _pendingNightShopRefresh = null;
+                SafeLog(_log, $"[WARN] [NicokoboForge/NightShop] id={pending.ItemId}; " +
+                    "status=RefreshFailed; reason=no free accepted replacement after 40 attempts");
+                return;
+            }
+            _pendingNightShopRefresh = pending with
+            {
+                Attempts = attempts,
+                NotBeforeUtc = DateTime.UtcNow.AddMilliseconds(250)
+            };
+        }
+    }
+
+    private static bool HasReplacementStock(NightShopRefresh pending)
+    {
+        var items = EmporiumEntry.Instance?.frontInvinvElement?.childItems;
+        if (items == null) return false;
+        for (int index = 0; index < items.Count; index++)
+        {
+            var item = items[index];
+            if (item != null && item.Pointer != IntPtr.Zero &&
+                item.identifier == pending.ItemId &&
+                item.uniqueId != pending.PurchasedUniqueId)
+                return true;
+        }
+        return false;
+    }
+
+    private static void ClearPendingRefresh(NightShopRefresh pending, string status)
+    {
+        lock (Gate)
+        {
+            if (_pendingNightShopRefresh != pending) return;
+            _pendingNightShopRefresh = null;
+        }
+        SafeLog(_log, $"[NicokoboForge/NightShop] id={pending.ItemId}; " +
+            $"status=Refresh{status}; attempts={pending.Attempts}");
+    }
+
+    private static void SafeLog(Action<string>? log, string message)
+    {
+        try { log?.Invoke(message); }
+        catch { /* Logging must not affect native registration. */ }
+    }
+}
