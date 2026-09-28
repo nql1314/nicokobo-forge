@@ -81,8 +81,19 @@ internal static class ForgeWorkshopOverlay
             return new ForgeWorkshopUiCommand(null, null, false, true);
         var tabBar = new Rect(window.x + 18f, header.yMax + 8f,
             window.width - 36f, 36f);
-        for (int index = 0; index < tabs.Count; index++)
-            if (TabRect(tabBar, tabs.Count, index).Contains(mouse))
+        int pageStart = TabPageStart(tabs, activeTabId);
+        if (tabs.Count > 6 && new Rect(tabBar.x, tabBar.y, 34f, 36f)
+                .Contains(mouse) && pageStart > 0)
+            return new ForgeWorkshopUiCommand(tabs[pageStart - 1].Id,
+                null, false, false);
+        if (tabs.Count > 6 && new Rect(tabBar.xMax - 34f, tabBar.y,
+                34f, 36f).Contains(mouse) && pageStart + 6 < tabs.Count)
+            return new ForgeWorkshopUiCommand(tabs[pageStart + 6].Id,
+                null, false, false);
+        for (int index = pageStart; index < Math.Min(pageStart + 6, tabs.Count);
+             index++)
+            if (TabRect(tabBar, Math.Min(tabs.Count, 6), index - pageStart,
+                    tabs.Count > 6).Contains(mouse))
                 return new ForgeWorkshopUiCommand(tabs[index].Id,
                     null, false, false);
         float bodyY = tabBar.yMax + 8f;
@@ -90,31 +101,16 @@ internal static class ForgeWorkshopOverlay
             window.yMax - bodyY - 56f);
         var selected = snapshot.Entries.FirstOrDefault(x => x.Id == selectedId)
             ?? snapshot.Entries[0];
-        if (selected.ActionEnabled &&
+        if (ForgeWorkshopApi.CanUnlock(selected) &&
             new Rect(left.x + 16f, left.yMax - 58f, left.width - 32f, 42f)
                 .Contains(mouse))
             return new ForgeWorkshopUiCommand(null, null, true, false);
         var right = new Rect(left.xMax + 10f, left.y,
             window.xMax - left.xMax - 28f, left.height);
-        float x = right.x + 10f;
-        float width = right.width - 20f;
-        float y = right.y + 10f;
-        int entryIndex = 0;
-        for (int groupIndex = 0; groupIndex < snapshot.Groups.Count; groupIndex++)
-        {
-            y += 29f;
-            float gap = 8f;
-            float nodeWidth = (width - gap * 3f) / 4f;
-            for (int index = 0; index < snapshot.Groups[groupIndex].EntryCount &&
-                 entryIndex < snapshot.Entries.Count; index++, entryIndex++)
-            {
-                if (new Rect(x + index * (nodeWidth + gap), y,
-                        nodeWidth, 55f).Contains(mouse))
-                    return new ForgeWorkshopUiCommand(null,
-                        snapshot.Entries[entryIndex].Id, false, false);
-            }
-            y += 63f;
-        }
+        var positions = NodeRects(right, snapshot.Groups, snapshot.Entries);
+        foreach (var entry in snapshot.Entries)
+            if (positions[entry.Id].Contains(mouse))
+                return new ForgeWorkshopUiCommand(null, entry.Id, false, false);
         return default;
     }
 
@@ -126,11 +122,17 @@ internal static class ForgeWorkshopOverlay
         (Screen.height / scale - WindowHeight) * 0.5f,
         WindowWidth, WindowHeight);
 
-    private static Rect TabRect(Rect bar, int count, int index)
+    private static int TabPageStart(IReadOnlyList<ForgeWorkshopTabHeader> tabs,
+        string activeTabId) => Math.Max(0, tabs.ToList().FindIndex(x =>
+            x.Id == activeTabId) / 6 * 6);
+
+    private static Rect TabRect(Rect bar, int count, int index,
+        bool paged = false)
     {
         const float gap = 8f;
-        float width = (bar.width - gap * (count - 1)) / count;
-        return new Rect(bar.x + index * (width + gap), bar.y,
+        float usable = bar.width - (paged ? 76f : 0f);
+        float width = (usable - gap * (count - 1)) / count;
+        return new Rect(bar.x + (paged ? 38f : 0f) + index * (width + gap), bar.y,
             width, bar.height);
     }
 
@@ -166,10 +168,20 @@ internal static class ForgeWorkshopOverlay
 
             var tabBar = new Rect(window.x + 18f, header.yMax + 8f,
                 window.width - 36f, 36f);
-            for (int index = 0; index < tabs.Count; index++)
+            int pageStart = TabPageStart(tabs, activeTabId);
+            if (tabs.Count > 6)
+            {
+                GUI.Label(new Rect(tabBar.x, tabBar.y, 34f, 36f), "<",
+                    _nodeStyle!);
+                GUI.Label(new Rect(tabBar.xMax - 34f, tabBar.y, 34f, 36f), ">",
+                    _nodeStyle!);
+            }
+            for (int index = pageStart;
+                 index < Math.Min(pageStart + 6, tabs.Count); index++)
             {
                 var tab = tabs[index];
-                GUI.Label(TabRect(tabBar, tabs.Count, index),
+                GUI.Label(TabRect(tabBar, Math.Min(tabs.Count, 6),
+                        index - pageStart, tabs.Count > 6),
                     english ? tab.EnglishTitle : tab.ChineseTitle,
                     tab.Id == activeTabId ? _selectedNodeStyle! : _nodeStyle!);
             }
@@ -188,8 +200,8 @@ internal static class ForgeWorkshopOverlay
 
             var selected = snapshot.Entries.FirstOrDefault(x => x.Id == selectedId)
                 ?? snapshot.Entries[0];
-            DrawDetails(left, selected, snapshot.Message);
-            DrawCatalog(right, snapshot.Groups, snapshot.Entries,
+            DrawDetails(left, selected, snapshot.Message, english);
+            DrawGraph(right, snapshot.Groups, snapshot.Entries,
                 selected.Id, english);
 
             var current = Event.current;
@@ -204,7 +216,7 @@ internal static class ForgeWorkshopOverlay
     }
 
     private static void DrawDetails(Rect area, ForgeWorkshopEntry selected,
-        string message)
+        string message, bool english)
     {
         float x = area.x + 16f;
         float width = area.width - 32f;
@@ -217,7 +229,8 @@ internal static class ForgeWorkshopOverlay
             _bodyStyle!);
 
         DrawInfoBox(new Rect(x, area.y + 202f, width, 46f), selected.Requirement);
-        DrawCostBox(new Rect(x, area.y + 256f, width, 172f), selected);
+        DrawCostBox(new Rect(x, area.y + 256f, width, 172f), selected,
+            english);
 
         var stateStyle = selected.Unlocked ? _unlockedStateStyle!
             : selected.PrerequisiteMet ? _readyStateStyle! : _lockedStateStyle!;
@@ -231,47 +244,83 @@ internal static class ForgeWorkshopOverlay
         }
 
         GUI.Label(new Rect(x, area.yMax - 58f, width, 42f),
-            selected.ActionText, selected.ActionEnabled
+            selected.ActionText, ForgeWorkshopApi.CanUnlock(selected)
                 ? _purchaseStyle! : _disabledPurchaseStyle!);
     }
 
-    private static void DrawCatalog(Rect area,
+    private static void DrawGraph(Rect area,
         IReadOnlyList<ForgeWorkshopGroup> groups,
         IReadOnlyList<ForgeWorkshopEntry> entries, string selectedId,
         bool english)
     {
-        float x = area.x + 10f;
-        float width = area.width - 20f;
-        float y = area.y + 10f;
+        var positions = NodeRects(area, groups, entries);
+        GUI.Label(new Rect(area.x + 12f, area.y + 8f, area.width - 24f, 25f),
+            english ? "PROGRESSION MAP" : "解锁星图", _sectionStyle!);
+        foreach (var entry in entries)
+        {
+            foreach (var dependency in entry.Dependencies)
+            {
+                if (positions.TryGetValue(dependency, out var source))
+                    DrawLink(source.center, positions[entry.Id].center,
+                        entry.PrerequisiteMet || entry.Unlocked);
+            }
+        }
+        foreach (var entry in entries)
+        {
+            var style = entry.Id == selectedId ? _selectedNodeStyle!
+                : !entry.PrerequisiteMet && !entry.Unlocked
+                    ? _lockedNodeStyle! : _nodeStyle!;
+            string prefix = entry.Unlocked
+                ? (english ? "DONE" : "已解锁")
+                : !entry.PrerequisiteMet
+                    ? (english ? "LOCKED" : "未满足")
+                    : entry.NodeCostText;
+            GUI.Label(positions[entry.Id], $"* {entry.Title}\n{prefix}", style);
+        }
+    }
+
+    private static Dictionary<string, Rect> NodeRects(Rect area,
+        IReadOnlyList<ForgeWorkshopGroup> groups,
+        IReadOnlyList<ForgeWorkshopEntry> entries)
+    {
+        var result = new Dictionary<string, Rect>(StringComparer.Ordinal);
         int entryIndex = 0;
         for (int groupIndex = 0; groupIndex < groups.Count; groupIndex++)
         {
-            Fill(new Rect(x, y, width, 24f), _sectionTexture!);
-            GUI.Label(new Rect(x + 9f, y + 2f, width - 18f, 20f),
-                english ? groups[groupIndex].EnglishTitle :
-                    groups[groupIndex].ChineseTitle,
-                _sectionStyle!);
-            y += 29f;
             int count = groups[groupIndex].EntryCount;
-            float gap = 8f;
-            float nodeWidth = (width - gap * 3f) / 4f;
-            for (int index = 0; index < count && entryIndex < entries.Count;
-                 index++, entryIndex++)
+            for (int index = 0; index < count; index++, entryIndex++)
             {
                 var entry = entries[entryIndex];
-                var rect = new Rect(x + index * (nodeWidth + gap), y,
-                    nodeWidth, 55f);
-                var style = entry.Id == selectedId ? _selectedNodeStyle!
-                    : !entry.PrerequisiteMet && !entry.Unlocked
-                        ? _lockedNodeStyle! : _nodeStyle!;
-                string prefix = entry.Unlocked
-                    ? (english ? "DONE" : "已解锁")
-                    : !entry.PrerequisiteMet
-                        ? (english ? "LOCKED" : "未满足")
-                        : entry.NodeCostText;
-                GUI.Label(rect, $"{entry.Title}\n{prefix}", style);
+                float angle = -Mathf.PI / 2f +
+                    2f * Mathf.PI * groupIndex / groups.Count;
+                float radius = 0.35f + index * (0.55f / Math.Max(1, count - 1));
+                float offset = count > 2 ? (index % 2 == 0 ? -0.24f : 0.24f)
+                    : 0f;
+                float x = entry.GraphX ??
+                    Mathf.Cos(angle) * radius - Mathf.Sin(angle) * offset;
+                float y = entry.GraphY ??
+                    Mathf.Sin(angle) * radius + Mathf.Cos(angle) * offset;
+                const float nodeWidth = 116f;
+                const float nodeHeight = 62f;
+                float centerX = area.center.x + x * (area.width / 2f - 70f);
+                float centerY = area.center.y + 15f +
+                    y * (area.height / 2f - 66f);
+                result.Add(entry.Id, new Rect(centerX - nodeWidth / 2f,
+                    centerY - nodeHeight / 2f, nodeWidth, nodeHeight));
             }
-            y += 63f;
+        }
+        return result;
+    }
+
+    private static void DrawLink(Vector2 from, Vector2 to, bool ready)
+    {
+        int steps = Math.Max(8, Mathf.CeilToInt(Vector2.Distance(from, to) / 10f));
+        for (int index = 0; index <= steps; index++)
+        {
+            float t = index / (float)steps;
+            var point = Vector2.Lerp(from, to, t);
+            Fill(new Rect(point.x - 2f, point.y - 2f, 4f, 4f),
+                ready ? _accentTexture! : _borderTexture!);
         }
     }
 
@@ -282,13 +331,39 @@ internal static class ForgeWorkshopOverlay
             rect.width - 16f, rect.height - 10f), text, _bodyStyle!);
     }
 
-    private static void DrawCostBox(Rect rect, ForgeWorkshopEntry selected)
+    private static void DrawCostBox(Rect rect, ForgeWorkshopEntry selected,
+        bool english)
     {
         DrawBordered(rect, _headerTexture!, _borderTexture!, 1f);
         GUI.Label(new Rect(rect.x + 8f, rect.y + 5f,
             rect.width - 16f, rect.height - 10f),
-            selected.CostText, _costStyle!);
+            ResourceText(selected, english), _costStyle!);
     }
+
+    private static string ResourceText(ForgeWorkshopEntry entry, bool english)
+    {
+        if (entry.Conditions.Count == 0 && entry.Rewards.Count == 0)
+            return entry.CostText;
+        var lines = new List<string> { english ? "Requirements" : "解锁条件" };
+        foreach (var condition in entry.Conditions)
+            lines.Add($"{(condition.Satisfied ? "✓" : "○")} " +
+                $"{ResourceName(condition.Kind, condition.ResourceId, condition.DisplayName, english)} ×{condition.Quantity:N0}" +
+                (condition.Consume
+                    ? (english ? " [consume]" : " [消耗]")
+                    : (english ? " [keep]" : " [持有]")));
+        if (entry.Rewards.Count > 0)
+            lines.Add(english ? "Rewards" : "奖励");
+        foreach (var reward in entry.Rewards)
+            lines.Add($"+ {ResourceName(reward.Kind, reward.ResourceId, reward.DisplayName, english)} " +
+                $"×{reward.Quantity:N0}");
+        return string.Join("\n", lines);
+    }
+
+    private static string ResourceName(ForgeWorkshopResourceKind kind,
+        string id, string? displayName, bool english)
+        => kind == ForgeWorkshopResourceKind.Credits
+            ? (english ? "Credits" : "信用点")
+            : string.IsNullOrWhiteSpace(displayName) ? id : displayName;
 
     private static void DrawBordered(Rect rect, Texture2D fill,
         Texture2D border, float thickness)

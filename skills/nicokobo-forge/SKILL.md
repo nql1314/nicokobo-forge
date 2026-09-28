@@ -1,6 +1,6 @@
 ---
 name: nicokobo-forge
-description: 在 Nicokobo Forge 仓库开发、审查、接入或验证公共 API、原生注册、网络升级、工坊和周目数据时使用；不用于一般 Probably Stolen 内容 Mod 的玩法设计。
+description: 在 Nicokobo Forge 仓库开发、审查、接入或验证公共 API、原生注册、工坊和周目数据时使用；不用于一般 Probably Stolen 内容 Mod 的玩法设计。
 ---
 
 # Nicokobo Forge 开发与接入
@@ -18,7 +18,6 @@ Forge 是 Probably Stolen Demo 的公共前置 API。先确认任务是修改框
 | 任务 | 优先核对 |
 | --- | --- |
 | 物品、节点、设施、模块或效果 | `ForgeNativeApi`、`ForgeNativeEffectApi`、对应注册目录与 `Snapshot()`；目录初始化、原生 ID 冲突、工厂产物类型和效果随机池资格分开验证。 |
-| 网络升级 | `ForgeNetworkUpgradeApi` 与 `NetworkUpgradeCatalog`；当前原生对象、副标题、解锁动作及 UI ID 都要做所有权检查。额外资源由内容回调自补偿；购买失败核对同一周目/槽位，补偿保存后读回文件，再用可丢弃档验证重载。 |
 | Nico 工坊 | `ForgeWorkshopApi` 和内容侧标签页；`Snapshot()` 可返回空值或变化数据，使用已校验快照；Forge 只管展示与事件分派，解锁回调负责重新验资、扣费、效果与保存。 |
 | 开局、周目或库存 | `ForgeStartApi` 只认领开局身份；`ForgeRunDataApi.Stage` 只暂存内存；`ForgeNativeInventoryApi` 目前只读和预检，`InventoryTransfer` 未开放。实际保存、载入和物品移动要独立验收。 |
 
@@ -27,7 +26,7 @@ Forge 是 Probably Stolen Demo 的公共前置 API。先确认任务是修改框
 ## 验证和交付
 
 - 用当前游戏目录执行 `scripts/Build-P0.ps1 -GameDir <游戏目录>`；它覆盖领域检查、核心、两个 P0 示例及物流示例，**不包含**工坊和效果探针。改动后按需单独构建相应样例。直接构建核心工程时也要传 `-p:GameDir=<游戏目录>`。
-- `scripts/Pack-P0.ps1` 只打包核心与两个 P0 示例。打包、安装与启动是不同步骤；核对目标游戏构建、清单、实际 `Mods/` 文件哈希和新进程日志后，才能把运行结论归于当前代码。
-- 给 Mod 网站准备文件时，先完成 Release 构建，再运行 `scripts/Pack-ModSite.ps1`。它将面向玩家的双语 `README.md`、`release.md`、唯一的核心 DLL，以及项目已有的 `cover.png` 放入 `dist/nicokobo-forge/`；下载 ZIP 只含 DLL 与两份文案。不要把 P0 诊断示例或探针加入玩家安装包。
+- `scripts/Pack-P0.ps1` 只打包核心与两个 P0 示例，产物按 `<程序集名>-<版本>.dll` 命名并写入 `dist/p0/manifest.json`。打包、安装与启动是不同步骤；核对目标游戏构建、清单、实际 `Mods/` 文件哈希和新进程日志后，才能把运行结论归于当前代码。
+- 给 Mod 网站准备文件时，先完成 Release 构建，再运行 `scripts/Pack-ModSite.ps1`。它将面向玩家的双语 `README.md`、唯一的核心 DLL（`Nicokobo.Forge-<版本>.dll`），以及项目已有的 `cover.png` 放入 `dist/nicokobo-forge/`；下载 ZIP 只含 DLL 与 `README.md`。`dist/nicokobo-forge/CHANGELOG.md` 面向玩家独立维护，记录各发布版本改了什么，不参与打包。不要把 P0 诊断示例或探针加入玩家安装包。
 - 对每项结果分别报告纯逻辑检查、编译、补丁安装、目录应用、游戏行为、保存文件回读与重新载入。原生交易或存档的成功不能只凭内存状态或单次 `SaveGame()` 返回值断言；缺少可丢弃测试档时明确标为待实机验证。
 - 更新进度时优先维护 `docs/FORGE_PROGRESS.md` 的当前状态和证据；保留 `docs/P0_PROGRESS.md` 及旧探针记录的日期与产物边界。

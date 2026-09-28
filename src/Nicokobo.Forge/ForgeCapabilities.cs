@@ -3,7 +3,6 @@ namespace Nicokobo.Forge;
 public sealed record ForgeCapabilitySnapshot(bool KnownGameBuild,
     bool NativeItemDirectoryHook, bool NativeModuleDirectoryHook,
     bool NativeAmenityDirectoryHook, bool NightShopStock,
-    bool NetworkUpgradeRegistration,
     bool RunDataStaging,
     bool DirectInventoryRead, bool WholeTransferPreview,
     bool NativeEffectRegistration, bool InventoryTransfer);
@@ -13,7 +12,7 @@ public sealed record ForgeCapabilitySnapshot(bool KnownGameBuild,
 public static class ForgeCapabilities
 {
     private static ForgeCapabilitySnapshot _current =
-        new(false, false, false, false, false, false, false, false, false, false, false);
+        new(false, false, false, false, false, false, false, false, false, false);
 
     public static ForgeCapabilitySnapshot Current =>
         System.Threading.Volatile.Read(ref _current);

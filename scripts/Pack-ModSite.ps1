@@ -18,6 +18,8 @@ if ($assemblyVersion.Major -ne ([version]$version).Major -or
     throw "DLL version $assemblyVersion does not match project version $version"
 }
 
+$distDllName = "Nicokobo.Forge-$version.dll"
+
 $distRoot = Join-Path $projectRoot 'dist'
 $packageRoot = Join-Path $distRoot 'nicokobo-forge'
 $archivePath = Join-Path $distRoot "Nicokobo.Forge-$version.zip"
@@ -26,22 +28,23 @@ if (-not $expectedDistRoot.StartsWith($projectRoot + [IO.Path]::DirectorySeparat
     throw "Unsafe distribution path: $expectedDistRoot"
 }
 New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
+Get-ChildItem -LiteralPath $packageRoot -File -Filter 'Nicokobo.Forge*.dll' | Remove-Item -Force
 
-foreach ($name in @('README.md', 'release.md')) {
+foreach ($name in @('README.md')) {
     $source = Join-Path $projectRoot $name
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Document missing: $source" }
     Copy-Item -LiteralPath $source -Destination (Join-Path $packageRoot $name) -Force
 }
-Copy-Item -LiteralPath $sourceDll -Destination (Join-Path $packageRoot 'Nicokobo.Forge.dll') -Force
+Copy-Item -LiteralPath $sourceDll -Destination (Join-Path $packageRoot $distDllName) -Force
 $cover = Join-Path $projectRoot 'cover.png'
 if (Test-Path -LiteralPath $cover -PathType Leaf) {
     Copy-Item -LiteralPath $cover -Destination (Join-Path $packageRoot 'cover.png') -Force
 }
 
-$packageFiles = @('Nicokobo.Forge.dll', 'README.md', 'release.md') |
+$packageFiles = @($distDllName, 'README.md') |
     ForEach-Object { Join-Path $packageRoot $_ }
 Compress-Archive -LiteralPath $packageFiles -DestinationPath $archivePath -CompressionLevel Optimal -Force
 
 Write-Output "Package directory: $packageRoot"
 Write-Output "Website archive: $archivePath"
-Write-Output "Forge SHA-256: $((Get-FileHash -LiteralPath (Join-Path $packageRoot 'Nicokobo.Forge.dll') -Algorithm SHA256).Hash)"
+Write-Output "Forge SHA-256: $((Get-FileHash -LiteralPath (Join-Path $packageRoot $distDllName) -Algorithm SHA256).Hash)"

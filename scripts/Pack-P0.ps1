@@ -11,17 +11,29 @@ if ([IO.Path]::GetFullPath($packageRoot) -ne $expectedPackageRoot -or
 New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
 Get-ChildItem -LiteralPath $packageRoot -File | Remove-Item -Force
 $artifacts = @(
-    'src\Nicokobo.Forge\bin\Release\Nicokobo.Forge.dll',
-    'samples\Nicokobo.Forge.ExampleOne\bin\Release\Nicokobo.Forge.ExampleOne.dll',
-    'samples\Nicokobo.Forge.ExampleTwo\bin\Release\Nicokobo.Forge.ExampleTwo.dll'
+    @{ Project = 'src\Nicokobo.Forge\Nicokobo.Forge.csproj'; Dll = 'src\Nicokobo.Forge\bin\Release\Nicokobo.Forge.dll' },
+    @{ Project = 'samples\Nicokobo.Forge.ExampleOne\Nicokobo.Forge.ExampleOne.csproj'; Dll = 'samples\Nicokobo.Forge.ExampleOne\bin\Release\Nicokobo.Forge.ExampleOne.dll' },
+    @{ Project = 'samples\Nicokobo.Forge.ExampleTwo\Nicokobo.Forge.ExampleTwo.csproj'; Dll = 'samples\Nicokobo.Forge.ExampleTwo\bin\Release\Nicokobo.Forge.ExampleTwo.dll' }
 )
 $manifest = foreach ($artifact in $artifacts) {
-    $source = Join-Path $projectRoot $artifact
+    $source = Join-Path $projectRoot $artifact.Dll
     if (-not (Test-Path -LiteralPath $source)) { throw "Build artifact missing: $source" }
-    $destination = Join-Path $packageRoot (Split-Path -Leaf $source)
+    $projectFile = Join-Path $projectRoot $artifact.Project
+    if (-not (Test-Path -LiteralPath $projectFile -PathType Leaf)) { throw "Project missing: $projectFile" }
+    $project = [xml](Get-Content -LiteralPath $projectFile -Raw)
+    $version = [string]$project.Project.PropertyGroup.Version
+    if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Unexpected version in $($artifact.Project): $version" }
+    $assemblyVersion = [Reflection.AssemblyName]::GetAssemblyName($source).Version
+    if ($assemblyVersion.Major -ne ([version]$version).Major -or
+        $assemblyVersion.Minor -ne ([version]$version).Minor -or
+        $assemblyVersion.Build -ne ([version]$version).Build) {
+        throw "DLL version $assemblyVersion does not match project version $version ($($artifact.Project))"
+    }
+    $name = "$([IO.Path]::GetFileNameWithoutExtension($source))-$version.dll"
+    $destination = Join-Path $packageRoot $name
     Copy-Item -LiteralPath $source -Destination $destination -Force
     [pscustomobject]@{
-        file = Split-Path -Leaf $destination
+        file = $name
         sha256 = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash
     }
 }

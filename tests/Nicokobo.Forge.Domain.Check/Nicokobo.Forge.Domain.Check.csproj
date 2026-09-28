@@ -5,8 +5,6 @@
     <Compile Include="../../src/Nicokobo.Forge/Registration/DeclarationCatalog.cs" Link="DeclarationCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/NativeItemCatalog.cs" Link="NativeItemCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/NativeEffectCatalog.cs" Link="NativeEffectCatalog.cs" />
-    <Compile Include="../../src/Nicokobo.Forge/Registration/NetworkUpgradeCatalog.cs" Link="NetworkUpgradeCatalog.cs" />
-    <Compile Include="../../src/Nicokobo.Forge/NetworkUpgradeSaveReadback.cs" Link="NetworkUpgradeSaveReadback.cs" />
     <Compile Include="../../samples/Nicokobo.Forge.LogisticsExtension/LogisticsRules.cs" Link="LogisticsRules.cs" />
     <Compile Include="../../samples/Nicokobo.Forge.LogisticsExtension/LogisticsRouting.cs" Link="LogisticsRouting.cs" />
     <Compile Include="../../samples/Nicokobo.Forge.LogisticsExtension/LogisticsConfigCodec.cs" Link="LogisticsConfigCodec.cs" />

@@ -21,7 +21,6 @@ public sealed class Plugin : MelonMod
         ForgeApi.SetLogger(log.Callback);
         ForgeNativeApi.SetLogger(log.Callback);
         ForgeNativeEffectApi.SetLogger(log.Callback);
-        ForgeNetworkUpgradeApi.SetLogger(log.Callback);
         ForgeStartApi.SetLogger(log.Callback);
         var gameRoot = Path.GetDirectoryName(MelonEnvironment.ModsDirectory.TrimEnd(
             Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -58,13 +57,10 @@ public sealed class Plugin : MelonMod
                 report.RandomEffectSignatureMatch && report.NativeEffectSignaturesMatch,
             report.ModuleDirectorySignaturesMatch);
         var nativeEffectInstalled = ForgeNativeEffectApi.HooksInstalled;
-        var networkUpgradeInstalled = ForgeNetworkUpgradeApi.Install(HarmonyInstance,
-            report.KnownBuild && report.NetworkUpgradeSignaturesMatch);
         ForgeCapabilities.Publish(new(report.KnownBuild, nativeNodeInstalled,
             ForgeNativeApi.ModuleHookInstalled,
             ForgeNativeApi.AmenityHookInstalled,
             ForgeNativeApi.NightShopHookInstalled,
-            networkUpgradeInstalled,
             report.KnownBuild && report.RunDataSignaturesMatch,
             report.KnownBuild && report.InventoryReadSignaturesMatch,
             report.KnownBuild && report.InventoryPreviewSignaturesMatch,
@@ -74,8 +70,6 @@ public sealed class Plugin : MelonMod
             $"moduleHookInstalled={ForgeNativeApi.ModuleHookInstalled}; " +
             $"amenityHookInstalled={ForgeNativeApi.AmenityHookInstalled}; " +
             $"nightShopHookInstalled={ForgeNativeApi.NightShopHookInstalled}; " +
-            $"networkUpgradeHooksInstalled={networkUpgradeInstalled}; " +
-            $"stagedNetworkUpgrades={ForgeNetworkUpgradeApi.StagedCount}; " +
             $"nativeEffectHookInstalled={nativeEffectInstalled}; " +
             $"stagedEffects={ForgeNativeEffectApi.StagedCount}; " +
             $"declarations={ForgeApi.Snapshot().Count}");

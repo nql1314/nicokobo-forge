@@ -7,7 +7,6 @@ namespace Nicokobo.Forge.Diagnostics;
 internal sealed record BuildProbeReport(bool KnownBuild, bool SignaturesMatch,
     bool MiscDirectorySignatureMatch, bool ModuleDirectorySignaturesMatch,
     bool AmenityDirectorySignatureMatch, bool NightShopSignaturesMatch,
-    bool NetworkUpgradeSignaturesMatch,
     bool RandomEffectSignatureMatch,
     bool RunDataSignaturesMatch, bool InventoryReadSignaturesMatch,
     bool InventoryPreviewSignaturesMatch, bool NativeEffectSignaturesMatch,
@@ -57,58 +56,6 @@ internal static class BuildProbe
                     "AddDirectSellingItemToTable", false, "System.Void",
                     "Il2Cpp.GameItem", "System.Boolean", "System.Boolean",
                     "System.Boolean", "System.Int32");
-            bool networkUpgradeSignatures =
-                CheckConstructor(lines, typeof(Il2Cpp.NetworkUpgrade), "System.String") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "InitUpgradeDict", true,
-                    typeof(Il2CppSystem.Collections.Generic.Dictionary<string,
-                        Il2Cpp.NetworkUpgrade>).FullName!) &
-                Check(lines, typeof(Il2Cpp.ModHook),
-                    "FireOnGameLoadedLate", true, "System.Void") &
-                Check(lines, typeof(Il2Cpp.WildUIManager),
-                    "OpenUI", false, "System.Void", "System.Boolean") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "GetLocalizedTitle", false, "System.String") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "GetLocalizedSubtitle", false, "System.String") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "GetLocalizedDescription", false, "System.String") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "GetLocalizedAlreadyBought", false, "System.String") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "GetCost", false, "System.Int32") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "IsReady", false, "System.Boolean") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "GetMissingPrerequisite", false, "System.String") &
-                Check(lines, typeof(Il2Cpp.NetworkUpgrade),
-                    "Unlock", false, "System.Void") &
-                Check(lines, typeof(Il2Cpp.WildUIManager),
-                    "OnUnlockClicked", false, "System.Void") &
-                Check(lines, typeof(Il2Cpp.NetworkElement),
-                    "UpdateElement", false, "System.Void") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.PlayerStore),
-                    "networkUpgrade", "Il2CppSystem.Collections.Generic.Dictionary`2") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.WildUIManager),
-                    "networkElements", "Il2CppSystem.Collections.Generic.List`1") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.NetworkElement),
-                    "id", "System.String") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.NetworkUpgrade),
-                    "id", "System.String") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.NetworkUpgrade),
-                    "cost", "System.Int32") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.NetworkUpgrade),
-                    "prerequisite", "Il2CppSystem.Collections.Generic.List`1") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.NetworkUpgrade),
-                    "state", "System.Int32") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.WildUIManager),
-                    "currentSelectedId", "System.String") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.PlayerStore),
-                    "playerCash", "System.Int32") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.PlayerStore),
-                    "wildFavor", "System.Int32") &
-                CheckProperty(lines, "Network", typeof(Il2Cpp.NetworkUpgradeList),
-                    "UnlockActions", "Il2CppSystem.Collections.Generic.Dictionary`2");
             signatures &= Check(lines, typeof(Il2Cpp.PerkUIController),
                 "OpenUI", false, "System.Void");
             signatures &= Check(lines, typeof(Il2Cpp.PlayerStore),
@@ -180,8 +127,6 @@ internal static class BuildProbe
                 $"amenityRegistrationAllowed={knownBuild && amenityDirectorySignature}");
             lines.Add($"[NicokoboForge/NightShop] signaturesMatch={nightShopSignatures}; " +
                 $"stockRegistrationAllowed={knownBuild && nightShopSignatures}");
-            lines.Add($"[NicokoboForge/Network] signaturesMatch={networkUpgradeSignatures}; " +
-                $"registrationAllowed={knownBuild && networkUpgradeSignatures}");
             lines.Add($"[NicokoboForge/RunData] signaturesMatch={runDataSignatures}; " +
                 $"stageAllowed={knownBuild && runDataSignatures}");
             lines.Add($"[NicokoboForge/Inventory] readSignaturesMatch={inventoryReadSignatures}; " +
@@ -192,7 +137,7 @@ internal static class BuildProbe
                 $"registrationAllowed={knownBuild && miscDirectorySignature && randomEffectSignature && nativeEffectSignatures}");
             return new(knownBuild, signatures, miscDirectorySignature,
                 moduleDirectorySignatures, amenityDirectorySignature,
-                nightShopSignatures, networkUpgradeSignatures, randomEffectSignature,
+                nightShopSignatures, randomEffectSignature,
                 runDataSignatures,
                 inventoryReadSignatures, inventoryPreviewSignatures,
                 nativeEffectSignatures, lines);
@@ -201,7 +146,7 @@ internal static class BuildProbe
         {
             lines.Add($"[NicokoboForge/P0] probeFailed={ex.GetType().Name}: {ex.Message}");
             return new(false, false, false, false, false, false, false, false, false,
-                false, false, false, lines);
+                false, false, lines);
         }
     }
 
@@ -219,18 +164,6 @@ internal static class BuildProbe
                 ?? Array.Empty<string>())
             : "n/a";
         lines.Add($"[NicokoboForge/P0] {type.FullName}.{name}({string.Join(",", arguments)}):{returnType}; match={found}; patchOwners=[{owners}]");
-        return found;
-    }
-
-    private static bool CheckConstructor(List<string> lines, Type type,
-        params string[] arguments)
-    {
-        var constructors = type.GetConstructors(Declared);
-        bool found = constructors.Any(candidate => candidate.GetParameters()
-            .Select(parameter => parameter.ParameterType.FullName)
-            .SequenceEqual(arguments));
-        lines.Add($"[NicokoboForge/Network] {type.FullName}.ctor(" +
-            $"{string.Join(",", arguments)}); match={found}");
         return found;
     }
 

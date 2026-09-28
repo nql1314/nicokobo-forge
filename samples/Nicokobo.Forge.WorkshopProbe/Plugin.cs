@@ -15,6 +15,8 @@ public sealed class Plugin : MelonMod
 {
     private const string OwnerId = "nicokobo.forge.workshop_probe";
     private const string TabId = OwnerId + ".workshop";
+    private const string GoalChainId = OwnerId + ".goal_chain";
+    private const string GoalId = OwnerId + ".goal";
     private static readonly string[] Ids =
     [
         OwnerId + ".signal", OwnerId + ".relay",
@@ -31,11 +33,14 @@ public sealed class Plugin : MelonMod
 
     public override void OnInitializeMelon()
     {
-        var result = ForgeWorkshopApi.RegisterTab(OwnerId, TabId,
+        var result = ForgeWorkshopApi.RegisterChain(OwnerId, TabId,
             "工坊测试", "Workshop Probe", Snapshot, Unlock);
         LoggerInstance.Msg($"[WorkshopProbe] registration={result.Status}; {result.Reason}");
         if (result.Status is not (SubmitStatus.Accepted or SubmitStatus.AlreadyPresent))
             LoggerInstance.Warning("[WorkshopProbe] tab was not registered");
+        var goal = ForgeWorkshopApi.RegisterChain(OwnerId, GoalChainId,
+            "总链测试", "Shared Goal Probe", GoalSnapshot, Unlock);
+        LoggerInstance.Msg($"[WorkshopProbe] goal registration={goal.Status}; {goal.Reason}");
     }
 
     private ForgeWorkshopSnapshot? Snapshot()
@@ -91,15 +96,59 @@ public sealed class Plugin : MelonMod
                 : (english ? "Ready" : "可解锁"),
             done ? (english ? "Unlocked" : "已解锁")
                 : (english ? "Unlock" : "解锁"),
-            done, ready, !done && ready);
+            done, ready, !done && ready)
+        {
+            Dependencies = new[] { prerequisite, extraPrerequisite }
+                .Where(x => x.HasValue).Select(x => Ids[x!.Value]).ToArray(),
+            GraphX = index switch { 0 => -0.72f, 1 => -0.25f,
+                2 => 0.72f, _ => 0f },
+            GraphY = index switch { 0 => -0.5f, 1 => -0.1f,
+                2 => -0.5f, _ => 0.58f }
+        };
+    }
+
+    private ForgeWorkshopSnapshot? GoalSnapshot()
+    {
+        var baseSnapshot = Snapshot();
+        if (baseSnapshot == null) return null;
+        bool english = baseSnapshot.English;
+        bool done = _unlocked.Contains(GoalId);
+        var goal = new ForgeWorkshopEntry(GoalId,
+            english ? "Shared Goal" : "共同目标",
+            english ? "Cross-chain dependency" : "跨链前置",
+            english ? "Complete the probe chain first." : "先完成测试链。",
+            english ? "Relay + Combined Link" : "中继器 + 组合链路",
+            english ? "No resources" : "无资源消耗",
+            english ? "Free" : "免费",
+            done ? (english ? "Completed" : "已完成") :
+                (english ? "Awaiting other chain" : "等待另一条链"),
+            done ? (english ? "Completed" : "已完成") :
+                (english ? "Unlock" : "解锁"),
+            done, true, !done)
+        {
+            Dependencies = [Ids[1], Ids[3]],
+            GraphX = 0f,
+            GraphY = 0f
+        };
+        return new ForgeWorkshopSnapshot(baseSnapshot.Credits, english,
+            [new("共同目标", "Shared goal", 1)], [goal], _message);
     }
 
     private void Unlock(string entryId)
     {
-        if (CurrentStore() == null || Array.IndexOf(Ids, entryId) < 0) return;
+        if (CurrentStore() == null) return;
         // Recheck the current snapshot; Forge's displayed state can be stale.
-        var entry = Snapshot()?.Entries.FirstOrDefault(x => x.Id == entryId);
-        if (entry?.ActionEnabled != true) return;
+        if (entryId == GoalId)
+        {
+            if (_unlocked.Contains(GoalId) || !_unlocked.Contains(Ids[1]) ||
+                !_unlocked.Contains(Ids[3])) return;
+        }
+        else
+        {
+            if (Array.IndexOf(Ids, entryId) < 0) return;
+            var entry = Snapshot()?.Entries.FirstOrDefault(x => x.Id == entryId);
+            if (entry?.ActionEnabled != true) return;
+        }
         _unlocked.Add(entryId);
         _message = PreferEnglish() ? "Test unlock recorded for this session." :
             "测试解锁已记录在本次运行中。";

@@ -1,33 +1,48 @@
-# 构建产物
-**/bin/
-**/obj/
+# ============ .NET / C# 构建产物 ============
+[Bb]in/
+[Oo]bj/
+/artifacts/
+/TestResults/
 output/
 *.cache
+*.dll
+*.pdb
+*.nupkg
+*.snupkg
+*.zip
+*.deps.json
+*.runtimeconfig.json
+project.assets.json
+*.csproj.nuget.*
 
-# 打包输出（保留发布包）
+# ============ 打包输出 ============
+# dist/ 只保留文档与封面；DLL、ZIP 等二进制与临时目录不入库
 dist/*
 !dist/nicokobo-forge/
-!dist/Nicokobo.Forge-*.zip
 dist/nicokobo-forge/*
-!dist/nicokobo-forge/Nicokobo.Forge.dll
-!dist/nicokobo-forge/cover.png
-!dist/nicokobo-forge/README.md
-!dist/nicokobo-forge/release.md
+!dist/nicokobo-forge/*.md
+!dist/nicokobo-forge/*.png
 
-# 用户本地配置
+# ============ 用户本地配置 ============
 *.user
+Directory.Build.props.user
 *.suo
+*.userprefs
 
-# IDE 本地文件
+# ============ IDE 本地文件 ============
 .vs/
 .idea/
 .vscode/
+*.code-workspace
 
-# 日志与临时文件
+# ============ 日志与临时文件 ============
 *.log
+logs/
 *.tmp
+*.bak
+*.swp
 
-# 系统文件
+# ============ 系统文件 ============
 .DS_Store
 Thumbs.db
 desktop.ini
