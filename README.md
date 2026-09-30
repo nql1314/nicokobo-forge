@@ -1,6 +1,6 @@
 # Nicokobo Forge / 模组前置框架
 
-Author: Nicokobo · Version: 0.3.9
+Author: Nicokobo · Version: 0.5.0
 
 ## Summary / 摘要
 
@@ -8,9 +8,11 @@ Author: Nicokobo · Version: 0.3.9
 
 **中文：**Probably Stolen Demo 内容 Mod 的共用前置，支持新物品、效果与 Nico 工坊；单独安装不会增加玩法内容。
 
-This local `0.3.9` candidate targets **Probably Stolen Demo Steam Build 25382790**. Other game builds are unverified; Forge disables native features when the game build or required signatures do not match. Each registered machine processes at most one batch per night. Expanded recipe admission and processing still require gameplay checks.
+This local `0.5.0` candidate targets **Probably Stolen Demo Steam Build 25382790**. It replaces the previous machine API with native UI templates, item/liquid/mixed inputs, a single item or container output template, module and battery slots, and transactional nightly processing. Content mods must be rebuilt; old machine saves are not migrated. Local builds do not prove in-game UI, production or save/reload behavior.
 
-当前 `0.3.9` 面向 **Probably Stolen Demo Steam Build 25382790**。其他游戏构建尚未验证；构建或必要签名不匹配时，Forge 会停用对应原生功能。每台注册机器每晚只处理一批；原版熔炉不再额外重复加工，原版纯度、助溶剂及模块装入/移出回调仍由游戏处理。输入规则按注册配方建立索引，熔炉可接纳新增原料；加工读取机器当前电耗。原版熔炉可声明“原版批次探针”：投料槽里还有原版材料能凑成游戏自己的批次时，注册配方让出该夜，凑不成批时才由 Forge 加工并跳过原生循环。液体配方可声明整叠投入：投料槽里价值最大的那一件优先，整叠保留到目标件数完成，完成时可按内容方声明只消耗应付的整件，余料留在槽里；价值由内容方按合并价值计算。液体配方还可声明 `ResolveWaterMillilitres` 按本批实际投入计算每件产物的用水毫升数（内容方据此实现按价值 1:1 扣水），并用 `ProgressVersion` 标记批次计价语义：版本不符或来自旧记录格式的进度会被清空并从槽内投入重新开批。液体产物同样在扣料前经过内容方的 `PrepareOutput` 收尾（例如灌装液体并校验读回），失败时整夜回滚。Forge 补充垃圾桶清理已停用，由原版清洁服务处理。本轮改动尚待游戏内过夜验证。本地开发打包默认日志级别为 `INFO`，详细探针须显式设为 `DEBUG`，用户的 `MelonPreferences.cfg` 设置优先。
+当前 `0.5.0` 面向 **Probably Stolen Demo Steam Build 25382790**。机器 API 已替换为原版 UI 模板声明：支持物品、液体或两者同时输入，每台机器选择物品仓或容器输出，并配置模组仓、电池和手册槽。Forge 统一处理液体组分、动态体积、每批／每件耗电、仓库容量、逐项读回及失败恢复，每台机器每夜最多尝试一批。自定义机器复用两个公共生命周期 Hook；原版熔炉扩展按需加装两个钩子。合成扩展 K01–K05 和机械飞升的 K05 追加配方已迁移到新接口，需要配套重新编译，不提供旧接口兼容或旧存档迁移。游戏内 UI、过夜和新档重载待验证。本地默认日志为 `INFO`，用户配置优先。Forge 补充垃圾桶清理仍停用。
+
+公共 API 已按注册、运行时、生命周期、模组、文本、库存、周目数据、电量和液体划分。机核协议的重复接入改为公共订阅，必要原生操作集中到适配器，说明与边界见 [API 职责](docs/API_BOUNDARIES.md)。配套候选为模组矩阵 1.1.0、物流脉络 0.2.0、合成扩展 0.8.0、机械飞升 0.1.8。
 
 ---
 
@@ -30,7 +32,7 @@ This local `0.3.9` candidate targets **Probably Stolen Demo Steam Build 25382790
 ### What Forge provides
 
 - A shared base for compatible mods to register items, facilities, nodes, machine modules, and effects.
-- Machine and recipe registration, input admission, and nightly item or liquid processing for furnace-style machines. See [Machine API](docs/MACHINE_API.md).
+- Native machine UI templates, recipe registration, mixed item/liquid admission, item or container output, and atomic nightly resource processing. See [Machine API](docs/MACHINE_API.md).
 - Integration points for a Nico Workshop with tabs from multiple mods.
 - Shared support for content mods' start IDs and per-run data.
 
@@ -58,7 +60,7 @@ Released under the [MIT License](LICENSE).
 ### Forge 提供什么
 
 - 为兼容的 Mod 提供物品、设施、节点、机器模组和效果的共用注册基础。
-- 为熔炉类机器提供物品及配方注册、投料判定和夜间固体／液体配方处理，调用方式见[机器 API](docs/MACHINE_API.md)。
+- 提供机器 UI 模板、物品与液体并用输入、物品或容器输出及统一过夜事务，调用方式见[机器 API](docs/MACHINE_API.md)。
 - 提供可由多个 Mod 共用标签页的 Nico 工坊。
 - 为内容 Mod 提供开局 ID 和周目数据的共用支持。
 

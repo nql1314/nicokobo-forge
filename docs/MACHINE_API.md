@@ -1,52 +1,105 @@
-# Forge 机器与配方 API
+# Forge 机器模板 API（0.5.0）
 
-面向 Probably Stolen Demo Steam Build `25382790`。`ForgeMachineApi` 提交声明；注册目录负责校验、冲突和投料索引，原生适配器负责设施目录、窗口、循环隔离和夜间事务。内容 Mod 提供机器工厂、物品 ID、配方、材料条件和数值回调。
+面向 Probably Stolen Demo Steam Build `25382790`。本版替换先前的 `NightlyItems` / `NightlyLiquid` API；已接入的内容 Mod 必须重新编译，不提供二进制兼容或旧存档迁移。
+
+Forge 负责原版机器 UI 模板、设施物品注册、槽位回调、过夜发现、产物落点、液体组分、电池扣减和失败恢复。内容 Mod 提供物品外观、稳定 ID、配方、条件与数值；`ConfigureItem` 不应替换窗口或添加原生生产回调。数值和条件回调只能读取状态，`PrepareItem` 只能修改它收到的新产物。
+
+## 注册机器
 
 ```csharp
-ForgeMachineApi.RegisterMachine(ownerId, machineId, CreateMachine,
-    new NativeItemOptions(NightShopStockPolicy.None),
-    [new ForgeMachineRecipe(recipeId,
-        [new ForgeMachineIngredient(inputItemId, 2)],
-        outputItemId, 1, 0,
-        ResolvePowerCost: MachineryHelper.GetMachinePowerUsage)]);
+var template = new ForgeMachineTemplate(
+    ItemInput: new(6, 4),
+    Output: new(ForgeMachineOutputKind.Items, new(6, 4)))
+{
+    LiquidInputs = [new("water", new(3, 3), "供水容器 / Water input")],
+    Battery = new(new(2, 2), Required: true),
+    Modules = new(new(4, 4), ["MODULE_TYPE_FURNACE", "MODULE_TYPE_UNIVERSAL"]),
+    ManualSlot = true
+};
 
-// Native batch probe: true while the game's own furnace cycle still has
-// something to do with this input. The registered recipes then stay idle and
-// the native cycle keeps the night; only an unservable slot falls back to
-// them. Omit it to keep the earlier feedstock-only rule.
-ForgeMachineApi.RegisterExistingMachine(ownerId, "furnace",
-    [new ForgeMachineRecipe(glassRecipeId,
-        [new ForgeMachineIngredient("empty_beer_bottle", 1)],
-        quartzItemId, 1, 0,
-        ResolvePowerCost: MachineryHelper.GetMachinePowerUsage)],
-    (machine, input) => NativeBatchAvailable(machine, input));
+var recipe = new ForgeMachineRecipe(ownerId + ".recipe.example",
+    [new ForgeMachineIngredient("scrap_metal", 2)],
+    new ForgeMachineItemOutput("metal_ingot", Count: 1))
+{
+    LiquidInputs = [new("water", 100,
+        Condition: container => ForgeLiquidApi.WaterQuality(container) >= 1)]
+};
 
-// The target custom machine must already be registered. The second Mod owns
-// only its recipe IDs and output item factories.
-ForgeMachineApi.RegisterAdditionalItemRecipes(contributorOwnerId,
-    machineId, [new ForgeMachineRecipe(contributorRecipeId,
-        [new ForgeMachineIngredient(inputItemId, 1)], outputItemId, 1, 0,
-        ResolvePowerCost: MachineryHelper.GetMachinePowerUsage)]);
+ForgeMachineRegistrationApi.RegisterMachine(ownerId,
+    new ForgeMachineDefinition(ownerId + ".machine.example", template, [recipe],
+        Power: new(0, context => MachineryHelper.GetMachinePowerUsage(context.Machine)),
+        ConfigureItem: item => { item.name = "示例机器"; /* 图标、占格和物品数值 */ },
+        ItemOptions: new NativeItemOptions(NightShopStockPolicy.None)));
 ```
 
-新机器的工厂应基于原版熔炉模板保留机器窗口和子库存，并返回新 ID 的 `GameItem`。Forge 清除模板自带的原生循环回调，注册设施物品并根据声明的材料 ID 接纳投入。`RegisterExistingMachine` 当前只接纳原版 `furnace`；其他原版机器需要相应的原生投料与循环适配器。可选的第三个参数是“原版批次探针”：`true` 表示游戏自己的熔炉循环对该投入还有事可做（能炼金属，或装了垃圾模组且槽内有垃圾）。有探针时它同时决定两件事——探针为 `true` 时注册配方整夜不起作用，原生循环照常执行；探针为 `false` 且槽内确有注册原料时，Forge 跳过原生循环并自行加工注册配方。因此玻璃原料和原版矿石可以共用投料槽，各自不会吃掉对方的材料；槽内没有注册原料时原生循环一律照常执行，非玻璃玩法不受影响。不声明探针时保持旧的“仅纯玻璃投入才跳过原生循环”规则。探针抛错时按 `true` 处理，把该夜交还原生流程。探针只在原版机器上有效，注册到自定义机器返回 `Invalid`。
+工厂由 Forge 统一创建，不再要求内容方克隆熔炉后自行维护窗口子库存。UI 保留原版电池、模组仓、投料、产出和手册的布局位置与组件；液体槽按声明扩展。电池和模组仓继续使用 `MachineHelper.SetupBatterySlot` / `SetupModuleBay`；原版模组装入、移出、加成和作业通知仍走游戏接口。仓库尺寸按格声明，范围为 1–32；液体输入槽最多 8 个。
 
-`RegisterAdditionalItemRecipes` 允许另一内容 Mod 给已注册的自定义 `NightlyItems` 机器追加配方，不能追加到原版熔炉或液体机器。追加方负责注册产物，并使用自己的 owner 前缀命名配方 ID；目标机器未注册时返回 `Invalid`。初始声明在 `OnInitializeMelon` 提交，跨 Mod 配方在 `OnLateInitializeMelon` 一次接入，避免轮询整个目录。重复配方 ID 返回 `Conflict`。此 API 不注册第二台机器，也不改变机器工厂。
+注册会先校验整个声明，再暂存设施工厂。模板、模组类型、配方及其嵌套列表在注册时冻结。重复机器 ID 返回 `Conflict`；不匹配模板的配方返回 `Invalid`，不会部分发布。`Accepted` 只表示声明被接受；设施目录是否 `Applied` 仍需检查 `ForgeItemApi.Snapshot()`。
 
-注册成功会复制输入和辅助物品列表；之后修改调用方列表不会改变已暂存配方。追加配方时发布新的完整机器配置，正在处理的事务保留自己的配置。内容委托仍由 Forge 持有，数值规则归内容 Mod。
+## 输入与输出模板
 
-`NightlyItems` 在 `PlayerStore.EndNight` 前发现机器并结算，让结果进入本轮原生保存。扫描原生物品树，并保留实时存档袋、主背包、后备背包和网格的有界补充扫描；新建档未读档时也走此路径。它检查投入条件、所有权、电量；产物逐件寻找输出区空格，找不到可用空格才使用原版的叠放接纳路径；逐项写入并读回投入、产物和电量，失败时尝试恢复。同一会话按存档槽、周目、日期和机器实例去重。每台机器每晚只执行一批；液体机器每晚只处理一件投入物或继续其已有进度，即使完成也不会在同夜加工另一件。`ResolveBatchCount` 只保留成员签名兼容旧内容 DLL，运行时不再读取或调用它。原版熔炉不再由 Forge 重复调用原生加工，纯度和助溶剂计算继续由游戏处理。投料按注册配方的投入及辅助物品索引接纳；新增原料在原生矿石判定前放行，其余原版熔炉物品继续使用原生判定。模块装入/移出回调继续执行。原版熔炉回收玻璃时，投入区中的基础或高级助溶剂可保留，但不参与该玻璃配方。声明了原版批次探针的熔炉按“原版优先”分工：原版循环对该投入还有事可做时，本夜留给游戏自己的批次（例如够件的金属矿石或废金属），注册配方留到下一夜；原版做不了任何事而槽内又有注册原料时，由 Forge 加工注册配方并跳过原生循环，避免原版循环空转时把玻璃或残余材料留成死料。内容侧使用 `ResolvePowerCost: MachineryHelper.GetMachinePowerUsage` 让同一机器的所有配方按机器当前电耗扣电；电耗可为 0，负值拒绝。`PowerCost` 和解析回调保留以兼容已有提供者。数值回调不应改动库存。
+| 配置 | 行为 |
+| --- | --- |
+| `ItemInput` 有尺寸，`LiquidInputs = []` | 物品输入 |
+| `ItemInput = null`，声明液体槽 | 纯液体输入 |
+| 同时声明物品仓和液体槽 | 同一批同时扣物品和液体 |
+| `Output.Kind = Items` | 在有界输出仓创建配方物品；仓满取消本批并恢复已尝试的写入 |
+| `Output.Kind = Container` | 向玩家放在输出槽中的现有容器灌装；容器原地保留，不生成额外物品 |
+| `Battery = null` | 无电池槽，只允许无动态耗电、固定零耗电的机器 |
+| `Battery.Required = false` | 零耗电批次允许没有电池；正耗电批次仍必须有可用电池 |
+| `Modules = null` / `ManualSlot = false` | 省略对应模组仓／手册槽 |
 
-`ForgeMachineRecipe.AuxiliaryItemIds` 允许自定义机器接纳不计入配方的辅助物品。`PrepareOutput` 在扣除材料前逐件调用，可依据机器和选中的投入物设置产物状态，例如调用原版纯度接口；固态与液体模式都会调用它——液体模式下传入本次批次选中的那一件投料，抛错同样取消该批事务（产物被召回、投入物、水位与电量恢复原状），因此内容 Mod 也可以在产物生成后灌装液体并校验读回。
+每台机器只有一种输出模板，每条配方必须与之匹配。物品仓与液体槽可以并用；容器只因其液体内容被扣减，不作为耗材移除。槽位条件允许限制容器类型，配方条件则校验本批需要的水质等状态。一个液体槽在一条配方中只能出现一次；多个槽可以同时参加结算。
 
-`ForgeMachineRecipe.AcceptsStackedInput` 只对 `NightlyLiquid` 配方有效：置位后整叠投入被视为一份批次投入，投料槽里价值最大的那一件优先（同价值取数量更多的），整叠保留在投料槽直到目标件数完成；不置位时单位数量不为 1 的投入仍返回 `input-stack-unsupported`。配方仍声明一件投入，内容方可以在 `ResolveLifetimeOutputCount` 里读 `unitCount` 并按合并价值决定目标件数；回调返回 0 表示这次投入不够一批，Forge 记 `input-below-batch` 且不动任何状态。进度里记录的 `InitialValue` 在整叠模式下是整叠的合并价值。
+`ForgeMachineIngredient.Count` 按件数取料，支持跨叠、重复材料规则与额外未参与材料保留。`WholeStack = true`（`Count` 必须为 1）选择整叠，按单件价值从大到小、同价值按数量从大到小选择。实际扣除数量见 `context.Items[i].Count`，不要用配方的 `Count` 推导整叠数量。
 
-完成时的消耗量由可选的 `ForgeMachineRecipe.ResolveConsumedUnits(item, targetCount)` 决定：不声明时消耗整个投入物；声明后只扣回调返回的整件数量（必须在 1 与该叠数量之间），剩余整件留在投料槽继续参与以后夜晚的批次，失败回滚时同时恢复数量。因此“按整百凑件、余料留下”的规则由内容方计算，Forge 只负责按量扣除与恢复。
+```csharp
+// 纯液体输入；取 source 容器中的指定组分，灌入现有输出容器。
+var template = new ForgeMachineTemplate(null,
+    new(ForgeMachineOutputKind.Container, new(3, 3)))
+{
+    LiquidInputs = [new("source", new(3, 3))],
+    Modules = null, ManualSlot = false
+};
+var recipe = new ForgeMachineRecipe(ownerId + ".recipe.liquid", [],
+    new ForgeMachineContainerOutput([new("water", 90)]))
+{
+    LiquidInputs = [new("source", 100, LiquidId: "water")]
+};
+```
 
-液体模式 `NightlyLiquid` 使用熔炉窗口第六槽作为独立水源槽。Forge 读取原生水质条件和液体组成；原生体积每 1000 part 为 1 ml，每件产物按 `ForgeMachineWaterRequirement` 扣水。首次加工冻结整件投入物的总目标，每晚产量同时受水量及配方的 `MaxOutputsPerNight` 限制，并将累计进度写在机器实例标签中；最终完成才移除投入物。内容 Mod 应依据输出物占格和输出区面积设置该上限。失败时按原液体组分恢复，恢复失败会隔离该机器。
+液体声明单位为整数毫升，底层使用 `1000 part = 1 ml`。不指定 `LiquidId` 时按当前混合比例扣减，用最大余数分配剩余 part，保证总量精确；指定 ID 时只扣该组分。输入不足、组分不存在、动态体积非正、整数溢出或输出容量不足都取消本批。液体读取和写后校验覆盖原版液体目录的每个组分，撤回时恢复原组分，而非补成纯水。
 
-`ForgeMachineRecipe.ResolveWaterMillilitres(machine, input)` 把固定的“每件产物毫升数”换成按批计算：返回值就是本次产量中每件产物的毫升数，Forge 用它做可用量判断与扣水，因此内容方可以让用水量跟着本批实际投入走（例如按投入价值 1:1 计）。回调返回非正值或抛错时该夜按 `water-rule-invalid` 判失败，不扣任何状态。声明了该回调的配方可以同时把 `MillilitresPerOutput` 写成 0。
+`ResolveMillilitres(context)` 支持按本批实际材料价值计算扣水和灌装量。`ForgeMachineItemOutput.Contents` 可以灌装新生成的容器物品：内容方注册的产物工厂应返回空容器，每个产物分别获得声明体积。`ForgeMachineContainerOutput.Contents` 则灌入输出槽中的现有容器，允许在模板条件许可下混合已有液体。
 
-`ForgeMachineRecipe.ProgressVersion` 标记配方的批次计价语义，默认 1。写入进度记录时会一并记下该值：读到的记录版本与当前配方不同，或记录来自更早的 Forge 记录格式时，Forge 丢弃该记录并清空进度标签，让机器从槽内投入重新开一批。修改了逐批产量/扣水规则的内容 Mod 应递增该值，避免存档里按旧目标继续加工。
+`ForgeLiquidApi.Capture` 返回组分和容量；`WaterQuality` 返回 0（未知／不满足基础水）、1（基础）、2（高品质）、3（纯净）。容器输入和输出均要求单件容器，拒绝合并容器叠。
 
-`ForgeMachineApi.Snapshot()` 返回注册项和运行门控；`ForgeCapabilities.Current.MachineNightProcessing` 只表示原生补丁已安装，不表示某台机器成功加工。运行日志使用 `[NicokoboForge/Machine]` 前缀。当前仅支持上述两种夜间模式。纯编译、注册和补丁安装不能替代可丢弃存档中的投料、产物、电量、耗水和重载检查。
+## 电池与过夜事务
+
+`ForgeMachinePowerRule` 是机器级规则，所有配方共用。`Cost` 默认按批扣一次；`PerOutput = true` 则乘本批物品产量。`ResolveCost` 先收到已选材料、液体容器和已解析的 `OutputCount`，适合读取机器当前电耗以保留效率模组效果。负值和溢出拒绝；零耗电不调用原生扣电。`ForgeMachinePowerMath.CalculateCost` 可在内容方的预览中复用同一计算。
+
+机器在 `PlayerStore.EndNight` 的 Prefix 中结算，每台每夜最多尝试一批。同一会话内按存档槽、周目、日期和机器实例去重；失败也不会在同一夜重复尝试。使用 `PlayerStore.FindAllItem()` 发现机器，保留实时存档袋与网格的有界补充扫描，无逐帧轮询。
+
+先解析和预检本批材料、液体、容量与电量，再创建及预处理产物、落到输出仓／灌入输出容器，随后扣液体、电量和物品。每次写入都有读回，提交前再次核对所有资源；被消费的整件只在提交后销毁。原生调用若写入后失败，仍会撤回该步骤；撤回失败不会阻止其他恢复步骤，并为机器记录故障标签、停用后续加工。原版保存仍由游戏的过夜流程执行。
+
+本版不再保留旧液体生命周期进度、旧模式或版本迁移。K04 的当前规则是一批产生一个灌装罐，水不足或容器装不下整批时保持材料等待下一夜。
+
+## 追加配方与原版机器
+
+```csharp
+// 在 OnLateInitializeMelon，一次接入已由其他 Mod 注册的自定义机器。
+ForgeMachineRegistrationApi.RegisterAdditionalRecipes(contributorOwnerId, targetMachineId, recipes);
+
+// 原版机器目前仅支持 furnace；它的原生批次优先。
+ForgeMachineRegistrationApi.RegisterExistingMachine(ownerId, "furnace", glassRecipes,
+    new ForgeMachinePowerRule(0, context => ForgePowerApi.GetMachineCost(context.Machine)),
+    (machine, input) => NativeBatchAvailable(machine, input));
+```
+
+追加配方必须使用追加方的 owner 前缀，并符合目标机器的输入槽和输出模板。整个批次校验后发布新配置，既有事务持有原配置。追加方不创建第二台机器。
+
+自定义机器复用公共过夜和读档事件，投料在本机槽位上绑定回调，不 Hook 原版窗口创建或存档解码。只有注册原版熔炉追加配方时，才额外安装它的投料和生产两个 Hook；这些钩子只处理已认领的原版熔炉。探针为 true 或抛错时整夜交还原版；为 false 且有注册材料时由 Forge 加工。没有探针则只接管纯注册材料及原版助溶剂的投入。原版模组装入、移出回调不被拦截。
+
+`ForgeMachineRuntimeApi.TryGetInventory` 返回本机的实时槽位；`ForgeMachineRegistrationApi.Snapshot()` 的 `RuntimeInstalled` 分别反映模板和可选原版扩展门控。`ForgeCapabilities.Current.MachineNightProcessing` 表示模板生命周期补丁安装，不表示某台机器成功生产或保存。
+
+可编译接入示例见 [MachineTemplates](../samples/Nicokobo.Forge.MachineTemplates/MachineExamples.cs)。领域检查、编译和打包不代替原版 UI 的游戏内操作、实际过夜、电量／液体读回和新存档保存重载验收。

@@ -24,7 +24,7 @@ public sealed record NativeTransferPreview(NativeTransferPreviewStatus Status,
 
 /// <summary>Build-gated direct-child inventory observation. No native inventory
 /// mutation or recursive container traversal is performed.</summary>
-public static class ForgeNativeInventoryApi
+public static class ForgeInventoryApi
 {
     private const int MaxDirectItems = 4096;
     private static bool _enabled;
@@ -35,6 +35,50 @@ public static class ForgeNativeInventoryApi
         _enabled = readEnabled;
         _previewEnabled = readEnabled && previewEnabled;
     }
+
+    /// <summary>A detached list of live handles from the current run. Includes
+    /// nested inventories and machine modules. Capture at an event boundary,
+    /// then revalidate ownership and parent inventory before a mutation.</summary>
+    public static IReadOnlyList<GameItem> CaptureRunItems(PlayerStore store)
+    {
+        if (!_enabled) throw new InvalidOperationException("Run inventory adapter unavailable");
+        if (store == null || store.Pointer == IntPtr.Zero) throw new ArgumentException("Current store is required");
+        var result = new List<GameItem>();
+        var seen = new HashSet<IntPtr>();
+        var pending = new Queue<GameItem>();
+        void Add(GameItem? item)
+        {
+            if (item == null || item.Pointer == IntPtr.Zero || !seen.Add(item.Pointer)) return;
+            if (seen.Count > 8192) throw new InvalidOperationException("Run item traversal exceeds limit");
+            pending.Enqueue(item);
+        }
+        var all = store.FindAllItem(true) ?? throw new InvalidOperationException("Run items unavailable");
+        for (int i = 0; i < all.Count; i++) Add(all[i]);
+        if (store.saveBags != null) foreach (var bag in store.saveBags.Values) Add(bag);
+        if (store.gridInv?.childItems != null) foreach (var item in store.gridInv.childItems) Add(item);
+        while (pending.TryDequeue(out var item))
+        {
+            result.Add(item);
+            if (item.children != null)
+            {
+                if (item.children.Count > 64) throw new InvalidOperationException("Item child traversal exceeds limit");
+                foreach (var child in item.children)
+                {
+                    GameInventory? inventory;
+                    try { inventory = child.Cast<GameInventory>(); } catch (InvalidCastException) { continue; }
+                    if (inventory?.childItems != null) foreach (var nested in inventory.childItems) Add(nested);
+                }
+            }
+            GameGridInventory? modules;
+            try { modules = ForgeModuleApi.GetInventory(item); }
+            catch { modules = null; } // Non-machine native items may not expose a bay.
+            if (modules?.items != null) foreach (var module in modules.items) Add(module);
+        }
+        return result.AsReadOnly();
+    }
+
+    public static bool IsPlayerOwned(GameItem item) => _enabled && item != null &&
+        item.Pointer != IntPtr.Zero && GeneralHelper.IsItemOwned(item);
 
     public static NativeInventorySnapshot CaptureDirect(GameInventory? inventory)
     {

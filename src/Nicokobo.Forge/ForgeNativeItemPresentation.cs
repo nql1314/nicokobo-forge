@@ -1,6 +1,7 @@
 using HarmonyLib;
 using Il2Cpp;
 using Nicokobo.Forge.Registration;
+using Nicokobo.Forge.Runtime;
 using UnityEngine.Localization.Settings;
 
 namespace Nicokobo.Forge;
@@ -19,16 +20,8 @@ internal static class ForgeNativeItemPresentation
         if (!knownBuild) return;
         try
         {
-            var target = AccessTools.Method(typeof(GameItemElement),
-                nameof(GameItemElement.GetTooltipBasic), Type.EmptyTypes);
-            if (target?.ReturnType != typeof(RichTextBuilder))
-                throw new MissingMethodException(nameof(GameItemElement),
-                    "GetTooltipBasic(): RichTextBuilder");
-            harmony.Patch(target,
-                prefix: new HarmonyMethod(AccessTools.Method(
-                    typeof(ForgeNativeItemPresentation), nameof(BeforeTooltip))),
-                postfix: new HarmonyMethod(AccessTools.Method(
-                    typeof(ForgeNativeItemPresentation), nameof(AfterTooltip))));
+            if (!NativeHookSet.Install("nicokobo.forge.item_presentation", [new(typeof(GameItemElement), nameof(GameItemElement.GetTooltipBasic),
+                [], typeof(RichTextBuilder), typeof(ForgeNativeItemPresentation), nameof(BeforeTooltip), nameof(AfterTooltip))], log)) return;
             _enabled = true;
             log("[NicokoboForge/Tooltip] registered item localization and source footer installed");
         }
@@ -44,7 +37,7 @@ internal static class ForgeNativeItemPresentation
             return;
         try
         {
-            if (!ForgeNativeApi.TryGetAppliedPresentation(__instance.identifier,
+            if (!NativeItemRegistry.TryGetAppliedPresentation(__instance.identifier,
                     out var options, out _) || options == null)
                 return;
             bool english = PreferEnglish();
@@ -70,7 +63,7 @@ internal static class ForgeNativeItemPresentation
             __result == null || __result.Pointer == IntPtr.Zero) return;
         try
         {
-            if (!ForgeNativeApi.TryGetAppliedPresentation(__instance.identifier,
+            if (!NativeItemRegistry.TryGetAppliedPresentation(__instance.identifier,
                     out _, out var ownerName) || ownerName == null)
                 return;
             __result.AddLine(ownerName.For(PreferEnglish()),

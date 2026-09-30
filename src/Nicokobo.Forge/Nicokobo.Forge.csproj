@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>Nicokobo.Forge</AssemblyName>
     <RootNamespace>Nicokobo.Forge</RootNamespace>
-    <Version>0.3.9</Version>
+    <Version>0.5.0</Version>
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
   <Target Name="ValidateGameDir" BeforeTargets="ResolveReferences" Condition="'$(GameDir)' == '' Or !Exists('$(GameDir)\GameAssembly.dll')">

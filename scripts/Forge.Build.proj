@@ -7,6 +7,7 @@
     <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.ExampleOne\Nicokobo.Forge.ExampleOne.csproj" />
     <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.ExampleTwo\Nicokobo.Forge.ExampleTwo.csproj" />
     <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.LogisticsExtension\Nicokobo.Forge.LogisticsExtension.csproj" />
+    <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.MachineTemplates\Nicokobo.Forge.MachineTemplates.csproj" />
     <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.WorkshopProbe\Nicokobo.Forge.WorkshopProbe.csproj" Condition="'$(IncludeProbes)' == 'true'" />
     <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.EffectRegistrationProbe\Nicokobo.Forge.EffectRegistrationProbe.csproj" Condition="'$(IncludeProbes)' == 'true'" />
   </ItemGroup>

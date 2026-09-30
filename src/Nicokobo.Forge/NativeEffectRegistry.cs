@@ -1,16 +1,14 @@
 using HarmonyLib;
 using Il2Cpp;
 using Nicokobo.Forge.Registration;
+using Nicokobo.Forge.Runtime;
 
 namespace Nicokobo.Forge;
-
-public sealed record NativeEffectRegistration(string EffectId,
-    Func<ModuleEffectHelper.ModuleEffect> Factory, bool RandomEligible = false);
 
 /// <summary>Build-specific registration of native module/node effects. Content
 /// Mods supply the effect object and its callbacks; Nicokobo Forge owns ID claims,
 /// registry timing and optional exclusion from the native random roll.</summary>
-public static class ForgeNativeEffectApi
+internal static class NativeEffectRegistry
 {
     private sealed record RemovedEffect(string Id,
         ModuleEffectHelper.ModuleEffect Effect);
@@ -24,13 +22,12 @@ public static class ForgeNativeEffectApi
     private static Action<string>? _log;
     private static HarmonyLib.Harmony? _harmony;
     private static bool _allowed;
-    private static bool _allowModuleDirectory;
     private static bool _directoryHookInstalled;
     private static bool _enabled;
-    private static bool _installAttempted;
     private static bool _randomInstallAttempted;
+    private static bool _randomInstalled;
 
-    public static SubmitResult RegisterEffect(string ownerId, string effectId,
+    internal static SubmitResult RegisterEffect(string ownerId, string effectId,
         Func<ModuleEffectHelper.ModuleEffect> factory,
         bool randomEligible = false)
     {
@@ -54,7 +51,7 @@ public static class ForgeNativeEffectApi
     }
 
     /// <summary>Claim all effect IDs together, or leave the catalog unchanged.</summary>
-    public static SubmitResult RegisterEffects(string ownerId,
+    internal static SubmitResult RegisterEffects(string ownerId,
         IReadOnlyList<NativeEffectRegistration> effects)
     {
         if (effects == null)
@@ -81,7 +78,7 @@ public static class ForgeNativeEffectApi
         return result;
     }
 
-    public static IReadOnlyList<NativeApplicationView> Snapshot()
+    internal static IReadOnlyList<NativeApplicationView> Snapshot()
     {
         lock (Gate)
             return Outcomes.Values.OrderBy(x => x.ContentId,
@@ -107,62 +104,29 @@ public static class ForgeNativeEffectApi
     }
 
     internal static bool HooksInstalled => _enabled;
-
-    internal static void Configure(HarmonyLib.Harmony harmony, bool allowed,
-        bool allowModuleDirectory)
+    internal static bool TryGetApplied(string id, out ModuleEffectHelper.ModuleEffect? effect)
     {
-        _harmony = harmony;
+        effect = null;
+        var registry = ModuleEffectHelper.moduleEffects;
+        lock (Gate) return registry != null && Applied.TryGetValue(id, out var pointer) &&
+            registry.TryGetValue(id, out effect) && effect != null && effect.Pointer == pointer;
+    }
+
+    internal static void Configure(HarmonyLib.Harmony harmony, bool allowed)
+    {
+        _harmony = new HarmonyLib.Harmony("nicokobo.forge.effect_random_pool");
         _allowed = allowed;
-        _allowModuleDirectory = allowModuleDirectory;
         if (allowed && StagedCount > 0) TryInstall();
     }
 
     private static bool TryInstall()
     {
-        lock (Gate)
-        {
-            if (_directoryHookInstalled) return true;
-            if (!_allowed || _harmony == null || _installAttempted) return false;
-            _installAttempted = true;
-        }
-        try
-        {
-            var directory = AccessTools.Method(typeof(MiscItemDirectory),
-                nameof(MiscItemDirectory.InitDirectory), Type.EmptyTypes)
-                ?? throw new MissingMethodException(nameof(MiscItemDirectory),
-                    nameof(MiscItemDirectory.InitDirectory));
-            _harmony.Patch(directory, postfix: new HarmonyMethod(
-                AccessTools.Method(typeof(ForgeNativeEffectApi), nameof(DirectoryPostfix))));
-            if (_allowModuleDirectory)
-            {
-                try
-                {
-                    var moduleDirectory = AccessTools.Method(typeof(ModuleDirectory),
-                        nameof(ModuleDirectory.InitDirectory), Type.EmptyTypes)
-                        ?? throw new MissingMethodException(nameof(ModuleDirectory),
-                            nameof(ModuleDirectory.InitDirectory));
-                    _harmony.Patch(moduleDirectory, postfix: new HarmonyMethod(
-                        AccessTools.Method(typeof(ForgeNativeEffectApi),
-                            nameof(DirectoryPostfix))));
-                }
-                catch (Exception ex)
-                {
-                    SafeLog(_log, $"[ERROR] [NicokoboForge/Effect] moduleDirectoryHook=disabled; " +
-                        $"reason={ex.GetType().Name}: {ex.Message}");
-                }
-            }
-            _directoryHookInstalled = true;
-            SafeLog(_log, "[NicokoboForge/Effect] registryHook=installed; randomPoolHook=pending-directory; buildGated=true");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            SafeLog(_log, $"[ERROR] [NicokoboForge/Effect] registryHook=disabled; reason={ex}");
-            return false;
-        }
+        if (!_allowed) return false;
+        _directoryHookInstalled = true;
+        return true;
     }
 
-    private static void DirectoryPostfix()
+    internal static void OnDirectoryReady()
     {
         if (!_directoryHookInstalled) return;
         try
@@ -185,23 +149,22 @@ public static class ForgeNativeEffectApi
     {
         lock (Gate)
         {
-            if (_enabled) return true;
+            if (_randomInstalled) return true;
+            if (Catalog.Snapshot().All(effect => effect.RandomEligible))
+            {
+                _enabled = true;
+                ForgeCapabilities.Publish(ForgeCapabilities.Current with { NativeEffectRegistration = true });
+                return true;
+            }
             if (_harmony == null || _randomInstallAttempted) return false;
             _randomInstallAttempted = true;
         }
         try
         {
-            var randomRoll = AccessTools.Method(typeof(ModuleEffectHelper),
-                nameof(ModuleEffectHelper.InitRandomEffect),
-                [typeof(GameItem), typeof(int)])
-                ?? throw new MissingMethodException(nameof(ModuleEffectHelper),
-                    nameof(ModuleEffectHelper.InitRandomEffect));
-            _harmony.Patch(randomRoll,
-                prefix: new HarmonyMethod(AccessTools.Method(typeof(ForgeNativeEffectApi),
-                    nameof(RandomPrefix))),
-                finalizer: new HarmonyMethod(AccessTools.Method(typeof(ForgeNativeEffectApi),
-                    nameof(RandomFinalizer))));
+            if (!NativeHookSet.Install(_harmony!.Id, [new(typeof(ModuleEffectHelper), nameof(ModuleEffectHelper.InitRandomEffect),
+                [typeof(GameItem), typeof(int)], typeof(void), typeof(NativeEffectRegistry), nameof(RandomPrefix), Finalizer: nameof(RandomFinalizer))], _log)) return false;
             _enabled = true;
+            _randomInstalled = true;
             ForgeCapabilities.Publish(ForgeCapabilities.Current with
             { NativeEffectRegistration = true });
             SafeLog(_log, "[NicokoboForge/Effect] randomPoolHook=installed; registryReady=true");
@@ -264,6 +227,7 @@ public static class ForgeNativeEffectApi
         lock (Gate)
             Outcomes[effect.EffectId] = new(effect.OwnerId, effect.EffectId,
                 "Effect", status, reason);
+        ForgeContentApi.Changed(new(effect.OwnerId, effect.EffectId, "Effect", status, reason));
     }
 
     private static void RandomPrefix(out RemovedEffect[]? __state)

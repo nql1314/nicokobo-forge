@@ -17,9 +17,9 @@ Forge 是 Probably Stolen Demo 的公共前置 API。先确认任务是修改框
 
 | 任务 | 优先核对 |
 | --- | --- |
-| 物品、节点、设施、模块或效果 | `ForgeNativeApi`、`ForgeNativeEffectApi`、对应注册目录与 `Snapshot()`；目录初始化、原生 ID 冲突、工厂产物类型和效果随机池资格分开验证。 |
+| 物品、节点、设施、模块或效果 | `ForgeItemApi`、`ForgeEffectApi`、对应注册目录与 `Snapshot()`；目录初始化、原生 ID 冲突、工厂产物类型和效果随机池资格分开验证。 |
 | Nico 工坊 | `ForgeWorkshopApi` 和内容侧标签页；`Snapshot()` 可返回空值或变化数据，使用已校验快照；Forge 只管展示与事件分派，解锁回调负责重新验资、扣费、效果与保存。 |
-| 开局、周目或库存 | `ForgeStartApi` 只认领开局身份；`ForgeRunDataApi.Stage` 只暂存内存；`ForgeNativeInventoryApi` 目前只读和预检，`InventoryTransfer` 未开放。实际保存、载入和物品移动要独立验收。 |
+| 开局、周目或库存 | `ForgeStartApi` 只认领开局身份；`ForgeRunDataApi.Stage` 只暂存内存；`ForgeInventoryApi` 目前只读和预检，`InventoryTransfer` 未开放。实际保存、载入和物品移动要独立验收。 |
 
 必需 Harmony 钩子只要有一项失败，就撤销本功能已装回调或关闭统一门控；不要留下半启用能力。按游戏对象就绪事件接入 `PlayerStore`、目录和 UI，避免在早期初始化或逐帧循环中强取单例。遇原生同 ID 对象、动作或 UI 冲突时保留其他扩展的结果，并让 Forge 对应能力显式停用。
 
@@ -29,4 +29,4 @@ Forge 是 Probably Stolen Demo 的公共前置 API。先确认任务是修改框
 - `scripts/Pack-P0.ps1` 只打包核心与两个 P0 示例，产物按 `<程序集名>-<版本>.dll` 命名并写入 `dist/p0/manifest.json`。打包、安装与启动是不同步骤；核对目标游戏构建、清单、实际 `Mods/` 文件哈希和新进程日志后，才能把运行结论归于当前代码。
 - 给 Mod 网站准备文件时，先完成 Release 构建，再运行 `scripts/Pack-ModSite.ps1`。它将面向玩家的双语 `README.md`、唯一的核心 DLL（`Nicokobo.Forge-<版本>.dll`），以及项目已有的 `cover.png` 放入 `dist/nicokobo-forge/`；下载 ZIP 只含 DLL 与 `README.md`。`dist/nicokobo-forge/CHANGELOG.md` 面向玩家独立维护，记录各发布版本改了什么，不参与打包。不要把 P0 诊断示例或探针加入玩家安装包。
 - 对每项结果分别报告纯逻辑检查、编译、补丁安装、目录应用、游戏行为、保存文件回读与重新载入。原生交易或存档的成功不能只凭内存状态或单次 `SaveGame()` 返回值断言；缺少可丢弃测试档时明确标为待实机验证。
-- 更新进度时优先维护 `docs/FORGE_PROGRESS.md` 的当前状态和证据；保留 `docs/P0_PROGRESS.md` 及旧探针记录的日期与产物边界。
+- 更新进度时维护 `docs/FORGE_PROGRESS.md` 的当前状态和证据；`docs/probes/` 下的记录绑定当时构建的哈希与日期，不随新构建改写。

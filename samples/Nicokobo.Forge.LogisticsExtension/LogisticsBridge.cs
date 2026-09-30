@@ -10,20 +10,20 @@ public static class LogisticsBridge
 {
     public static SubmitResult RegisterCard(string ownerId, string itemId,
         Func<GameItem> factory) =>
-        ForgeNativeApi.RegisterItem(ownerId, itemId, factory);
+        ForgeItemApi.RegisterItem(ownerId, itemId, factory);
 
     public static SubmitResult RegisterPushNode(string ownerId, string itemId,
         Func<GameItem> factory) =>
-        ForgeNativeApi.RegisterNode(ownerId, itemId, factory);
+        ForgeItemApi.RegisterNode(ownerId, itemId, factory);
 
     public static SubmitResult RegisterPullNode(string ownerId, string itemId,
         Func<GameItem> factory) =>
-        ForgeNativeApi.RegisterNode(ownerId, itemId, factory);
+        ForgeItemApi.RegisterNode(ownerId, itemId, factory);
 
     public static SubmitResult RegisterNodeEffect(string ownerId, string effectId,
         Func<ModuleEffectHelper.ModuleEffect> factory,
         bool randomEligible = false) =>
-        ForgeNativeEffectApi.RegisterEffect(ownerId, effectId, factory,
+        ForgeEffectApi.RegisterEffect(ownerId, effectId, factory,
             randomEligible);
 
     public static (RunDataResult Native, LogisticsConfigRead? Parsed) ReadConfig(

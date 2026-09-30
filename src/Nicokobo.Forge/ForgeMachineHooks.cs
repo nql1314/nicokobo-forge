@@ -3,146 +3,107 @@ using Il2Cpp;
 
 namespace Nicokobo.Forge;
 
-// This adapter alone owns machine Harmony hooks and native factory setup.
 internal static class ForgeMachineHooks
 {
-    private const string HarmonyId = "nicokobo.forge.machine_recipes";
-    private static bool _installed;
-    internal static bool Installed => _installed;
-
-    internal static GameItem CreateMachine(Func<GameItem> factory,
-        ForgeMachineProcessMode mode)
-    {
-        var item = factory();
-        if (item == null || item.Pointer == IntPtr.Zero)
-            throw new InvalidOperationException("Machine factory returned null");
-        item.onCycleEndEarlySlotItemFunc = null;
-        item.onCycleEndSlotItemFunc = null;
-        item.onCycleEndLateSlotItemFunc = null;
-        item.forceDisableActivate = false;
-        if (mode == ForgeMachineProcessMode.NightlyLiquid)
-            ForgeMachineRuntime.ConfigureLiquidMachine(item);
-        return item;
-    }
+    private static bool _knownBuild;
+    private static readonly List<IDisposable> Lifecycle = [];
+    internal static bool Installed { get; private set; }
+    internal static bool NativeFurnaceInstalled { get; private set; }
 
     internal static bool Install(bool knownBuild, Action<string> log)
     {
-        if (_installed) return true;
+        _knownBuild = knownBuild;
+        if (Installed) return true;
         if (!knownBuild) return false;
-        var harmony = new HarmonyLib.Harmony(HarmonyId);
         try
         {
-            var closure = typeof(MachineFurnace.__c__DisplayClass0_0);
-            Patch(harmony, closure, "_Furnace_b__1",
-                [typeof(GameItem), typeof(GameInventory)],
-                nameof(AdmissionPrefix), null);
-            // b__3/b__4 are module add/remove callbacks, not processing.
-            // Blocking them prevents current performance/quality/power updates.
-            Patch(harmony, closure, "_Furnace_b__5",
-                [typeof(GameItem), typeof(GameInventory), typeof(SlotMarker)],
-                nameof(CyclePrefix), null);
-            Patch(harmony, typeof(PlayerStore), nameof(PlayerStore.EndNight),
-                Type.EmptyTypes, nameof(BeforeEndNight), null);
-            Patch(harmony, typeof(PlayerStore), nameof(PlayerStore.LoadGame),
-                Type.EmptyTypes, nameof(BeforeLoadGame), nameof(AfterLoadGame));
-            Patch(harmony, typeof(PlayerStore), nameof(PlayerStore.DecodeSaveItem),
-                [typeof(string), typeof(GameInventory)], null,
-                nameof(AfterDecodeSaveItem));
-            Patch(harmony, typeof(MachineFurnace),
-                nameof(MachineFurnace.CreateMachineInventoryWindow),
-                [typeof(int), typeof(int), typeof(bool), typeof(bool), typeof(int)],
-                null, nameof(AfterCreateMachineInventoryWindow));
-            _installed = true;
-            log("[INFO] [NicokoboForge/Machine] native recipe hooks installed");
+            Require(typeof(MachineFurnace), nameof(MachineFurnace.Furnace), [], typeof(GameItem));
+            Require(typeof(PixelWindow), nameof(PixelWindow.Detach), [], typeof(bool));
+            Require(typeof(PixelWindow), nameof(PixelWindow.Attach), [typeof(PixelElement)], typeof(bool));
+            Require(typeof(GridPixelElement), nameof(GridPixelElement.GetElement),
+                [typeof(int), typeof(int)], typeof(PixelElement));
+            Require(typeof(WaterHelper), nameof(WaterHelper.EmptyContainer), [typeof(GameItem)], typeof(void));
+            Require(typeof(WaterHelper), nameof(WaterHelper.AddLiquid),
+                [typeof(GameItem), typeof(string), typeof(int)], typeof(void));
+            Require(typeof(PowerHelper), nameof(PowerHelper.DrawPowerSource),
+                [typeof(GameItem), typeof(int)], typeof(bool));
+            const string owner = "nicokobo.forge.machines";
+            Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".reset", ForgeLifecyclePhase.BeforeLoad,
+                _ => ForgeMachineRuntime.BeforeLoadGame(), -100));
+            Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".rebind", ForgeLifecyclePhase.AfterLoad,
+                ForgeMachineRuntime.AfterLoadGame, -100));
+            Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".process", ForgeLifecyclePhase.BeforeNight,
+                ForgeMachineRuntime.BeforeEndNight));
+            Installed = true;
+            log("[INFO] [NicokoboForge/Machine] templates installed; shared lifecycle; globalWindowHooks=0");
             return true;
         }
         catch (Exception ex)
         {
-            harmony.UnpatchSelf();
-            _installed = false;
-            log($"[WARN] [NicokoboForge/Machine] hooks disabled: " +
-                $"{ex.GetType().Name}: {ex.Message}");
+            foreach (var lease in Lifecycle) lease.Dispose();
+            Lifecycle.Clear(); Installed = false;
+            log($"[WARN] [NicokoboForge/Machine] template runtime disabled: {ex.Message}");
             return false;
         }
     }
 
-    private static void Patch(HarmonyLib.Harmony harmony, Type type,
-        string methodName, Type[] parameters, string? prefix, string? postfix)
+    internal static bool InstallNativeFurnace()
     {
-        var target = AccessTools.Method(type, methodName, parameters)
-            ?? throw new MissingMethodException(type.FullName, methodName);
-        harmony.Patch(target,
-            prefix: prefix == null ? null : new HarmonyMethod(AccessTools.Method(
-                typeof(ForgeMachineHooks), prefix)!),
-            postfix: postfix == null ? null : new HarmonyMethod(AccessTools.Method(
-                typeof(ForgeMachineHooks), postfix)!));
-    }
-
-    private static bool AdmissionPrefix(
-        MachineFurnace.__c__DisplayClass0_0 __instance,
-        GameItem item, ref bool __result)
-    {
-        var machineId = __instance?.furnace?.identifier;
-        if (machineId == null || !ForgeMachineApi.TryGet(machineId, out var profile) ||
-            profile == null) return true;
-        // Registered recipe inputs are accepted before the native ore-only
-        // predicate. Other native furnace items keep the game's admission.
-        if (profile.NativeMachine &&
-            (item == null || item.Pointer == IntPtr.Zero ||
-             !profile.Accepts(item.identifier))) return true;
-        __result = item != null && item.Pointer != IntPtr.Zero &&
-            profile.Accepts(item.identifier);
-        return false;
-    }
-
-    private static bool CyclePrefix(
-        MachineFurnace.__c__DisplayClass0_0 __instance)
-    {
-        var machine = __instance?.furnace;
-        if (machine == null || !ForgeMachineApi.TryGet(machine.identifier, out var profile) ||
-            profile?.NativeMachine != true) return true;
-        var input = __instance?.itemInventoryLeft;
-        var items = input?.childItems;
-        if (items == null || items.Count == 0) return true;
-        // A declared probe owns the whole decision. The native cycle runs
-        // whenever the game's own batch is available, and it stays idle only
-        // for a slot that holds registered feedstock the game cannot use, so
-        // neither side consumes what the other needs.
-        if (profile.NativeBatchProbe != null)
+        if (NativeFurnaceInstalled) return true;
+        if (!_knownBuild || !Installed) return false;
+        var harmony = new HarmonyLib.Harmony("nicokobo.forge.native_furnace_recipes");
+        try
         {
-            if (ForgeMachineRuntime.NativeBatchAvailable(profile, machine, input!))
-                return true;
-            for (int index = 0; index < items.Count; index++)
-                if (profile.IsFeedstock(items[index].identifier)) return false;
+            var closure = typeof(MachineFurnace.__c__DisplayClass0_0);
+            Patch(harmony, closure, "_Furnace_b__1", [typeof(GameItem), typeof(GameInventory)], nameof(AdmissionPrefix), null);
+            Patch(harmony, closure, "_Furnace_b__5", [typeof(GameItem), typeof(GameInventory), typeof(SlotMarker)], nameof(CyclePrefix), null);
+            NativeFurnaceInstalled = true;
+            ForgeMachineRegistrationApi.Log("[INFO] [NicokoboForge/Machine] optional native furnace hooks installed; hooks=2");
             return true;
         }
-        bool glassOnly = true;
-        bool hasGlass = false;
-        for (int index = 0; index < items.Count; index++)
+        catch (Exception ex)
         {
-            hasGlass |= profile.IsFeedstock(items[index].identifier);
-            glassOnly &= profile.IsFeedstock(items[index].identifier) ||
-                IsFurnaceAuxiliary(items[index].identifier);
+            harmony.UnpatchSelf(); NativeFurnaceInstalled = false;
+            ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] native furnace extension disabled: {ex.Message}");
+            return false;
         }
-        return !(glassOnly && hasGlass);
     }
 
-    // The base furnace accepts flux in the same input inventory. It is not
-    // consumed by glass recycling, but must not trigger the native ore cycle.
-    internal static bool IsFurnaceAuxiliary(string itemId) =>
-        itemId is "flux_agent" or "advanced_flux_agent";
-
-    // Forward native lifecycle callbacks to the processing adapter.
-    private static void BeforeLoadGame() => ForgeMachineRuntime.BeforeLoadGame();
-    private static void AfterLoadGame(PlayerStore __instance) =>
-        ForgeMachineRuntime.AfterLoadGame(__instance);
-    private static void AfterDecodeSaveItem(PlayerStore __instance,
-        string JSON, GameInventory gameInventory) =>
-        ForgeMachineRuntime.AfterDecodeSaveItem(__instance, JSON, gameInventory);
-    private static void AfterCreateMachineInventoryWindow(
-        Il2CppSystem.ValueTuple<PixelWindow, GameSlotInventory, GameInventory,
-            GameGridInventory, GameInventory, GameSlotInventory> __result) =>
-        ForgeMachineRuntime.AfterCreateMachineInventoryWindow(__result);
-    private static void BeforeEndNight(PlayerStore __instance) =>
-        ForgeMachineRuntime.BeforeEndNight(__instance);
+    private static System.Reflection.MethodInfo Require(Type type, string name, Type[] args, Type result)
+    {
+        var method = AccessTools.Method(type, name, args);
+        if (method == null || method.ReturnType != result) throw new MissingMethodException(type.FullName, name);
+        return method;
+    }
+    private static void Patch(HarmonyLib.Harmony harmony, Type type, string name, Type[] args, string? prefix, string? postfix)
+    {
+        var target = Require(type, name, args, prefix == nameof(AdmissionPrefix) ? typeof(bool) : typeof(void));
+        harmony.Patch(target,
+            prefix: prefix == null ? null : new HarmonyMethod(AccessTools.Method(typeof(ForgeMachineHooks), prefix)!),
+            postfix: postfix == null ? null : new HarmonyMethod(AccessTools.Method(typeof(ForgeMachineHooks), postfix)!));
+    }
+    private static bool AdmissionPrefix(MachineFurnace.__c__DisplayClass0_0 __instance,
+        GameItem item, ref bool __result)
+    {
+        var id = __instance?.furnace?.identifier;
+        if (id == null || item == null || item.Pointer == IntPtr.Zero ||
+            !ForgeMachineRegistrationApi.TryGet(id, out var profile) || profile?.NativeMachine != true ||
+            !profile.Accepts(item.identifier)) return true;
+        __result = true; return false;
+    }
+    private static bool CyclePrefix(MachineFurnace.__c__DisplayClass0_0 __instance)
+    {
+        try
+        {
+            var machine = __instance?.furnace;
+            if (machine == null || !ForgeMachineRegistrationApi.TryGet(machine.identifier, out var profile) ||
+                profile?.NativeMachine != true) return true;
+            return ForgeMachineRuntime.NativeOwnsNight(profile, machine, __instance!.itemInventoryLeft);
+        }
+        catch (Exception ex)
+        {
+            ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] native cycle decision failed: {ex.Message}");
+            return true;
+        }
+    }
 }

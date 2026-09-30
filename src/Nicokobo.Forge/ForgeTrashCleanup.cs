@@ -102,7 +102,7 @@ internal static class ForgeTrashCleanup
             {
                 if (item == null || item.Pointer == IntPtr.Zero ||
                     !seen.Add(item.Pointer) || ++visitedNodes > 4096) return;
-                if (ForgeNativeApi.IsAppliedItem(item.identifier))
+                if (NativeItemRegistry.IsAppliedItem(item.identifier))
                 {
                     var trash = item.GetParentWithIdentifier("trashcan");
                     if (trash != null && trash.Pointer != IntPtr.Zero)
@@ -141,7 +141,7 @@ internal static class ForgeTrashCleanup
             try
             {
                 if (item == null || item.Pointer == IntPtr.Zero ||
-                    !ForgeNativeApi.IsAppliedItem(item.identifier)) continue;
+                    !NativeItemRegistry.IsAppliedItem(item.identifier)) continue;
                 var trash = item.GetParentWithIdentifier("trashcan");
                 if (trash == null || trash.Pointer == IntPtr.Zero) continue;
                 item.Destroy();

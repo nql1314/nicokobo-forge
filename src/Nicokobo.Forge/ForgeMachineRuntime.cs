@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Il2Cpp;
 using Nicokobo.Forge.Registration;
 
@@ -5,450 +6,244 @@ namespace Nicokobo.Forge;
 
 internal static partial class ForgeMachineRuntime
 {
-    private sealed record Slots(GameSlotInventory Battery, GameInventory Module,
-        GameGridInventory Input, GameInventory Output,
-        GameSlotInventory? Water);
-    private sealed class Mutation(GameItem item, int oldCount)
-    {
-        internal GameItem Item { get; } = item;
-        internal int OldCount { get; } = oldCount;
-        internal bool Detached { get; set; }
-    }
-
-    private static readonly Dictionary<IntPtr, Slots> Windows = new();
-    private static readonly HashSet<(int Slot, string Run, int Day, int Item)> Committed = new();
-    private static GameInventory? _main;
-    private static GameInventory? _back;
+    private sealed record ItemReceipt(GameItem Item, int Count, int Units, int Id, string Identifier, long Value);
+    private sealed record LiquidChange(GameItem Container, GameInventory Slot,
+        ForgeMachineLiquidSnapshot Before, ForgeMachineLiquidSnapshot After);
+    private sealed record BatchPlan(ForgeMachineBatchContext Context, ForgeMachineRecipe Recipe,
+        ForgeMachineInventory Inventory, IReadOnlyList<ItemReceipt> Takes,
+        IReadOnlyList<LiquidChange> Liquids, IReadOnlyList<ForgeMachineLiquidPart>? Contents,
+        LiquidChange? ContainerOutput, GameItem? Battery, int Energy, int Power);
+    private const string FaultTag = "NICOKOBO_FORGE_MACHINE_FAULT";
+    private static readonly HashSet<(int Slot, string Run, int Day, int Item)> Attempted = [];
+    private static readonly HashSet<int> Quarantined = [];
     private static (int Slot, string Run, int Day) _night;
-
     internal static void BeforeLoadGame()
+    { ForgeMachineUi.Reset(); Attempted.Clear(); Quarantined.Clear(); _night = default; }
+    internal static void AfterLoadGame(ForgeLifecycleContext context)
     {
-        Windows.Clear();
-        Committed.Clear();
-        _main = null;
-        _back = null;
-        ResetLiquidRuntime();
+        try { foreach (var (machine, _) in FindMachines(context.Items)) ForgeMachineUi.TryGet(machine, out _); }
+        catch (Exception ex) { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] slot rebind failed: {ex.Message}"); }
     }
 
-    internal static void AfterLoadGame(PlayerStore store)
+    internal static void BeforeEndNight(ForgeLifecycleContext context)
     {
+        var store = context.Store;
+        if (!ForgeMachineRuntimeApi.RuntimeInstalled || store == null || store.Pointer == IntPtr.Zero ||
+            !ForgeMachineRegistrationApi.HasMachines) return;
         try
         {
-            foreach (var (machine, profile) in FindMachines(store))
-                if (profile.Mode == ForgeMachineProcessMode.NightlyLiquid)
-                    try { ConfigureLiquidMachine(machine); }
-                    catch (Exception ex)
-                    {
-                        ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] " +
-                            $"liquid rebind failed for {machine.identifier}: " +
-                            $"{ex.GetType().Name}: {ex.Message}");
-                    }
-        }
-        catch (Exception ex)
-        {
-            ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] " +
-                $"liquid rebind failed: {ex.GetType().Name}: {ex.Message}");
-        }
-    }
-
-    internal static void AfterDecodeSaveItem(PlayerStore store, string json,
-        GameInventory inventory)
-    {
-        if (store == null || inventory == null ||
-            inventory.Pointer == IntPtr.Zero || string.IsNullOrEmpty(json)) return;
-        if (string.Equals(json, store.mainInvJSON, StringComparison.Ordinal))
-            _main = inventory;
-        else if (string.Equals(json, store.backInvJSON, StringComparison.Ordinal))
-            _back = inventory;
-    }
-
-    internal static void AfterCreateMachineInventoryWindow(
-        Il2CppSystem.ValueTuple<PixelWindow, GameSlotInventory, GameInventory,
-            GameGridInventory, GameInventory, GameSlotInventory> result)
-    {
-        if (result == null || result.Item1 == null ||
-            result.Item1.Pointer == IntPtr.Zero) return;
-        Windows[result.Item1.Pointer] = new(result.Item2, result.Item3,
-            result.Item4, result.Item5, result.Item6);
-    }
-
-    private static bool TryResolveSlots(PixelWindow window, out Slots slots)
-    {
-        if (Windows.TryGetValue(window.Pointer, out slots!)) return true;
-        var nodes = window.children;
-        if (nodes == null || nodes.Count < 4)
-        {
-            slots = null!;
-            return false;
-        }
-        GameSlotInventory? water = null;
-        if (nodes.Count > 4)
-            try { water = nodes[4].Cast<GameSlotInventory>(); }
-            catch (InvalidCastException) { }
-        slots = new(nodes[0].Cast<GameSlotInventory>(),
-            nodes[1].Cast<GameInventory>(),
-            nodes[2].Cast<GameGridInventory>(),
-            nodes[3].Cast<GameInventory>(), water);
-        Windows[window.Pointer] = slots;
-        return true;
-    }
-
-    internal static void BeforeEndNight(PlayerStore store)
-    {
-        if (store == null || store.Pointer == IntPtr.Zero ||
-            !ForgeMachineApi.HasMachines) return;
-        try
-        {
-            int slot = store.saveSlotId;
-            string run = store.runID;
-            int day = StoreStation.GetDayCounter();
-            if (slot < 0 || string.IsNullOrWhiteSpace(run) || day < 0) return;
-            var night = (slot, run, day);
+            var night = (saveSlotId: context.Run.SlotId, runID: context.Run.RunId, context.Run.Day);
+            if (night.saveSlotId < 0 || string.IsNullOrWhiteSpace(night.runID) || night.Item3 < 0) return;
             if (_night != night)
             {
-                Committed.Clear();
+                Attempted.Clear();
+                if (_night.Slot != night.saveSlotId || _night.Run != night.runID) Quarantined.Clear();
                 _night = night;
             }
-            var found = FindMachines(store);
-            foreach (var (machine, profile) in found)
+            foreach (var (machine, profile) in FindMachines(context.Items))
             {
                 try
                 {
                     int id = machine.GetUniqueID();
-                    if (id <= 0) continue;
-                    var key = (slot, run, day, id);
-                    if (Committed.Contains(key)) continue;
+                    if (id <= 0 || !Attempted.Add((night.saveSlotId, night.runID, night.Item3, id))) continue;
                     string status = Process(machine, profile);
-                    ForgeMachineApi.Log($"[INFO] [NicokoboForge/Machine] " +
-                        $"machine={machine.identifier}; item={id}; status={status}");
-                    Committed.Add(key);
+                    ForgeMachineRegistrationApi.Log($"[INFO] [NicokoboForge/Machine] machine={machine.identifier}; item={id}; status={status}");
                 }
                 catch (Exception ex)
-                {
-                    ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] " +
-                        $"machine={machine.identifier}; failure={ex.GetType().Name}: {ex.Message}");
-                }
+                { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] machine={machine.identifier}; failure={ex.Message}"); }
             }
-            ForgeMachineApi.Log($"[INFO] [NicokoboForge/Machine] " +
-                $"night slot={slot}; day={day}; machines={found.Count}; " +
-                $"main={_main != null}; back={_back != null}");
         }
-        catch (Exception ex)
-        {
-            ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] " +
-                $"night scan failed: {ex.GetType().Name}: {ex.Message}");
-        }
+        catch (Exception ex) { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] night scan failed: {ex.Message}"); }
     }
 
-    private static List<(GameItem Item, MachineProfile Profile)> FindMachines(PlayerStore store)
+    private static List<(GameItem Item, MachineProfile Profile)> FindMachines(IReadOnlyList<GameItem> items)
     {
-        var found = new List<(GameItem Item, MachineProfile Profile)>();
-        var visited = new HashSet<IntPtr>();
-        int nodes = 0;
-        // PlayerStore owns the authoritative recursive item walk. Prefer it
-        // over reconstructing the save-bag graph: live runs and decoded saves
-        // do not expose identical root inventory objects.
-        var all = store.FindAllItem();
-        if (all != null)
-            for (int index = 0; index < all.Count; index++)
-                VisitItem(all[index], found, visited, ref nodes);
-        // New runs create live save bags without calling DecodeSaveItem. Read
-        // those bags on every scan so machines placed before the first load
-        // are included in the night that is about to be saved. These scans are
-        // retained as bounded fallbacks for a future build where FindAllItem
-        // might exclude an inventory family.
-        var bags = store.saveBags;
-        if (bags != null && bags.Pointer != IntPtr.Zero)
-            foreach (var bag in bags.Values)
-                if (bag != null && bag.Pointer != IntPtr.Zero &&
-                    (bag.identifier == "save_bag" ||
-                     bag.identifier == "back_inv_save_bag"))
-                    VisitItem(bag, found, visited, ref nodes);
-        VisitInventory(_main, found, visited, ref nodes);
-        VisitInventory(_back, found, visited, ref nodes);
-        VisitInventory(store.gridInv, found, visited, ref nodes);
+        var found = new List<(GameItem, MachineProfile)>();
+        foreach (var item in items)
+        {
+            if (ForgeMachineRegistrationApi.TryGet(item.identifier, out var profile) && profile != null) found.Add((item, profile));
+        }
         return found;
     }
 
-    private static void VisitInventory(GameInventory? inventory,
-        List<(GameItem Item, MachineProfile Profile)> found,
-        HashSet<IntPtr> visited, ref int nodes)
+    internal static bool NativeOwnsNight(MachineProfile profile, GameItem machine, GameInventory? input)
     {
-        if (inventory == null || inventory.Pointer == IntPtr.Zero ||
-            !visited.Add(inventory.Pointer) || ++nodes > 512) return;
-        var items = inventory.childItems;
-        if (items == null) return;
-        for (int index = 0; index < items.Count && index < 1024; index++)
-            VisitItem(items[index], found, visited, ref nodes);
+        var items = input?.childItems;
+        if (items == null || items.Count == 0) return true;
+        if (profile.NativeBatchProbe != null)
+        {
+            try { if (profile.NativeBatchProbe(machine, input!)) return true; }
+            catch (Exception ex)
+            { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] native probe failed: {ex.Message}"); return true; }
+            return !Enumerable.Range(0, items.Count).Any(index => profile.IsFeedstock(items[index].identifier));
+        }
+        bool feedstock = false;
+        for (int index = 0; index < items.Count; index++)
+        {
+            string id = items[index].identifier;
+            feedstock |= profile.IsFeedstock(id);
+            if (!profile.IsFeedstock(id) && id is not ("flux_agent" or "advanced_flux_agent")) return true;
+        }
+        return !feedstock;
     }
 
-    private static void VisitItem(GameItem? item,
-        List<(GameItem Item, MachineProfile Profile)> found,
-        HashSet<IntPtr> visited, ref int nodes)
+    private static string Process(GameItem machine, MachineProfile profile)
     {
-        if (item == null || item.Pointer == IntPtr.Zero ||
-            !visited.Add(item.Pointer)) return;
-        if (ForgeMachineApi.TryGet(item.identifier, out var profile) && profile != null)
-            found.Add((item, profile));
-        var children = item.children;
-        if (children == null) return;
-        for (int index = 0; index < children.Count && index < 64; index++)
-            try
-            {
-                VisitInventory(children[index].Cast<GameInventory>(), found,
-                    visited, ref nodes);
-            }
-            catch (InvalidCastException) { }
+        if (!GeneralHelper.IsItemOwned(machine)) return "machine-not-owned";
+        if (Quarantined.Contains(machine.GetUniqueID()) || !string.IsNullOrEmpty(machine.GetTagReadonly(FaultTag)?.valueString))
+            return "quarantined";
+        if (profile.NativeMachine && !ForgeMachineHooks.NativeFurnaceInstalled) return "native-hooks-unavailable";
+        if (!ForgeMachineUi.TryGet(machine, out var inventory) || inventory == null) return "slots-unavailable";
+        if (profile.NativeMachine && NativeOwnsNight(profile, machine, inventory.ItemInput)) return "native-batch-night";
+        string last = "input-short-or-condition";
+        foreach (var entry in profile.Recipes)
+        {
+            if (!TryPlan(machine, profile, inventory, entry.Value, out var plan, out last)) continue;
+            return Execute(plan!);
+        }
+        return last;
     }
 
-    private static string Process(GameItem machine,
-        MachineProfile profile)
+    private static bool SelectItems(GameInventory? input, ForgeMachineRecipe recipe, out List<ItemReceipt> takes)
     {
-        if (profile.Mode == ForgeMachineProcessMode.NightlyLiquid)
-            return ProcessLiquid(machine, profile);
-        if (!TrySlots(machine, out var input, out var output,
-                out var battery, out var module, out _))
-            return "slots-unavailable";
-        if (input!.childItems == null || input.childItems.Count == 0)
-            return "no-input";
-        if (profile.NativeMachine)
-        {
-            if (profile.NativeBatchProbe == null)
-            {
-                // Registrations without a probe keep the earlier rule: any item
-                // outside the declared feedstock family keeps the day native.
-                for (int index = 0; index < input.childItems.Count; index++)
-                    if (!profile.IsFeedstock(input.childItems[index].identifier) &&
-                        !ForgeMachineHooks.IsFurnaceAuxiliary(
-                            input.childItems[index].identifier))
-                        return "mixed-native-input";
-            }
-            else if (NativeBatchAvailable(profile, machine, input))
-                return "native-batch-night";
-        }
-        var entry = profile.Recipes.FirstOrDefault(candidate =>
-            TrySelect(input, candidate.Value, out _));
-        if (entry == null) return "input-short-or-condition";
-        var recipe = entry.Value;
-        int count = recipe.ResolveOutputCount?.Invoke(machine) ?? recipe.OutputCount;
-        int power = recipe.ResolvePowerCost?.Invoke(machine) ?? recipe.PowerCost;
-        return Execute(machine, input, output!, battery!, module,
-            recipe, count, power);
-    }
-
-    /// <summary>Asks the native machine's owner whether the game's own batch
-    /// can run from this input. A probe failure hands the day to the native
-    /// cycle, so registered recipes never take a night the game can use.</summary>
-    internal static bool NativeBatchAvailable(MachineProfile profile,
-        GameItem machine, GameInventory input)
-    {
-        if (profile.NativeBatchProbe == null) return false;
-        try
-        {
-            return profile.NativeBatchProbe(machine, input);
-        }
-        catch (Exception ex)
-        {
-            ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] native batch " +
-                $"probe failed for {profile.MachineId}: " +
-                $"{ex.GetType().Name}: {ex.Message}");
-            return true;
-        }
-    }
-
-    private static bool TrySlots(GameItem machine, out GameInventory? input,
-        out GameInventory? output, out GameItem? battery,
-        out GameInventory? module, out GameSlotInventory? water)
-    {
-        input = null;
-        output = null;
-        battery = null;
-        module = null;
-        water = null;
-        try
-        {
-            var children = machine.children;
-            if (children == null || children.Count != 1) return false;
-            var window = children[0].Cast<PixelWindow>();
-            if (!TryResolveSlots(window, out var slots)) return false;
-            battery = slots.Battery.childItem;
-            module = slots.Module;
-            input = slots.Input;
-            output = slots.Output;
-            water = slots.Water;
-            return battery != null && battery.Pointer != IntPtr.Zero &&
-                input.Pointer != IntPtr.Zero && output.Pointer != IntPtr.Zero;
-        }
-        catch (Exception ex)
-        {
-            ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] " +
-                $"slot lookup failed: {ex.GetType().Name}: {ex.Message}");
-            return false;
-        }
-    }
-
-    private static bool TrySelect(GameInventory input,
-        ForgeMachineRecipe recipe, out List<(GameItem Item, int Count)> takes)
-    {
-        takes = new();
-        var items = input.childItems;
-        if (items == null) return false;
-        var positions = new Dictionary<IntPtr, int>();
-        foreach (var ingredient in recipe.Inputs)
+        takes = [];
+        if (recipe.ItemInputs.Count == 0) return true;
+        if (input?.childItems == null) return false;
+        var selected = new Dictionary<IntPtr, (GameItem Item, int Count)>();
+        foreach (var ingredient in recipe.ItemInputs)
         {
             int remaining = ingredient.Count;
-            for (int index = 0; index < items.Count && remaining > 0; index++)
+            var candidates = Enumerable.Range(0, input.childItems.Count).Select(index => input.childItems[index])
+                .Where(item => item != null && item.Pointer != IntPtr.Zero && item.identifier == ingredient.ItemId &&
+                    item.parentInventory?.Pointer == input.Pointer && item.unitCount > 0 && item.GetUniqueID() > 0 &&
+                    GeneralHelper.IsItemOwned(item) && (ingredient.Condition?.Invoke(item) ?? true));
+            if (ingredient.WholeStack) candidates = candidates.OrderByDescending(item => item.unitValue)
+                .ThenByDescending(item => item.unitCount);
+            foreach (var item in candidates)
             {
-                var item = items[index];
-                if (item == null || item.Pointer == IntPtr.Zero ||
-                    item.identifier != ingredient.ItemId || item.unitCount <= 0 ||
-                    !GeneralHelper.IsItemOwned(item) ||
-                    ingredient.Condition?.Invoke(item) == false) continue;
-                int id = item.GetUniqueID();
-                if (id <= 0) return false;
-                int position = positions.GetValueOrDefault(item.Pointer, -1);
-                int alreadyTaken = position < 0 ? 0 : takes[position].Count;
-                int available = item.unitCount - alreadyTaken;
-                int count = Math.Min(remaining, available);
+                int used = selected.GetValueOrDefault(item.Pointer).Count;
+                if (ingredient.WholeStack && used != 0) continue;
+                int count = ingredient.WholeStack ? item.unitCount : Math.Min(remaining, item.unitCount - used);
                 if (count <= 0) continue;
-                if (position < 0)
-                {
-                    positions.Add(item.Pointer, takes.Count);
-                    takes.Add((item, count));
-                }
-                else takes[position] = (item, alreadyTaken + count);
-                remaining -= count;
+                selected[item.Pointer] = (item, used + count);
+                remaining -= ingredient.WholeStack ? 1 : count;
+                if (remaining == 0) break;
             }
-            if (remaining > 0)
-            {
-                takes.Clear();
-                return false;
-            }
+            if (remaining > 0) return false;
         }
-        return takes.Count > 0;
+        takes = selected.Values.Select(take => new ItemReceipt(take.Item, take.Count,
+            take.Item.unitCount, take.Item.GetUniqueID(), take.Item.identifier, take.Item.unitValue)).ToList();
+        return true;
     }
 
-    private static string Execute(GameItem machine, GameInventory input,
-        GameInventory output, GameItem battery, GameInventory? module,
-        ForgeMachineRecipe recipe, int count, int power)
+    private static bool TryPlan(GameItem machine, MachineProfile profile, ForgeMachineInventory inventory,
+        ForgeMachineRecipe recipe, out BatchPlan? plan, out string status)
     {
-        if (count <= 0 || count > 256 || power < 0)
-            return "invalid-batch";
-        if (!TrySelect(input, recipe, out var takes))
-            return "input-changed";
-        if (!PowerHelper.CanDrawPowerSource(battery, power))
-            return "power-unavailable";
-        int energy = battery.GetTagReadonly("power_source_item_energy")
-            ?.valueInt ?? -1;
-        if (energy < power) return "battery-state-unavailable";
-        var products = new List<GameItem>(count);
-        var mutations = new List<Mutation>();
-        bool committed = false;
-        bool powerTouched = false;
+        plan = null; status = "input-short-or-condition";
         try
         {
-            if (!CreateProducts(recipe.OutputItemId, count, products))
-                return "output-factory-failed";
-            int previousOutputCount = output.childItems?.Count ?? 0;
-            if (recipe.PrepareOutput != null)
+            if (!SelectItems(inventory.ItemInput, recipe, out var takes)) return false;
+            var containers = new Dictionary<string, GameItem>(StringComparer.Ordinal);
+            var changes = new List<LiquidChange>();
+            var captured = new Dictionary<string, ForgeMachineLiquidSnapshot>(StringComparer.Ordinal);
+            foreach (var rule in recipe.LiquidInputs)
             {
-                var selectedInputs = takes.SelectMany(take =>
-                    Enumerable.Repeat(take.Item, take.Count)).ToArray();
-                foreach (var product in products)
-                    recipe.PrepareOutput(machine, input, selectedInputs, product);
+                var slot = inventory.LiquidInputs[rule.SlotId];
+                var container = slot.childItem;
+                var before = container == null ? null : ForgeLiquidApi.Capture(container);
+                if (before == null || container!.parentInventory?.Pointer != slot.Pointer ||
+                    !GeneralHelper.IsItemOwned(container) || (rule.Condition?.Invoke(container) == false))
+                { status = "liquid-source-or-condition:" + rule.SlotId; return false; }
+                if (profile.Template.LiquidInputs.Single(slotTemplate => slotTemplate.SlotId == rule.SlotId)
+                    .Condition?.Invoke(container) == false)
+                { status = "liquid-template-condition:" + rule.SlotId; return false; }
+                containers.Add(rule.SlotId, container); captured.Add(rule.SlotId, before);
             }
-            foreach (var take in takes)
+            if (containers.Values.Select(item => item.Pointer).Distinct().Count() != containers.Count)
+            { status = "container-slot-alias"; return false; }
+            var context = new ForgeMachineBatchContext(machine,
+                Array.AsReadOnly(takes.Select(take => new ForgeMachineItemTake(take.Item, take.Count)).ToArray()),
+                new ReadOnlyDictionary<string, GameItem>(containers),
+                recipe.Output is ForgeMachineItemOutput initial ? initial.Count : 1);
+            int count = recipe.Output is ForgeMachineItemOutput output
+                ? output.ResolveCount?.Invoke(context) ?? output.Count : 1;
+            if (count is < 1 or > 256) { status = "output-count-invalid"; return false; }
+            context = context with { OutputCount = count };
+            foreach (var rule in recipe.LiquidInputs)
             {
-                var item = take.Item;
-                if (item.parentInventory?.Pointer != input.Pointer ||
-                    item.unitCount < take.Count) return "input-changed";
-                var mutation = new Mutation(item, item.unitCount);
-                mutations.Add(mutation);
-                if (take.Count == item.unitCount)
-                {
-                    bool old = input.overrideLockRemove;
-                    input.overrideLockRemove = true;
-                    try
-                    {
-                        if (!input.Expel(item) || item.parentInventory != null)
-                            return "input-expel-failed";
-                        mutation.Detached = true;
-                    }
-                    finally { input.overrideLockRemove = old; }
-                }
-                else
-                {
-                    item.SetUnitCount(item.unitCount - take.Count);
-                    if (item.unitCount != mutation.OldCount - take.Count)
-                        return "input-count-failed";
-                }
+                int parts = MachineLiquidMath.ToParts(rule.ResolveMillilitres?.Invoke(context) ?? rule.Millilitres);
+                changes.Add(new(containers[rule.SlotId], inventory.LiquidInputs[rule.SlotId], captured[rule.SlotId],
+                    MachineBatchMath.Consume(captured[rule.SlotId], parts, rule.LiquidId)));
             }
-            foreach (var product in products)
+            var declarations = recipe.Output switch
             {
-                if (!PlaceOutput(output, product))
-                    return "output-placement-failed";
-                if (product.parentInventory?.Pointer != output.Pointer)
-                    return "output-readback-failed";
+                ForgeMachineItemOutput item => item.Contents,
+                ForgeMachineContainerOutput container => container.Contents,
+                _ => null
+            };
+            var contents = declarations?.Select(part => new ForgeMachineLiquidPart(part.LiquidId,
+                MachineLiquidMath.ToParts(part.ResolveMillilitres?.Invoke(context) ?? part.Millilitres))).ToArray();
+            LiquidChange? containerOutput = null;
+            if (recipe.Output is ForgeMachineContainerOutput)
+            {
+                var destination = inventory.Output.Cast<GameSlotInventory>().childItem;
+                var before = destination == null ? null : ForgeLiquidApi.Capture(destination);
+                if (before == null || destination!.parentInventory?.Pointer != inventory.Output.Pointer ||
+                    !GeneralHelper.IsItemOwned(destination) ||
+                    profile.Template.Output.ContainerCondition?.Invoke(destination) == false ||
+                    containers.Values.Any(item => item.Pointer == destination.Pointer))
+                { status = "output-container-missing-or-invalid"; return false; }
+                containerOutput = new(destination, inventory.Output, before, MachineBatchMath.Add(before, contents!));
             }
-            if (output.childItems?.Count != previousOutputCount + count)
-                return "output-count-readback-failed";
-            powerTouched = true;
-            if (!PowerHelper.DrawPowerSource(battery, power))
-                return "power-draw-failed";
-            if (battery.GetTagReadonly("power_source_item_energy")
-                ?.valueInt != energy - power)
-                return "power-readback-failed";
-            committed = true;
-            foreach (var mutation in mutations)
-                if (mutation.Detached)
-                    try { mutation.Item.Destroy(); }
-                    catch (Exception ex)
-                    {
-                        ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] " +
-                            $"consumed item cleanup failed: {ex.GetType().Name}: {ex.Message}");
-                    }
-            NotifyWork(machine, module);
-            return $"produced:{recipe.RecipeId}x{count}; power={power}";
+            int power = ForgeMachinePowerMath.CalculateCost(profile.Power.ResolveCost?.Invoke(context) ?? profile.Power.Cost,
+                count, profile.Power.PerOutput);
+            var battery = inventory.Battery?.childItem;
+            int energy = battery == null ? -1 : ForgePowerApi.ReadSource(battery) ?? -1;
+            if ((profile.Template.Battery?.Required == true || power > 0) &&
+                (battery == null || battery.Pointer == IntPtr.Zero || !GeneralHelper.IsItemOwned(battery) ||
+                 battery.parentInventory?.Pointer != inventory.Battery!.Pointer || energy < power ||
+                 !ForgePowerApi.CanDrawSource(battery, power)))
+            { status = "power-unavailable"; return false; }
+            plan = new(context, recipe, inventory, takes, changes, contents, containerOutput, battery, energy, power);
+            if (!Unchanged(plan)) { plan = null; status = "input-changed"; return false; }
+            status = "ready"; return true;
         }
-        catch (Exception ex)
-        {
-            ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] batch failed: " +
-                $"{ex.GetType().Name}: {ex.Message}");
-            return "exception";
-        }
-        finally
-        {
-            if (!committed)
-            {
-                if (powerTouched) RestoreBattery(battery, energy);
-                bool recalled = true;
-                foreach (var product in products)
-                    try { product.Destroy(); }
-                    catch { recalled = false; }
-                if (!recalled)
-                    ForgeMachineApi.Log("[WARN] [NicokoboForge/Machine] CRITICAL output recall failed");
-                else
-                    for (int index = mutations.Count - 1; index >= 0; index--)
-                    {
-                        var mutation = mutations[index];
-                        try
-                        {
-                            if (mutation.Item.parentInventory == null &&
-                                !input.UncheckedAccept(mutation.Item))
-                                throw new InvalidOperationException("Input restore rejected");
-                            if (mutation.Item.parentInventory?.Pointer != input.Pointer)
-                                throw new InvalidOperationException("Input parent changed");
-                            if (mutation.Item.unitCount != mutation.OldCount)
-                                mutation.Item.SetUnitCount(mutation.OldCount);
-                        }
-                        catch (Exception ex)
-                        {
-                            ForgeMachineApi.Log($"[WARN] [NicokoboForge/Machine] " +
-                                $"CRITICAL input restore failed: {ex.GetType().Name}: {ex.Message}");
-                        }
-                    }
-            }
-        }
+        catch (Exception ex) { status = "batch-rule-invalid:" + ex.Message; return false; }
     }
 
+    private static bool Unchanged(BatchPlan plan)
+    {
+        foreach (var ingredient in plan.Recipe.ItemInputs)
+            if (plan.Takes.Where(take => take.Identifier == ingredient.ItemId &&
+                    (ingredient.Condition?.Invoke(take.Item) ?? true)).Sum(take => take.Count) < ingredient.Count)
+                return false;
+        foreach (var rule in plan.Recipe.LiquidInputs)
+            if (rule.Condition?.Invoke(plan.Context.LiquidContainers[rule.SlotId]) == false) return false;
+        foreach (var take in plan.Takes)
+            if (take.Item.parentInventory?.Pointer != plan.Inventory.ItemInput?.Pointer ||
+                take.Item.GetUniqueID() != take.Id || take.Item.identifier != take.Identifier ||
+                take.Item.unitCount != take.Units || take.Item.unitValue != take.Value ||
+                !GeneralHelper.IsItemOwned(take.Item)) return false;
+        foreach (var change in plan.Liquids.Concat(plan.ContainerOutput == null ? [] : new[] { plan.ContainerOutput }))
+            if (change.Container.parentInventory?.Pointer != change.Slot.Pointer ||
+                !GeneralHelper.IsItemOwned(change.Container) ||
+                !ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(change.Container), change.Before)) return false;
+        return plan.Battery == null || (plan.Battery.parentInventory?.Pointer == plan.Inventory.Battery?.Pointer &&
+            ForgePowerApi.ReadSource(plan.Battery) == plan.Energy);
+    }
+
+    private static void Quarantine(GameItem machine, string failure)
+    {
+        Quarantined.Add(machine.GetUniqueID());
+        try
+        {
+            var tags = machine.state.dict;
+            if (!tags.ContainsKey(FaultTag)) tags.Add(FaultTag, new TagState(FaultTag, FaultTag));
+            tags[FaultTag].Enable();
+            tags[FaultTag].SetString(failure);
+            if (tags[FaultTag].valueString != failure) throw new InvalidOperationException("Fault marker readback failed");
+        }
+        catch (Exception ex) { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] fault marker failed: {ex.Message}"); }
+        ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] CRITICAL rollback failed; quarantined={machine.GetUniqueID()}; {failure}");
+    }
 }

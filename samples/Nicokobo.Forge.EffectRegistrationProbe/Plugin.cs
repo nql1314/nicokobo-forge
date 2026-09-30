@@ -27,7 +27,7 @@ public sealed class Plugin : MelonMod
     {
         _log = message => LoggerInstance.Msg(message);
         _stagedSinceUtc = DateTime.UtcNow;
-        var result = ForgeNativeEffectApi.RegisterEffect(
+        var result = ForgeEffectApi.RegisterEffect(
             OwnerId, EffectId, CreateEffect, randomEligible: false);
         LoggerInstance.Msg($"[EffectProbe] submit={result.Status}; reason={result.Reason}; " +
             "randomEligible=false");
@@ -39,7 +39,7 @@ public sealed class Plugin : MelonMod
     {
         if (_reportedTerminal || DateTime.UtcNow < _nextCheckUtc) return;
         _nextCheckUtc = DateTime.UtcNow.AddSeconds(1);
-        var application = ForgeNativeEffectApi.Snapshot()
+        var application = ForgeEffectApi.Snapshot()
             .FirstOrDefault(item => item.OwnerId == OwnerId && item.ContentId == EffectId);
         if (application?.Status == NativeApplicationStatus.Staged)
         {

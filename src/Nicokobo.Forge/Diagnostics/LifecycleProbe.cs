@@ -11,6 +11,7 @@ internal static class LifecycleProbe
     {
         _enabled = false;
         _log = log;
+        harmony = new HarmonyLib.Harmony("nicokobo.forge.lifecycle_diagnostics");
         try
         {
             Patch(harmony, typeof(Il2Cpp.MiscItemDirectory), "InitDirectory",
@@ -27,7 +28,7 @@ internal static class LifecycleProbe
         }
         catch (Exception ex)
         {
-            // Hooks already installed are inert until the entire set is ready.
+            try { harmony.UnpatchSelf(); } catch { }
             log($"[ERROR] [NicokoboForge/P0] lifecycleHooks=disabled; reason={ex.GetType().Name}: {ex.Message}");
             return false;
         }

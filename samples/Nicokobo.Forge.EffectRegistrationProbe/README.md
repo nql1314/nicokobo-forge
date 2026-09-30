@@ -17,6 +17,5 @@
 `nativeRegistryPresent=False`，保留本次日志用于诊断。测试完成后可从
 `Mods` 移除 `Nicokobo.Forge.EffectRegistrationProbe.dll`；没有需要迁移的存档数据。
 
-2026-09-26 的首次运行已验证注册与原生表接纳，详见
-[运行记录](../../docs/probes/2026-09-26-effect-registration-probe.md)。
-`callbackCount=0`，所以尚未验证实际效果执行或随机池排除行为。
+注册与原生表接纳已在一次实际游戏进程中验证，但该次运行 `callbackCount=0`，
+因此尚未验证实际效果执行或随机池排除行为。
