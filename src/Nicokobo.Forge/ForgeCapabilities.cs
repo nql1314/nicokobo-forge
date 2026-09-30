@@ -5,14 +5,16 @@ public sealed record ForgeCapabilitySnapshot(bool KnownGameBuild,
     bool NativeAmenityDirectoryHook, bool NightShopStock,
     bool RunDataStaging,
     bool DirectInventoryRead, bool WholeTransferPreview,
-    bool NativeEffectRegistration, bool InventoryTransfer);
+    bool NativeEffectRegistration, bool InventoryTransfer,
+    bool MachineNightProcessing);
 
 /// <summary>Read-only capability report for content Mods. A true gate means the
 /// adapter is installed, not that a particular Mod item or save has succeeded.</summary>
 public static class ForgeCapabilities
 {
     private static ForgeCapabilitySnapshot _current =
-        new(false, false, false, false, false, false, false, false, false, false);
+        new(false, false, false, false, false, false, false, false, false, false,
+            false);
 
     public static ForgeCapabilitySnapshot Current =>
         System.Threading.Volatile.Read(ref _current);

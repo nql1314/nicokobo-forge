@@ -1,0 +1,20 @@
+<Project DefaultTargets="BuildAll">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <ForgeRoot>$(MSBuildThisFileDirectory)..</ForgeRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.ExampleOne\Nicokobo.Forge.ExampleOne.csproj" />
+    <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.ExampleTwo\Nicokobo.Forge.ExampleTwo.csproj" />
+    <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.LogisticsExtension\Nicokobo.Forge.LogisticsExtension.csproj" />
+    <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.WorkshopProbe\Nicokobo.Forge.WorkshopProbe.csproj" Condition="'$(IncludeProbes)' == 'true'" />
+    <ForgeSample Include="$(ForgeRoot)\samples\Nicokobo.Forge.EffectRegistrationProbe\Nicokobo.Forge.EffectRegistrationProbe.csproj" Condition="'$(IncludeProbes)' == 'true'" />
+  </ItemGroup>
+  <Target Name="BuildAll">
+    <MSBuild Projects="$(ForgeRoot)\src\Nicokobo.Forge\Nicokobo.Forge.csproj"
+             Targets="Restore;Build" BuildInParallel="false"
+             Properties="Configuration=$(Configuration);GameDir=$(GameDir);ModDefaultLogLevel=$(ModDefaultLogLevel);NuGetAudit=false" />
+    <MSBuild Projects="@(ForgeSample)" Targets="Restore;Build" BuildInParallel="false"
+             Properties="Configuration=$(Configuration);GameDir=$(GameDir);ModDefaultLogLevel=$(ModDefaultLogLevel);BuildProjectReferences=false;NuGetAudit=false" />
+  </Target>
+</Project>

@@ -90,7 +90,7 @@ public static class ForgeNativeEffectApi
 
     internal static int StagedCount
     {
-        get { lock (Gate) return Catalog.Snapshot().Count; }
+        get { lock (Gate) return Catalog.Count; }
     }
 
     internal static void SetLogger(Action<string> log)

@@ -14,6 +14,8 @@ internal sealed class NativeEffectCatalog
     private readonly Dictionary<string, NativeEffectDeclaration> _effects =
         new(StringComparer.Ordinal);
 
+    internal int Count => _effects.Count;
+
     internal SubmitResult Submit(string ownerId, string effectId,
         bool randomEligible, Delegate? factory)
     {

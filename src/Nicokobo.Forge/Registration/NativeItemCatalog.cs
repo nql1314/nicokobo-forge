@@ -38,6 +38,8 @@ internal sealed class NativeItemCatalog
     private readonly Dictionary<string, NativeItemDeclaration> _items =
         new(StringComparer.Ordinal);
 
+    internal int Count => _items.Count;
+
     internal SubmitResult Submit(string ownerId, string itemId, NativeItemKind kind,
         Delegate? factory, NativeItemOptions? options = null)
     {

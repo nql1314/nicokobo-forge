@@ -9,7 +9,9 @@ internal sealed record BuildProbeReport(bool KnownBuild, bool SignaturesMatch,
     bool AmenityDirectorySignatureMatch, bool NightShopSignaturesMatch,
     bool RandomEffectSignatureMatch,
     bool RunDataSignaturesMatch, bool InventoryReadSignaturesMatch,
-    bool InventoryPreviewSignaturesMatch, bool NativeEffectSignaturesMatch,
+    bool InventoryPreviewSignaturesMatch,
+    bool InventoryTransferCandidateSignaturesMatch,
+    bool NativeEffectSignaturesMatch,
     IReadOnlyList<string> Lines)
 {
     internal bool CanInstallReadOnlyProbes => KnownBuild && SignaturesMatch;
@@ -106,6 +108,19 @@ internal static class BuildProbe
                     "targetItem", "Il2Cpp.GameItem") &
                 CheckProperty(lines, "Inventory", typeof(Il2Cpp.SlotMarker),
                     "numTransfer", "System.Int32");
+            // Discovery only. These methods do not establish whole-item acceptance,
+            // rollback, atomicity, or save/reload consistency.
+            bool inventoryTransferCandidateSignatures =
+                Check(lines, typeof(Il2Cpp.SlotMarker), "TryAcceptOnce", false,
+                    "System.Int32", "System.Int32") &
+                Check(lines, typeof(Il2Cpp.GameGridInventory), "Expel", false,
+                    "System.Boolean", "Il2Cpp.GameItem") &
+                Check(lines, typeof(Il2Cpp.GameGridInventory), "UncheckedAccept", false,
+                    "System.Boolean", "Il2Cpp.GameItem") &
+                Check(lines, typeof(Il2Cpp.PlayerStore), "SaveGame", false,
+                    "System.Void") &
+                Check(lines, typeof(Il2Cpp.PlayerStore), "LoadGame", false,
+                    "System.Void");
             var effectRegistry = typeof(Il2Cpp.ModuleEffectHelper).GetProperty(
                 "moduleEffects", Declared);
             bool effectRegistryMatch = effectRegistry != null &&
@@ -132,7 +147,9 @@ internal static class BuildProbe
             lines.Add($"[NicokoboForge/Inventory] readSignaturesMatch={inventoryReadSignatures}; " +
                 $"readAllowed={knownBuild && inventoryReadSignatures}; " +
                 $"previewSignaturesMatch={inventoryPreviewSignatures}; " +
-                $"previewAllowed={knownBuild && inventoryPreviewSignatures}; transferAllowed=false");
+                $"previewAllowed={knownBuild && inventoryPreviewSignatures}; " +
+                $"transferCandidateSignaturesMatch={inventoryTransferCandidateSignatures}; " +
+                "transferAllowed=false");
             lines.Add($"[NicokoboForge/Effect] signaturesMatch={nativeEffectSignatures}; " +
                 $"registrationAllowed={knownBuild && miscDirectorySignature && randomEffectSignature && nativeEffectSignatures}");
             return new(knownBuild, signatures, miscDirectorySignature,
@@ -140,13 +157,14 @@ internal static class BuildProbe
                 nightShopSignatures, randomEffectSignature,
                 runDataSignatures,
                 inventoryReadSignatures, inventoryPreviewSignatures,
+                inventoryTransferCandidateSignatures,
                 nativeEffectSignatures, lines);
         }
         catch (Exception ex)
         {
             lines.Add($"[NicokoboForge/P0] probeFailed={ex.GetType().Name}: {ex.Message}");
             return new(false, false, false, false, false, false, false, false, false,
-                false, false, lines);
+                false, false, false, lines);
         }
     }
 

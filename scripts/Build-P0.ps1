@@ -1,12 +1,13 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$GameDir,
-    [string]$DefaultLogLevel = $env:ModDefaultLogLevel
+    [string]$DefaultLogLevel = $env:ModDefaultLogLevel,
+    [switch]$IncludeProbes
 )
 
 $ErrorActionPreference = 'Stop'
 $DefaultLogLevel = if ([string]::IsNullOrWhiteSpace($DefaultLogLevel)) {
-    'WARN'
+    'INFO'
 } else {
     $DefaultLogLevel.Trim().ToUpperInvariant()
 }
@@ -19,15 +20,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $resolvedGameDir 'GameAssembly.dll')
     throw "GameAssembly.dll not found under $resolvedGameDir"
 }
 
-& dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.Domain.Check\Nicokobo.Forge.Domain.Check.csproj') -c Release
+& dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.Domain.Check\Nicokobo.Forge.Domain.Check.csproj') -c Release -p:NuGetAudit=false
 if ($LASTEXITCODE -ne 0) { throw 'Domain checks failed' }
 
-foreach ($project in @(
-    'src\Nicokobo.Forge\Nicokobo.Forge.csproj',
-    'samples\Nicokobo.Forge.ExampleOne\Nicokobo.Forge.ExampleOne.csproj',
-    'samples\Nicokobo.Forge.ExampleTwo\Nicokobo.Forge.ExampleTwo.csproj',
-    'samples\Nicokobo.Forge.LogisticsExtension\Nicokobo.Forge.LogisticsExtension.csproj'
-)) {
-    & dotnet build (Join-Path $projectRoot $project) -c Release "-p:GameDir=$resolvedGameDir" "-p:ModDefaultLogLevel=$DefaultLogLevel" -v minimal
-    if ($LASTEXITCODE -ne 0) { throw "Build failed: $project" }
-}
+& dotnet msbuild (Join-Path $PSScriptRoot 'Forge.Build.proj') -t:BuildAll -nologo -v:minimal `
+    "-p:GameDir=$resolvedGameDir" "-p:ModDefaultLogLevel=$DefaultLogLevel" `
+    "-p:IncludeProbes=$($IncludeProbes.IsPresent.ToString().ToLowerInvariant())"
+if ($LASTEXITCODE -ne 0) { throw 'Forge or sample build failed' }

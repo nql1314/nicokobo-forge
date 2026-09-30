@@ -3,6 +3,8 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+MachineCatalogChecks.Run();
+
 static void Expect(bool condition, string message)
 {
     if (!condition) throw new Exception(message);
@@ -253,4 +255,31 @@ Expect(LogisticsConfigCodec.Read(encoded.Replace("\"version\":1", "\"version\":2
        runId, 2).Status == LogisticsConfigReadStatus.FutureVersion,
        "Future logistics schema was accepted");
 
-Console.WriteLine("Nicokobo Forge registration and logistics domain checks passed.");
+Expect(MachineLiquidMath.PartsPerOutput(100) == 100_000,
+    "100 ml did not convert to native water parts");
+Expect(MachineLiquidMath.AvailableOutputs(4, 0, 250_000, 100_000) == 2,
+    "Liquid batch did not preserve the remaining lifetime target");
+Expect(MachineLiquidMath.DebitParts(2, 100_000) == 200_000,
+    "Liquid batch debited the wrong number of native parts");
+Expect(MachineLiquidMath.AvailableOutputs(4, 2, 200_000, 100_000) == 2,
+    "Liquid batch did not finish retained work on the next night");
+Expect(MachineLiquidMath.AvailableOutputs(4, 2, 50_000, 100_000) == 0,
+    "Liquid batch used less than one output's water");
+try { MachineLiquidMath.PartsPerOutput(int.MaxValue); throw new Exception("Overflowing ml accepted"); }
+catch (ArgumentOutOfRangeException) { }
+try { MachineLiquidMath.AvailableOutputs(4, 4, 100_000, 100_000); throw new Exception("Completed progress accepted"); }
+catch (ArgumentOutOfRangeException) { }
+try { MachineLiquidMath.DebitParts(int.MaxValue, 100_000); throw new Exception("Overflowing debit accepted"); }
+catch (ArgumentOutOfRangeException) { }
+Expect(MachineLiquidMath.MergedStackValue(12, 9) == 108,
+    "Merged stack value did not use the whole stack");
+Expect(MachineLiquidMath.MergedStackValue(12, 1) == 12,
+    "Single unit stack value changed");
+Expect(MachineLiquidMath.MergedStackValue(12, 0) == 12,
+    "Empty stack count did not fall back to one unit");
+Expect(MachineLiquidMath.MergedStackValue(long.MaxValue, 4) == long.MaxValue,
+    "Merged stack value overflowed instead of saturating");
+Expect(MachineLiquidMath.MergedStackValue(0, 20) == 0,
+    "Zero priced stack gained value");
+
+Console.WriteLine("Nicokobo Forge registration, logistics and liquid domain checks passed.");

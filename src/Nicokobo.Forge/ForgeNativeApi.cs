@@ -155,11 +155,11 @@ public static class ForgeNativeApi
 
     internal static void SetLogger(Action<string> log)
     {
-        NativeItemDeclaration[] staged;
+        IReadOnlyList<NativeItemDeclaration> staged;
         lock (Gate)
         {
             _log = log;
-            staged = Catalog.Snapshot().ToArray();
+            staged = Catalog.Snapshot();
         }
         foreach (var item in staged)
             SafeLog(log, $"[NicokoboForge/{item.Kind}] owner={item.OwnerId}; id={item.ItemId}; " +
@@ -168,7 +168,7 @@ public static class ForgeNativeApi
 
     internal static int StagedCount
     {
-        get { lock (Gate) return Catalog.Snapshot().Count; }
+        get { lock (Gate) return Catalog.Count; }
     }
 
     internal static bool ModuleHookInstalled => _moduleEnabled;
@@ -184,62 +184,13 @@ public static class ForgeNativeApi
         _nightShopEnabled = false;
         try
         {
-            var original = AccessTools.Method(typeof(MiscItemDirectory),
-                nameof(MiscItemDirectory.InitDirectory), Type.EmptyTypes)
-                ?? throw new MissingMethodException(nameof(MiscItemDirectory),
-                    nameof(MiscItemDirectory.InitDirectory));
-            var callback = AccessTools.Method(typeof(ForgeNativeApi), nameof(MiscDirectoryPostfix))
-                ?? throw new MissingMethodException(nameof(ForgeNativeApi),
-                    nameof(MiscDirectoryPostfix));
-            harmony.Patch(original, postfix: new HarmonyMethod(callback));
-            _enabled = true;
-            SafeLog(_log, "[NicokoboForge/NativeItem] miscHook=installed; buildGated=true");
-            if (allowModule)
-            {
-                try
-                {
-                    var moduleOriginal = AccessTools.Method(typeof(ModuleDirectory),
-                        nameof(ModuleDirectory.InitDirectory), Type.EmptyTypes)
-                        ?? throw new MissingMethodException(nameof(ModuleDirectory),
-                            nameof(ModuleDirectory.InitDirectory));
-                    var moduleCallback = AccessTools.Method(typeof(ForgeNativeApi),
-                        nameof(ModuleDirectoryPostfix))
-                        ?? throw new MissingMethodException(nameof(ForgeNativeApi),
-                            nameof(ModuleDirectoryPostfix));
-                    harmony.Patch(moduleOriginal, postfix: new HarmonyMethod(moduleCallback));
-                    _moduleEnabled = true;
-                    SafeLog(_log, "[NicokoboForge/Module] directoryHook=installed; buildGated=true");
-                }
-                catch (Exception ex)
-                {
-                    SafeLog(_log, $"[ERROR] [NicokoboForge/Module] directoryHook=disabled; " +
-                        $"reason={ex.GetType().Name}: {ex.Message}");
-                }
-            }
-            if (allowAmenity)
-            {
-                try
-                {
-                    var amenityOriginal = AccessTools.Method(typeof(AmenitiesItemDirectory),
-                        nameof(AmenitiesItemDirectory.InitDirectory), Type.EmptyTypes)
-                        ?? throw new MissingMethodException(nameof(AmenitiesItemDirectory),
-                            nameof(AmenitiesItemDirectory.InitDirectory));
-                    var amenityCallback = AccessTools.Method(typeof(ForgeNativeApi),
-                        nameof(AmenityDirectoryPostfix))
-                        ?? throw new MissingMethodException(nameof(ForgeNativeApi),
-                            nameof(AmenityDirectoryPostfix));
-                    harmony.Patch(amenityOriginal,
-                        postfix: new HarmonyMethod(amenityCallback));
-                    _amenityEnabled = true;
-                    SafeLog(_log,
-                        "[NicokoboForge/Amenity] directoryHook=installed; buildGated=true");
-                }
-                catch (Exception ex)
-                {
-                    SafeLog(_log, $"[ERROR] [NicokoboForge/Amenity] directoryHook=disabled; " +
-                        $"reason={ex.GetType().Name}: {ex.Message}");
-                }
-            }
+            _enabled = InstallDirectoryHook(harmony, typeof(MiscItemDirectory),
+                nameof(MiscDirectoryPostfix), "NativeItem");
+            if (!_enabled) return false;
+            _moduleEnabled = allowModule && InstallDirectoryHook(harmony,
+                typeof(ModuleDirectory), nameof(ModuleDirectoryPostfix), "Module");
+            _amenityEnabled = allowAmenity && InstallDirectoryHook(harmony,
+                typeof(AmenitiesItemDirectory), nameof(AmenityDirectoryPostfix), "Amenity");
             if (allowNightShop)
             {
                 try
@@ -277,6 +228,27 @@ public static class ForgeNativeApi
         catch (Exception ex)
         {
             SafeLog(_log, $"[ERROR] [NicokoboForge/NativeItem] directoryHook=disabled; " +
+                $"reason={ex.GetType().Name}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool InstallDirectoryHook(HarmonyLib.Harmony harmony,
+        Type directoryType, string callbackName, string label)
+    {
+        try
+        {
+            var original = AccessTools.Method(directoryType, "InitDirectory", Type.EmptyTypes)
+                ?? throw new MissingMethodException(directoryType.FullName, "InitDirectory");
+            var callback = AccessTools.Method(typeof(ForgeNativeApi), callbackName)
+                ?? throw new MissingMethodException(nameof(ForgeNativeApi), callbackName);
+            harmony.Patch(original, postfix: new HarmonyMethod(callback));
+            SafeLog(_log, $"[NicokoboForge/{label}] directoryHook=installed; buildGated=true");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SafeLog(_log, $"[ERROR] [NicokoboForge/{label}] directoryHook=disabled; " +
                 $"reason={ex.GetType().Name}: {ex.Message}");
             return false;
         }
@@ -496,13 +468,12 @@ public static class ForgeNativeApi
         if (!_nightShopEnabled || __0 == null || __0.Pointer == IntPtr.Zero) return;
         NativeItemDeclaration? offer;
         lock (Gate)
-            offer = Catalog.Snapshot().FirstOrDefault(item =>
-                item.ItemId == __0.identifier &&
-                item.Options.NightShop == NightShopStockPolicy.Repeatable);
-        if (offer == null) return;
-        lock (Gate)
+        {
+            if (!Catalog.TryGet(__0.identifier, out offer) ||
+                offer?.Options.NightShop != NightShopStockPolicy.Repeatable) return;
             _pendingNightShopRefresh = new(offer.ItemId, __0.uniqueId, 0,
                 DateTime.UtcNow.AddMilliseconds(100));
+        }
         SafeLog(_log, $"[NicokoboForge/NightShop] id={offer.ItemId}; " +
             $"status=RefreshQueued; purchased={__0.uniqueId}");
     }

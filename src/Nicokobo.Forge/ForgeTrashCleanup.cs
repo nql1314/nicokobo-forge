@@ -17,6 +17,8 @@ internal static class ForgeTrashCleanup
         {
             var clear = AccessTools.Method(typeof(PlayerStore),
                 nameof(PlayerStore.ClearTrash), Type.EmptyTypes);
+            var endNight = AccessTools.Method(typeof(PlayerStore),
+                nameof(PlayerStore.EndNight), Type.EmptyTypes);
             var find = AccessTools.Method(typeof(PlayerStore),
                 nameof(PlayerStore.FindAllItem), [typeof(bool)]);
             var parent = AccessTools.Method(typeof(GameItem),
@@ -24,18 +26,32 @@ internal static class ForgeTrashCleanup
             var destroy = AccessTools.Method(typeof(GameItemElement),
                 nameof(GameItemElement.Destroy), Type.EmptyTypes);
             if (clear?.ReturnType != typeof(void) ||
+                endNight?.ReturnType != typeof(void) ||
                 find?.ReturnType !=
                     typeof(Il2CppSystem.Collections.Generic.List<GameItem>) ||
                 parent?.ReturnType != typeof(GameInventory) ||
                 destroy?.ReturnType != typeof(void))
                 throw new MissingMethodException("Native trash cleanup contract mismatch");
-            harmony.Patch(clear,
-                prefix: new HarmonyMethod(AccessTools.Method(
-                    typeof(ForgeTrashCleanup), nameof(BeforeClear))),
-                postfix: new HarmonyMethod(AccessTools.Method(
-                    typeof(ForgeTrashCleanup), nameof(AfterClear))));
+            try
+            {
+                harmony.Patch(clear,
+                    prefix: new HarmonyMethod(AccessTools.Method(
+                        typeof(ForgeTrashCleanup), nameof(BeforeClear))),
+                    postfix: new HarmonyMethod(AccessTools.Method(
+                        typeof(ForgeTrashCleanup), nameof(AfterClear))));
+                harmony.Patch(endNight,
+                    postfix: new HarmonyMethod(AccessTools.Method(
+                        typeof(ForgeTrashCleanup), nameof(AfterEndNight))));
+            }
+            catch
+            {
+                harmony.Unpatch(clear, HarmonyPatchType.All, harmony.Id);
+                harmony.Unpatch(endNight, HarmonyPatchType.All, harmony.Id);
+                throw;
+            }
             _enabled = true;
-            log("[NicokoboForge/Trash] registered-item cleanup installed");
+            log("[INFO] [NicokoboForge/Trash] daily registered-item " +
+                "recycling and janitorial cleanup installed");
         }
         catch (Exception ex)
         {
@@ -55,6 +71,12 @@ internal static class ForgeTrashCleanup
             var candidates = new List<GameItem>();
             __state = candidates;
             var seen = new HashSet<IntPtr>();
+            int visitedNodes = 0;
+            var bags = __instance.saveBags;
+            if (bags != null && bags.Pointer != IntPtr.Zero)
+                foreach (var bag in bags.Values)
+                    VisitItem(bag);
+            VisitInventory(__instance.gridInv);
             Capture(true);
             Capture(false);
 
@@ -63,15 +85,34 @@ internal static class ForgeTrashCleanup
                 var all = __instance.FindAllItem(isOwned);
                 if (all == null) return;
                 for (int i = 0; i < all.Count; i++)
+                    VisitItem(all[i]);
+            }
+
+            void VisitInventory(GameInventory? inventory)
+            {
+                if (inventory == null || inventory.Pointer == IntPtr.Zero ||
+                    ++visitedNodes > 4096) return;
+                var contents = inventory.childItems;
+                if (contents == null) return;
+                for (int i = 0; i < contents.Count && i < 2048; i++)
+                    VisitItem(contents[i]);
+            }
+
+            void VisitItem(GameItem? item)
+            {
+                if (item == null || item.Pointer == IntPtr.Zero ||
+                    !seen.Add(item.Pointer) || ++visitedNodes > 4096) return;
+                if (ForgeNativeApi.IsAppliedItem(item.identifier))
                 {
-                    var item = all[i];
-                    if (item == null || item.Pointer == IntPtr.Zero ||
-                        !seen.Add(item.Pointer) ||
-                        !ForgeNativeApi.IsAppliedItem(item.identifier)) continue;
                     var trash = item.GetParentWithIdentifier("trashcan");
                     if (trash != null && trash.Pointer != IntPtr.Zero)
                         candidates.Add(item);
                 }
+                var children = item.children;
+                if (children == null) return;
+                for (int i = 0; i < children.Count && i < 64; i++)
+                    try { VisitInventory(children[i].Cast<GameInventory>()); }
+                    catch (InvalidCastException) { }
             }
         }
         catch (Exception ex)
@@ -81,11 +122,21 @@ internal static class ForgeTrashCleanup
         }
     }
 
-    private static void AfterClear(List<GameItem>? __state)
+    private static void AfterEndNight(PlayerStore __instance)
     {
-        if (!_enabled || __state == null) return;
+        BeforeClear(__instance, out var candidates);
+        RemoveCandidates(candidates, "daily");
+    }
+
+    private static void AfterClear(List<GameItem>? __state) =>
+        RemoveCandidates(__state, "janitorial");
+
+    private static void RemoveCandidates(List<GameItem>? candidates,
+        string source)
+    {
+        if (!_enabled || candidates == null) return;
         int removed = 0;
-        foreach (var item in __state)
+        foreach (var item in candidates)
         {
             try
             {
@@ -102,7 +153,10 @@ internal static class ForgeTrashCleanup
                     $"{ex.GetType().Name}: {ex.Message}");
             }
         }
-        if (removed != 0)
-            _log?.Invoke($"[NicokoboForge/Trash] remaining registered items removed={removed}");
+        if (source == "daily" || removed != 0)
+            _log?.Invoke($"[INFO] [NicokoboForge/Trash] " +
+                $"source={source}; candidates={candidates.Count}; " +
+                $"registeredItemsRemoved={removed}");
     }
+
 }

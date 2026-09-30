@@ -2,12 +2,15 @@
 
 更新：2026-09-27。Nicokobo Forge 是供其他 Probably Stolen Mod 使用的通用前置 API；内容 Mod 各自拥有物品、规则和存档数据。当前证据与待验收项见[进度记录](FORGE_PROGRESS.md)。
 
+2026-09-30 的职责拆分和统一构建入口见[开发说明](DEVELOPMENT.md)。注册目录、原生适配和内容规则分别维护；图集加载仍在内容项目的共享工具中。
+
 ## In scope：框架提供
 
 | 通用能力 | 当前状态 | 内容 Mod 的使用方式 |
 | --- | --- | --- |
 | 所有者、稳定 ID、依赖与冲突诊断 | 声明注册中心及原生物品/效果 `Snapshot()` 可用 | 查询每项 `Staged / Applied / Conflict / Failed`；声明接受不代替目录应用 |
 | 原生普通物品、设施物品、节点与机器模组注册 | `RegisterItem` / `RegisterNode` 接 `MiscItemDirectory`，`RegisterAmenity` 接 `AmenitiesItemDirectory`，`RegisterModule` 接 `ModuleDirectory`；按构建门控 | 传入自己的工厂；Nicokobo Forge 持有委托、检查 ID 和实际类型 |
+| 熔炉类机器与固体／液体配方 | `ForgeMachineApi.RegisterMachine` 注册新设施机器，`RegisterExistingMachine` 向原版熔炉追加配方；Forge 负责投料、夜间扫描、扣料、产物放置、电量、液体组分读回与失败撤回、跨夜进度及同夜去重 | 内容 Mod 提供机器工厂、物品 ID、投入条件、产量与耗电回调；液体配方另声明每件耗水和终身产量；处理前查询 `MachineNightProcessing`，运行状态看 `ForgeMachineApi.Snapshot()` |
 | Nico 工坊解锁星图 | `RegisterChain` 注册独立链；节点可声明位置、依赖、信用点/物品条件、消耗标记及奖励 | 内容 Mod 返回当前周目快照，并在解锁回调中重新验资、扣除、发奖和保存；Forge 不自动转移资源 |
 | 夜间商店补货 | 原生物品注册可附带 `NativeItemOptions`，声明 `Repeatable` 或 `Unique`；唯一项按玩家实际拥有状态过滤 | 内容 Mod 提供可用条件；Forge 在原生库存生成完成后创建并核对货架落点 |
 | 模组/节点效果注册 | `ForgeNativeEffectApi.RegisterEffect` 可编译；Nicokobo Forge 管理效果 ID、目录时机与随机池资格 | 内容 Mod 提供效果对象、回调与具体数值；当前尚无游戏内效果调用证据 |

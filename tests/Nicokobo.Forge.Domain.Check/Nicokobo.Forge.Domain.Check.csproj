@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/Nicokobo.Forge/ForgeMachineModels.cs" Link="ForgeMachineModels.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Registration/MachineCatalog.cs" Link="MachineCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Logging/ModLogLevel.cs" Link="ModLogLevel.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/MachineLiquidMath.cs" Link="MachineLiquidMath.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/DeclarationCatalog.cs" Link="DeclarationCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/NativeItemCatalog.cs" Link="NativeItemCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/NativeEffectCatalog.cs" Link="NativeEffectCatalog.cs" />
