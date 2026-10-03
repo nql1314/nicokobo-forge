@@ -133,6 +133,17 @@ internal static class ForgeWorkshopOverlay
         (Screen.height / scale - WindowHeight) * 0.5f,
         WindowWidth, WindowHeight);
 
+    internal static Rect ScreenRect()
+    {
+        float scale = Scale();
+        var window = WindowRect(scale);
+        return new Rect(window.x * scale, Screen.height - window.yMax * scale,
+            window.width * scale, window.height * scale);
+    }
+
+    internal static bool ContainsPointer(Vector3 pointer) =>
+        ScreenRect().Contains(new Vector2(pointer.x, pointer.y));
+
     private static Rect WebsiteRect(Rect header) => new(
         header.xMax - 230f, header.y + 9f, 160f, 34f);
 
@@ -229,7 +240,8 @@ internal static class ForgeWorkshopOverlay
                 selected.Id, english);
 
             var current = Event.current;
-            if (current != null && (current.isMouse || current.type == EventType.ScrollWheel))
+            if (current != null && ForgeWorkshopApi.BlocksNativeInput &&
+                (current.isMouse || current.type == EventType.ScrollWheel))
                 current.Use();
         }
         finally

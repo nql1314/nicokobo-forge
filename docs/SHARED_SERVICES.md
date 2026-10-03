@@ -97,3 +97,11 @@ if (!ForgeHookApi.TryValidateNativeTarget(target, out var reason))
 | 库存搬运、网络货物持久化 | 仍未开放；`InventoryTransfer=false` |
 
 结果见[本轮审查记录](probes/2026-10-03-forge-review-shared-apis.md)。新调用者须使用本轮配套构建的 Forge DLL；历史 `0.6.5` 没有新增入口，不能只按版本字符串混用。
+
+## 窗口指针捕获
+
+Forge `0.6.8` 提供纯状态类 `ForgeWindowInputCapture`，供 Nico 工坊和合成扩展手册共用。内容方维护可见窗口的实际屏幕范围、UI 射线遮挡和原生补丁所有权。
+
+- 打开和关闭分别调用 `Open(frame, mouseHeld)`、`Close(frame, mouseHeld)`；同帧重复关闭不会延长捕获。
+- 输入回调查询 `BlocksPointer(frame, pointerInside, mouseHeld)`。窗口内的手势及关闭点击保护至释放当帧，窗口外开始的拖拽保留自己的释放事件。
+- 离开场景时调用 `Reset()`。原生手册、库存选中状态和实际拖拽清理由调用方处理；释放到窗口范围内时须取消原生放置，不能仅依赖普通 Image 遮挡库存目标。

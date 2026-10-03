@@ -1,22 +1,24 @@
 # Nicokobo Forge / 模组前置框架
 
-Author: Nicokobo · Version: **0.6.7** · Target: **Probably Stolen Demo，Steam Build `25382790`**
+Author: Nicokobo · Version: **0.6.8** · Target: **Probably Stolen Demo，Steam Build `25382790`**
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，并内置 Nico工坊的全开局名片与原版成就页。各内容 Mod 维护自己的物品、配方、价格、成长和独立解锁页。
 
 ## 安装
 
 1. 游戏需已安装 [MelonLoader](https://melonwiki.xyz/)。
-2. 将 `Nicokobo.Forge-0.6.7.dll` 与所需 Mod DLL 复制到游戏 `Mods/`；只使用原版成就时可单独安装 Forge。
+2. 将 `Nicokobo.Forge-0.6.8.dll` 与所需 Mod DLL 复制到游戏 `Mods/`；只使用原版成就时可单独安装 Forge。
 3. 更新时移出旧 DLL，Forge 和每个内容 Mod 各只保留一份。使用同一次配套构建的文件。
 
-当前源码配套：机械飞升 `0.1.25`、模组矩阵 `1.1.1`、物流脉络 `0.2.1`、合成扩展 `0.9.22`。源码版本和本地包不代表游戏当前已安装版本；本轮构建、安装与实机验证范围见[当前进度](docs/FORGE_PROGRESS.md)。
+当前源码配套：机械飞升 `0.1.29`、模组矩阵 `1.1.1`、物流脉络 `0.2.1`、合成扩展 `0.9.29`。源码版本和本地包不代表游戏当前已安装版本；本轮构建、安装与实机验证范围见[当前进度](docs/FORGE_PROGRESS.md)。
 
 ## Nico工坊
 
 所有开局由 Forge 发放 `nicokobo.forge.nico_card` 名片，按 N 或双击名片打开“原版”页。10 项成就分别显示进度、达成和领奖，奖励按周目一次性领取。满背包会延迟名片发放或保留领奖资格；通关徽章是展示标记，不占库存。安装机械飞升后另有“伪人：机械飞升”页，只在对应开局开放。条件与奖励见[成就方案](docs/WORKSHOP_ACHIEVEMENT_DESIGN.md)。
 
 名片采用深色底、铜色边框与大 N 标志，保留 2×1 占格；工坊标题栏采用 `nicokobo.com` 的齿轮 Logo，点击带下划线的网址会用系统默认浏览器打开网站。网站 Logo 原图嵌入 `src/Nicokobo.Forge/Assets/Brand/nicokobo_logo.png`。名片图标源图与生成提示保存在 `src/Nicokobo.Forge/Assets/IconSources/`，用 `py scripts/export_workshop_card.py` 导出库存图标及本地设计预览。
+
+工坊只拦截窗口范围内的下层输入，窗口外继续操作。打开时清理激活名片留下的拖拽选中状态，关闭点击保护至鼠标释放当帧；从窗口外开始的库存拖拽保留自己的释放事件。
 
 名片在正常初始化时加入原生日用品掉落表，保留所有开局的赠送入口。内容 Mod 各自声明物品掉落；十二种最终义体仅由所属 Mod 制造，合成扩展的五台机器声明为可重复购买的夜间商店库存。
 

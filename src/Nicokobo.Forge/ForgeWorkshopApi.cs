@@ -61,7 +61,7 @@ public static class ForgeWorkshopApi
     private static bool _enabled;
     private static bool _visible;
     private static bool _cursorCaptured;
-    private static readonly WorkshopInputCapture InputCapture = new();
+    private static readonly ForgeWindowInputCapture InputCapture = new();
     private static CursorLockMode _previousCursorLock;
     private static bool _previousCursorVisible;
     private static DateTime _nextRefreshUtc;
@@ -72,7 +72,10 @@ public static class ForgeWorkshopApi
     private static DateTime _lastEntryClickUtc;
 
     public static bool IsVisible => _visible;
-    internal static bool BlocksNativeInput => InputCapture.BlocksInput;
+    private static bool MouseHeld => Input.GetMouseButton(0) ||
+        Input.GetMouseButton(1) || Input.GetMouseButton(2);
+    internal static bool BlocksNativeInput => InputCapture.BlocksPointer(Time.frameCount,
+        _visible && ForgeWorkshopOverlay.ContainsPointer(Input.mousePosition), MouseHeld);
 
     public static SubmitResult RegisterTab(string ownerId, string tabId,
         string chineseTitle, string englishTitle,
@@ -121,7 +124,8 @@ public static class ForgeWorkshopApi
     internal static void SetDefaultChain(string chainId) => _defaultChainId = chainId;
     internal static void ResetRunSelection()
     {
-        Close(); _activeTabId = _defaultChainId; Selections.Clear();
+        Close(); InputCapture.Reset(); ForgeWorkshopInputShield.Hide();
+        _activeTabId = _defaultChainId; Selections.Clear();
     }
 
     internal static void Configure(bool enabled, Action<string> log)
@@ -134,13 +138,7 @@ public static class ForgeWorkshopApi
 
     internal static void Update()
     {
-        if (!_visible && InputCapture.BlocksInput)
-        {
-            InputCapture.Update(Time.frameCount,
-                Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.GetMouseButton(2));
-            if (!InputCapture.BlocksInput)
-                ForgeWorkshopInputShield.Hide();
-        }
+        if (!_visible && !BlocksNativeInput) ForgeWorkshopInputShield.Hide();
         if (!_enabled) return;
         if (Application.isFocused && Input.GetKeyDown(KeyCode.N))
         {
@@ -274,12 +272,13 @@ public static class ForgeWorkshopApi
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         _visible = true;
-        InputCapture.Open();
+        InputCapture.Open(Time.frameCount, MouseHeld);
         _activeTabId = tabId;
         _lastClickedEntryId = null;
         _nextRefreshUtc = DateTime.UtcNow;
         RefreshTabs();
         if (!ForgeWorkshopInputShield.Show(SafeLog)) { Close(); return; }
+        ForgeWorkshopInputShield.ResetOpeningDrag();
         SafeLog($"[NicokoboForge/Workshop] opened; tab={tabId}");
     }
 
@@ -288,8 +287,8 @@ public static class ForgeWorkshopApi
         _visible = false;
         _activeSnapshot = null;
         _lastClickedEntryId = null;
-        InputCapture.Close();
-        if (!InputCapture.BlocksInput)
+        InputCapture.Close(Time.frameCount, MouseHeld);
+        if (!BlocksNativeInput)
             ForgeWorkshopInputShield.Hide();
         if (!_cursorCaptured) return;
         Cursor.lockState = _previousCursorLock;

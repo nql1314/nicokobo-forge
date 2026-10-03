@@ -4,7 +4,7 @@
     <Compile Include="..\..\BuildConfig\ForgeNumbers.cs" Link="BuildConfig\ForgeNumbers.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementRules.cs" Link="Workshop/AchievementRules.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementSaveReadback.cs" Link="Workshop/AchievementSaveReadback.cs" />
-    <Compile Include="../../src/Nicokobo.Forge/Workshop/WorkshopInputCapture.cs" Link="Workshop/WorkshopInputCapture.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeWindowInputCapture.cs" Link="ForgeWindowInputCapture.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/DragIdleGate.cs" Link="Workshop/DragIdleGate.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/InventoryReadCache.cs" Link="Runtime/InventoryReadCache.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeSaveReadbackApi.cs" Link="ForgeSaveReadbackApi.cs" />
