@@ -1,21 +1,17 @@
-# 物流所需通用 API：接入进度
+# 物流所需通用 API：实现边界
 
-日期：2026-09-29。依据 [`probably-stolen` 的物流脉络设计](../../probably-stolen/docs/MECHCORE_PROTOCOL_LOGISTICS_NEXUS.md)；该设计描述资源网络与电力网络玩法，不能当作 Nicokobo Forge 的实现指令或运行证据。项目边界见 [scope](SCOPE.md)。
+更新：2026-10-02。物流玩法由[物流脉络](../../probably-stolen/mods-melonloader/mechcore-protocol-logistics-nexus/README.md)维护，完整目标见[网络设计](../../probably-stolen/docs/MECHCORE_PROTOCOL_LOGISTICS_NEXUS.md)。该设计包含未实现内容，不能作为 Forge 已支持网络搬运的证据。
 
-| 物流需求 | Nicokobo Forge 通用能力 | 内容 Mod 负责 | 证据 |
-| --- | --- | --- | --- |
-| 记忆卡、压入/弹出节点注册 | `RegisterItem`、`RegisterNode` 共用 ID 所有权与原生目录钩子 | 三种物品 ID、模板、外观、槽位、获得途径 | 注册中心检查、编译通过；未进游戏核对 |
-| 卡规则、绑定与路由 | 提供公共注册及周目存档承载 | 规则和绑定实现在 `samples/Nicokobo.Forge.LogisticsExtension`，将来由物流 Mod 接管 | 黑白名单、实际实例标签、失效条件、默认网络、显式失效绑定的领域检查通过 |
-| 卡/节点/网络配置保存 | `ForgeRunDataApi` 对 owner 键做当前周目身份检查、原值比较与内存暂存 | 内容 schema、迁移、保存回调与文件读回 | 编译通过；未验证游戏保存/读档 |
-| 机器与资源网络间的整件搬运 | `ForgeInventoryApi.CaptureDirect` 只读快照及 `PreviewWholeGridTransfer` 保守预检；写入仍待核对接纳/回滚语义 | 合法机器输入/输出、网络路由、调度与过滤 | 两个只读入口编译通过；候选写入签名诊断已加，搬运未实现 |
-| 资源/电力网络与扩容 | 通用实例序列化、容量、电量与事务能力待验证 | 资源主/子网、电网、容器/电池扩容、UI、Wilds 解锁 | 物流 Mod 已有纯领域计划与账本；不保存货物、电量或扣除实体 |
+| 物流需求 | Forge 提供 | 内容 Mod 当前状态 |
+| --- | --- | --- |
+| 记忆卡、物质注入／物质提取节点 | `ForgeItemApi.RegisterItem / RegisterNode`、目录通知与所有权检查 | 三种物品定义已接入；当前无常规获取途径 |
+| 卡规则、绑定与路由 | 通用注册及周目数据承载 | 示例库提供卡规则与 codec；物流 Mod 维护自身资源／电力网络领域规则 |
+| 配置暂存和保存 | `ForgeRunDataApi.Read / Stage` 核对当前周目和原值后暂存 | 自有 schema 与账本；不承载网络货物或真实电量 |
+| 完整单件搬运预检 | `CaptureDirect` 快照、`PreviewWholeGridTransfer` 保守预检 | 实际搬运与跨库存恢复尚未实现 |
+| 网络扩容与电量调度 | 当前没有网络货物写入或原生电量事务 API | 容量及调度仅有纯逻辑计划；UI、实体锁定、扣除和重载闭环待实现 |
 
-内容侧示例不会作为 MelonLoader 插件安装。它的配置 codec **不含网络物品载荷**；在无损序列化和跨库存恢复路径未验证前，不能据此上线存储网络。早期重启已确认新增 `Nicokobo Forge/NativeItem`、`Nicokobo Forge/RunData` 和 `Nicokobo Forge/Inventory` 门控日志。仍需在可丢弃档中验证一件普通物品的目录创建、库存快照与 `modData` 暂存/保存/重载。随后再开发通用库存读写适配，先完成“完整移动一件、拒绝时双方不变、保存重载一致”三个门槛。
+`InventoryTransfer` 当前为 `false`。预检 `Ready` 只表示快照满足检查条件，不能提交事务。原生 `SlotMarker.TryAcceptOnce` 可能拆分或叠加物品，当前预检拒绝这些路径；只读快照允许非零负数实例 ID，搬运预检仍拒绝非正数 ID。
 
-原生 `SlotMarker.TryAcceptOnce` 的静态路径会按可取数量截断，并可能走拆分或叠加；当前只读预检刻意拒绝这两类路径。已打包安装的框架增加逐项应用状态查询。库存写入仍未开放，不能把预检 `Ready` 当作可提交事务。
+`samples/Nicokobo.Forge.LogisticsExtension` 是示例库，不作为 MelonLoader 插件安装。它的配置 codec 不含网络物品载荷。实际物流 Mod 的编译数值在[内容 BuildConfig](../../probably-stolen/mods-melonloader/BuildConfig/README.md)维护。
 
-13:00 实机日志出现 `dossier=-101`、`trashcan=-102` 等负数原生实例 ID。`CaptureDirect` 的只读快照因此允许非零负数 ID；完整搬运预检继续拒绝非正数 ID，直到特殊物品的移动与存档语义被验证。
-
-## 能力结论
-
-物流所需 API **部分实现**。Nicokobo Forge 具备普通物品/节点/效果注册、按 owner 的 `modData` 读取与内存暂存、直接子项库存快照、完整单件搬运的只读预检，以及候选写入方法的签名诊断；`InventoryTransfer` 仍为 `false`。`samples/Nicokobo.Forge.LogisticsExtension` 只实现记忆卡规则、绑定路由和配置 codec，不是安装后会运行的物流 Mod。实际物流 Mod 已增加资源/电力网络纯领域规则，但尚无机器网络 UI、物品实际搬运、网络货物无损序列化、原生电量适配、容量实体锁定、整箱上传、失败回滚及保存重载闭环。因此不能把它标为“物流 Mod 已可用”。
+后续库存写入需先确认完整单件接纳、写后读回、拒绝时双方不变、失败恢复与保存重载，再支持路由和网络货物持久化。当前编译与领域检查不能证明已完成这些行为；验证范围见[当前进度](FORGE_PROGRESS.md)。

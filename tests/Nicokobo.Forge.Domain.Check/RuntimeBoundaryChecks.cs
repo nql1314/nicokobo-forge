@@ -45,6 +45,31 @@ static class RuntimeBoundaryChecks
         numbers.Clear(); during.Dispatch(2, numbers);
         Check(numbers.SequenceEqual(new[] { 1 }), "Nested dispatch broken");
 
+        var released = new OwnedCallbacks<int, List<int>>();
+        IDisposable? removed = null;
+        IDisposable? replacement = null;
+        using var remover = released.Add("test.one", "test.one.remover", 1, x =>
+        {
+            x.Add(1);
+            removed!.Dispose();
+            replacement ??= released.Add("test.one", "test.one.removed", 1, y => y.Add(3), 1);
+        });
+        removed = released.Add("test.one", "test.one.removed", 1, x => x.Add(2), 1);
+        numbers.Clear(); released.Dispatch(1, numbers);
+        Check(numbers.SequenceEqual(new[] { 1 }), "Disposed callback ran from an in-flight snapshot");
+        numbers.Clear(); released.Dispatch(1, numbers);
+        Check(numbers.SequenceEqual(new[] { 1, 3 }), "Reused callback ID was removed by an old lease");
+        replacement!.Dispose();
+
+        var frequent = new OwnedCallbacks<int, object>();
+        using var observer = frequent.Add("test.one", "test.one.observe", 1, _ => { });
+        var context = new object();
+        for (int i = 0; i < 100; i++) frequent.Dispatch(1, context);
+        long allocated = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1000; i++) frequent.Dispatch(1, context);
+        Check(GC.GetAllocatedBytesForCurrentThread() - allocated == 0,
+            "Unchanged callback dispatch allocated or rebuilt its sorted snapshot");
+
         var admission = new ModuleAdmissionCatalog();
         int installs = 0;
         Check(admission.Submit("test.one", [new("furnace", ["foreign.type"])], () => { installs++; return true; }).Status == SubmitStatus.Invalid,

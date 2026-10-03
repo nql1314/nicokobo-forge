@@ -19,7 +19,7 @@ public static class ForgeRunDataApi
 {
     private static readonly Regex NamespacedId = new(
         "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_]*)+$", RegexOptions.CultureInvariant);
-    private const int MaxJsonChars = 1024 * 1024;
+    private const int MaxJsonChars = ForgeNumbers.RunData.MaxJsonChars;
     private static bool _enabled;
 
     internal static void SetEnabled(bool enabled) => _enabled = enabled;
@@ -97,7 +97,7 @@ public static class ForgeRunDataApi
         try
         {
             using var document = JsonDocument.Parse(json,
-                new JsonDocumentOptions { MaxDepth = 64 });
+                new JsonDocumentOptions { MaxDepth = ForgeNumbers.RunData.MaxJsonDepth });
             return document.RootElement.ValueKind == JsonValueKind.Object;
         }
         catch (JsonException) { return false; }

@@ -36,14 +36,37 @@ try {
     Assert-AdapterMethod 'Il2Cpp.ModuleEffectHelper' 'InitRandomEffect' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
     Assert-AdapterMethod 'Il2Cpp.MachineHelper' 'SetupModuleBay' 'System.Void' @('Il2Cpp.GameInventory', 'Il2Cpp.GameItem', 'Il2CppSystem.Action', 'Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStringArray')
     Assert-AdapterMethod 'Il2Cpp.MachineHelper' 'GetModuleInv' 'Il2Cpp.GameGridInventory' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'get_contentWindow' 'Il2Cpp.PixelWindow' @()
+    Assert-AdapterMethod 'Il2Cpp.PixelWindow' 'get_childElement' 'Il2Cpp.PixelElement' @()
+    Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'get_gridWidth' 'System.Int32' @()
+    Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'get_gridHeight' 'System.Int32' @()
+    Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'AttachPos' 'System.Boolean' @('Il2Cpp.PixelElement', 'System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'GetElement' 'Il2Cpp.PixelElement' @('System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.TagElement' 'SetText' 'Il2Cpp.TagElement' @('System.String', 'System.Int32', 'Il2Cpp.RenderHandler/ColorPalette')
+    Assert-AdapterMethod 'Il2Cpp.LocHelper' 'GetLocalizedMechanic' 'System.String' @('System.String', 'Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray`1<Il2CppSystem.Object>')
+    Assert-AdapterMethod 'Il2Cpp.GameSlotInventory' 'SetBackgroundFadeSprite' 'Il2Cpp.GameSlotInventory' @('System.String', 'System.String', 'System.Single', 'System.Single')
+    $adapterStringList = 'Il2CppSystem.Collections.Generic.List`1<System.String>'
+    Assert-AdapterMethod 'Il2Cpp.ContainerHelper' 'AllowOnlyTaggedItem' 'System.Void' @('Il2Cpp.GameInventory', 'System.String', 'System.Boolean', 'System.Boolean')
+    Assert-AdapterMethod 'Il2Cpp.ContainerHelper' 'InitContainerItem' 'System.Void' @('Il2Cpp.GameInventory', 'Il2Cpp.GameItem', $adapterStringList, $adapterStringList)
     Assert-AdapterMethod 'Il2Cpp.StoreClientList' 'PlaceInventorInventory' 'System.Void' @('System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'OnItemBought' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
     Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'FindAllItem' $adapterItemList @('System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.GeneralHelper' 'IsItemOwned' 'System.Boolean' @('Il2Cpp.GameItem')
     Assert-AdapterMethod 'Il2Cpp.GameItemElement' 'GetTooltipBasic' 'Il2Cpp.RichTextBuilder' @()
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'TryFindOneValidInventorySlot' 'Il2Cpp.SlotMarker' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'GetFreeCapacity' 'System.Int32' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'GetRefreshedValue' 'System.Int64' @()
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'SyncModifiedState' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'AccumulateFeatureStages' 'System.Void' @('System.Int64&', 'System.Int64&', 'System.Double&', 'System.Boolean')
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'ComposeStagedValue' 'System.Int64' @('System.Int64', 'System.Int64', 'System.Int64', 'System.Double', 'System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.GraphUtils' 'FindAllChildrenType' 'Il2CppSystem.Collections.Generic.List`1<T>' @('Il2Cpp.GraphNodeStorage', 'Il2CppSystem.Func`2<T,System.Boolean>', 'Il2CppSystem.Func`2<T,System.Boolean>')
+    Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'TransferLiquid' 'System.Void' @('Il2Cpp.GameItem', 'Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'AddLiquid' 'System.Void' @('Il2Cpp.GameItem', 'System.String', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'EmptyContainer' 'System.Void' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'GetContainerPrice' 'System.Int32' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WaterFeatureHelper' 'UpdateWaterFeatureFake' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.WaterFeatureHelper' 'InitWaterFeature' 'System.Void' @('Il2Cpp.GameItem', 'System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.ModuleHelper' 'CreateModuleTooltip' 'System.Void' @('Il2Cpp.RichTextBuilder', 'Il2Cpp.GameItem')
-    Assert-AdapterMethod 'Il2Cpp.MachineFurnace/__c__DisplayClass0_0' '_Furnace_b__1' 'System.Boolean' @('Il2Cpp.GameItem', 'Il2Cpp.GameInventory')
-    Assert-AdapterMethod 'Il2Cpp.MachineFurnace/__c__DisplayClass0_0' '_Furnace_b__5' 'System.Void' @('Il2Cpp.GameItem', 'Il2Cpp.GameInventory', 'Il2Cpp.SlotMarker')
     Assert-AdapterMethod 'Il2Cpp.MachineryHelper' 'GetMachinePowerUsage' 'System.Int32' @('Il2Cpp.GameItem')
     foreach ($adapterMethod in @('CanDrawPowerSource', 'DrawPowerSource')) {
         Assert-AdapterMethod 'Il2Cpp.PowerHelper' $adapterMethod 'System.Boolean' @('Il2Cpp.GameItem', 'System.Int32')
@@ -51,5 +74,49 @@ try {
     Assert-AdapterMethod 'Il2Cpp.PowerHelper' 'SetPowerSourceAt' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
     Assert-AdapterMethod 'Il2Cpp.PowerHelper' 'TryRemoveEnergy' 'System.Int32' @('Il2Cpp.GameItem', 'System.Int32', 'System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.PowerHelper' 'GetAvailableEnergyFromItem' 'System.Int32' @('Il2Cpp.GameItem', 'System.Boolean')
+    # Built-in achievement provider and bounded, no-stacking native reward placement.
+    foreach ($adapterMethod in @('StartNewGame', 'InitialSave', 'SaveGame')) {
+        Assert-AdapterMethod 'Il2Cpp.PlayerStore' $adapterMethod 'System.Void' @()
+    }
+    Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'ExecuteGameOver' 'System.Void' @('System.String')
+    foreach ($adapterMethod in @('GetTotalEstimatedValue', 'GetCurrentStoreAttractiveness')) {
+        Assert-AdapterMethod 'Il2Cpp.PlayerStore' $adapterMethod 'System.Int32' @()
+    }
+    Assert-AdapterMethod 'Il2Cpp.ItemMouseDoubleClickHandler' 'DoubleClickAction' 'System.Void' @('Il2Cpp.GameItem', 'UnityEngine.Vector2')
+    Assert-AdapterMethod 'Il2Cpp.InputActionManager' 'Update' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.StoreUIManager' 'CheckRaycast' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.StoreUIManager' 'ResolveEscape' 'System.Boolean' @()
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'GetTagReadonly' 'Il2Cpp.TagState' @('System.String')
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'ModifyTag' 'Il2Cpp.GameItem' @('System.String', 'Il2CppSystem.Action`1<Il2Cpp.TagState>', 'System.Boolean')
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'SetUnitCount' 'Il2Cpp.GameItem' @('System.Int32')
+    foreach ($adapterMethod in @('EnableTag', 'DisableTag')) {
+        Assert-AdapterMethod 'Il2Cpp.GameItem' $adapterMethod 'System.Boolean' @('System.String', 'System.Boolean')
+    }
+    Assert-AdapterMethod 'Il2Cpp.ItemMouseDragHandler' 'get_IsDraggingItem' 'System.Boolean' @()
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'FindItemFeatureByID' 'Il2Cpp.ItemFeature' @('System.String')
+    Assert-AdapterMethod 'Il2Cpp.GameItem' 'SetShape' 'Il2Cpp.GameItem' @('Il2Cpp.GridShape')
+    foreach ($adapterTypeName in @('GameInventory', 'GameGridInventory', 'GameSlotInventory',
+        'GameGridScrollableInventory', 'GameCharacterRaidInventory')) {
+        foreach ($adapterMethod in @('UncheckedAccept', 'Expel')) {
+            Assert-AdapterMethod "Il2Cpp.$adapterTypeName" $adapterMethod 'System.Boolean' @('Il2Cpp.GameItem')
+        }
+    }
+    Assert-AdapterMethod 'Il2Cpp.GameInventory' 'TryInventorySlot' 'Il2Cpp.SlotMarker' @('Il2Cpp.GameItem', 'System.Int32', 'Il2Cpp.GridShape', 'Il2Cpp.TagSystem')
+    Assert-AdapterMethod 'Il2Cpp.GameGridInventory' 'TryFindOneValidInventorySlot' 'Il2Cpp.SlotMarker' @('Il2Cpp.GameItem', 'System.Boolean')
+    Assert-AdapterMethod 'Il2Cpp.SlotMarker' 'IsValid' 'System.Boolean' @()
+    Assert-AdapterMethod 'Il2Cpp.SlotMarker' 'TryAcceptOnce' 'System.Int32' @('System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.GridShape' 'Clone' 'Il2Cpp.GridShape' @()
+    Assert-AdapterMethod 'Il2Cpp.GridShape' 'Get' 'System.Byte' @('System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'IsFull' 'System.Boolean' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'GetWaterPurity' 'System.Int32' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'GetTotalVolume' 'System.Int32' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WaterFeatureHelper' 'GetPurityArrayIndex' 'System.Int32' @('System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.HusbandryHelper' 'IsAnimalDead' 'System.Boolean' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.IngotPurityHelper' 'GetPurity' 'System.String' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WineHelper' 'IsFinishedWine' 'System.Boolean' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.WineHelper' 'GetWineQualityTier' 'System.Int32' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.AgableHelper' 'GetAge' 'System.Int32' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.StoreReputation' 'GetReputationExact' 'System.Double' @()
+    Assert-AdapterMethod 'Il2Cpp.StoreReputation' 'IsFactionValid' 'System.Boolean' @('System.String')
     Write-Host "Adapter metadata contracts passed: $adapterChecked. Native behavior remains separately verified." -ForegroundColor Green
 } finally { $adapterAssembly.Dispose() }

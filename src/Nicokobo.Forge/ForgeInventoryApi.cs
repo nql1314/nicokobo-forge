@@ -1,4 +1,6 @@
 using Il2Cpp;
+using Nicokobo.Forge.Runtime;
+using System.Collections.ObjectModel;
 
 namespace Nicokobo.Forge;
 
@@ -26,7 +28,7 @@ public sealed record NativeTransferPreview(NativeTransferPreviewStatus Status,
 /// mutation or recursive container traversal is performed.</summary>
 public static class ForgeInventoryApi
 {
-    private const int MaxDirectItems = 4096;
+    private const int MaxDirectItems = ForgeNumbers.Inventory.MaxDirectItems;
     private static bool _enabled;
     private static bool _previewEnabled;
 
@@ -49,7 +51,7 @@ public static class ForgeInventoryApi
         void Add(GameItem? item)
         {
             if (item == null || item.Pointer == IntPtr.Zero || !seen.Add(item.Pointer)) return;
-            if (seen.Count > 8192) throw new InvalidOperationException("Run item traversal exceeds limit");
+            if (seen.Count > ForgeNumbers.Inventory.MaxRunItems) throw new InvalidOperationException("Run item traversal exceeds limit");
             pending.Enqueue(item);
         }
         var all = store.FindAllItem(true) ?? throw new InvalidOperationException("Run items unavailable");
@@ -61,7 +63,7 @@ public static class ForgeInventoryApi
             result.Add(item);
             if (item.children != null)
             {
-                if (item.children.Count > 64) throw new InvalidOperationException("Item child traversal exceeds limit");
+                if (item.children.Count > ForgeNumbers.Inventory.MaxChildrenPerItem) throw new InvalidOperationException("Item child traversal exceeds limit");
                 foreach (var child in item.children)
                 {
                     GameInventory? inventory;
@@ -79,6 +81,45 @@ public static class ForgeInventoryApi
 
     public static bool IsPlayerOwned(GameItem item) => _enabled && item != null &&
         item.Pointer != IntPtr.Zero && GeneralHelper.IsItemOwned(item);
+
+    /// <summary>Detached positive unit counts by item ID for read-only effects.
+    /// Reads share one snapshot within a frame, until native inventory, quantity,
+    /// ownership or run changes. Pass relevant IDs to limit native ownership checks;
+    /// the map may also include IDs requested by other readers. Transaction
+    /// preflight must use a fresh capture.</summary>
+    public static IReadOnlyDictionary<string, int> CaptureOwnedItemCounts(PlayerStore store,
+        IReadOnlyCollection<string>? relevantIds = null)
+    {
+        if (!_enabled) throw new InvalidOperationException("Run inventory adapter unavailable");
+        if (store == null || store.Pointer == IntPtr.Zero ||
+            string.IsNullOrWhiteSpace(store.runID) || store.saveSlotId < 0)
+            throw new ArgumentException("Current run is required");
+        return InventoryReadRuntime.Capture(store, relevantIds, ids =>
+        {
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var item in CaptureRunItems(store))
+            {
+                int units = item.unitCount;
+                if (units <= 0) continue;
+                string id = item.identifier;
+                if (string.IsNullOrWhiteSpace(id) || ids != null && !ids.Contains(id) || !IsPlayerOwned(item)) continue;
+                counts.TryGetValue(id, out int previous);
+                counts[id] = (int)Math.Min(int.MaxValue, (long)previous + units);
+            }
+            return new ReadOnlyDictionary<string, int>(counts);
+        });
+    }
+
+    /// <summary>Observes the existing native drag handler without creating one.</summary>
+    public static bool IsItemDragActive
+    {
+        get
+        {
+            if (!_enabled) return false;
+            var handler = ItemMouseDragHandler.current;
+            return handler != null && handler.Pointer != IntPtr.Zero && handler.IsDraggingItem;
+        }
+    }
 
     public static NativeInventorySnapshot CaptureDirect(GameInventory? inventory)
     {

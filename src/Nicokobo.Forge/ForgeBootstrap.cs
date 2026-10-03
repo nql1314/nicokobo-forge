@@ -27,6 +27,7 @@ internal static class ForgeBootstrap
         ForgeInventoryApi.SetEnabled(report.KnownBuild &&
             report.InventoryReadSignaturesMatch, report.KnownBuild &&
             report.InventoryPreviewSignaturesMatch);
+        Runtime.InventoryReadRuntime.Install(report.KnownBuild && report.InventoryReadSignaturesMatch, log.Callback);
 
         var installed = log.IsDebugEnabled && report.CanInstallReadOnlyProbes &&
             LifecycleProbe.Install(harmony, log.Callback);
@@ -57,6 +58,9 @@ internal static class ForgeBootstrap
             report.KnownBuild && report.InventoryReadSignaturesMatch,
             report.KnownBuild && report.InventoryPreviewSignaturesMatch,
             nativeEffectInstalled, false, machineInstalled));
+        Workshop.NativeWorkshop.Install(report.KnownBuild && nativeNodeInstalled &&
+            report.RunDataSignaturesMatch && report.InventoryReadSignaturesMatch && report.InventoryPreviewSignaturesMatch,
+            log.Callback);
         log.Info($"[NicokoboForge/P0] readOnlyProbesInstalled={installed}; " +
             $"nativeNodeHookInstalled={nativeNodeInstalled}; stagedNodes={NativeItemRegistry.StagedCount}; " +
             $"moduleHookInstalled={NativeItemRegistry.ModuleHookInstalled}; " +

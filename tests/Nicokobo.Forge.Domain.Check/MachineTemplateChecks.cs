@@ -6,7 +6,7 @@ using Nicokobo.Forge.Registration;
 // behavior are simulated by registration checks.
 namespace Il2Cpp
 {
-    public sealed class GameItem;
+    public sealed partial class GameItem;
     public class GameInventory;
     public sealed class GameSlotInventory : GameInventory;
 }
@@ -21,8 +21,8 @@ internal static class MachineCatalogChecks
         SubmitResult Stage(ForgeMachineDefinition _) { staged++; return new(SubmitStatus.Accepted, "test"); }
         const string owner = "test.owner", id = owner + ".machine";
         var catalog = new MachineCatalog();
-        var inputs = new List<ForgeMachineIngredient> { new("quartz", 2) };
-        var auxiliary = new List<string> { "flux_agent" };
+        var inputs = new List<ForgeMachineIngredient> { new("raw_material", 2) };
+        var auxiliary = new List<string> { "auxiliary_material" };
         var modules = new List<string> { "MODULE_TYPE_FURNACE" };
         var slots = new List<ForgeMachineContainerSlot> { new("water", new(3, 3)) };
         var liquidInputs = new List<ForgeMachineLiquidIngredient> { new("water", 100) };
@@ -32,29 +32,49 @@ internal static class MachineCatalogChecks
             { LiquidInputs = liquidInputs, AuxiliaryItemIds = auxiliary };
         var template = new ForgeMachineTemplate(new(6, 4), new(ForgeMachineOutputKind.Items, new(6, 4)))
             { LiquidInputs = slots, Modules = new(new(4, 4), modules) };
-        var definition = new ForgeMachineDefinition(id, template, [recipe], new(8));
+        var definition = new ForgeMachineDefinition(id, template, [recipe], new(8))
+            { ProductionMarkupPercent = 25 };
         Expect(!catalog.HasMachines, "empty catalog");
         Expect(catalog.Register(owner, definition, Stage).Status == SubmitStatus.Accepted && staged == 1,
             "mixed input registration rejected");
         Expect(catalog.TryGet(id, out var first) && first != null, "profile missing");
         inputs.Clear(); auxiliary.Add("ore"); modules.Clear(); slots.Clear(); liquidInputs.Clear(); contents.Clear();
-        Expect(first!.Recipes[0].Value.ItemInputs.Count == 1 && first.Template.LiquidInputs.Count == 1 &&
+        Expect(first!.Definition.ProductionMarkupPercent == 25 &&
+            first.Recipes[0].Value.ItemInputs.Count == 1 && first.Template.LiquidInputs.Count == 1 &&
             first.Template.Modules!.AllowedTypes.Count == 1 && first.Recipes[0].Value.LiquidInputs.Count == 1 &&
             ((ForgeMachineItemOutput)first.Recipes[0].Value.Output).Contents!.Count == 1,
             "caller mutated a nested template or recipe list");
-        Expect(first.IsFeedstock("quartz") && first.Accepts("flux_agent") && !first.Accepts("ore"), "admission index");
+        Expect(first.IsFeedstock("raw_material") && first.Accepts("auxiliary_material") && !first.Accepts("ore"), "admission index");
+        Expect(MachineAdmission.InputIds(first.Recipes.Select(entry => entry.Value))
+            .SequenceEqual(new[] { "auxiliary_material", "raw_material" }, StringComparer.Ordinal),
+            "native item-input whitelist");
         var extra = new ForgeMachineRecipe("test.other.recipe", [new("iron", 1)], new ForgeMachineItemOutput("part"));
         Expect(catalog.RegisterAdditional("test.other", id, [extra]).Status == SubmitStatus.Accepted, "contributor rejected");
         Expect(catalog.TryGet(id, out var second) && second!.Recipes.Count == 2 && second.IsFeedstock("iron"), "new profile missing");
+        Expect(MachineAdmission.InputIds(second!.Recipes.Select(entry => entry.Value))
+            .SequenceEqual(new[] { "auxiliary_material", "iron", "raw_material" }, StringComparer.Ordinal) &&
+            MachineAdmission.InputIds(second.Recipes.Select(entry => entry.Value)).All(second.Accepts),
+            "extended native item-input whitelist");
         Expect(first.Recipes.Count == 1 && !first.IsFeedstock("iron"), "in-flight profile changed");
         Expect(catalog.RegisterAdditional("test.other", id, [extra with { RecipeId = "test.other.new" }, extra]).Status ==
-            SubmitStatus.Conflict && catalog.Snapshot(false, false).Single().RecipeCount == 2, "conflicting batch partially published");
+            SubmitStatus.Conflict && catalog.Snapshot(false).Single().RecipeCount == 2, "conflicting batch partially published");
         var stable = first.Definition;
+        var optional = stable with
+        {
+            Template = stable.Template with { LiquidInputs = [new("water", new(1, 1))] },
+            Recipes = [new(owner + ".optional", [new("raw_material", 1)], new ForgeMachineItemOutput("part"))]
+        };
+        Expect(MachineCatalog.TryFreezeDefinition(owner, optional, out var optionalFrozen) &&
+            optionalFrozen.Template.LiquidInputs.Single().Label == "" &&
+            optionalFrozen.Recipes.Single().LiquidInputs.Count == 0,
+            "native-label optional liquid slot made an item-only recipe require liquid");
         Expect(catalog.Register(owner, stable, Stage).Status == SubmitStatus.Conflict && staged == 1,
             "duplicate invoked native registration");
         foreach (var bad in new[]
         {
             stable with { MachineId = "foreign.machine" }, stable with { Power = new(-1) },
+            stable with { ProductionMarkupPercent = -1 },
+            stable with { ProductionMarkupPercent = 1001 },
             stable with { Template = stable.Template with { ItemInput = new(0, 4) } },
             stable with { Template = stable.Template with { Output = new((ForgeMachineOutputKind)99, new(2, 2)) } },
             stable with { Template = stable.Template with { Output = new(ForgeMachineOutputKind.Container, new(2, 2)) } },
@@ -78,6 +98,15 @@ internal static class MachineCatalogChecks
         })
             Expect(catalog.RegisterAdditional("test.other", id, [bad]).Status == SubmitStatus.Invalid, "invalid additional recipe accepted");
         Expect(catalog.RegisterAdditional("test.other", "missing", [extra]).Status == SubmitStatus.Invalid, "unknown target accepted");
+        var category = extra with { RecipeId = "test.other.category", ItemInputs =
+            [new("", 1, _ => true) { ItemTag = "MUSIC_CATEGORY" }] };
+        Expect(catalog.RegisterAdditional("test.other", id, [category]).Status == SubmitStatus.Accepted &&
+            catalog.TryGet(id, out var categoryProfile) && categoryProfile!.IsFeedstockTag(tag => tag == "MUSIC_CATEGORY") &&
+            MachineAdmission.InputTags(categoryProfile.Recipes.Select(entry => entry.Value)).SequenceEqual(["MUSIC_CATEGORY"]),
+            "category recipe missing from native tag admission");
+        Expect(catalog.RegisterAdditional("test.other", id, [category with { RecipeId = "test.other.bad_category",
+            ItemInputs = [new("specific", 1) { ItemTag = "MUSIC_CATEGORY" }] }]).Status == SubmitStatus.Invalid,
+            "ambiguous category and item identifier accepted");
         var liquidRecipe = new ForgeMachineRecipe(owner + ".liquid", [], new ForgeMachineContainerOutput([new("water", 90)]))
             { LiquidInputs = [new("source", 100, "water")] };
         var liquidTemplate = new ForgeMachineTemplate(null, new(ForgeMachineOutputKind.Container, new(3, 3)))
@@ -91,27 +120,47 @@ internal static class MachineCatalogChecks
         };
         Expect(catalog.RegisterAdditional(owner, owner + ".liquid", [dynamicRecipe]).Status == SubmitStatus.Accepted,
             "resolved volumes rejected");
+        Func<ForgeMachineBatchContext, IReadOnlyList<ForgeMachineLiquidPart>> composition =
+            context => ForgeLiquidCompositionMath.ReplaceComponent(
+                ForgeLiquidCompositionMath.Consumed(context.Liquids[0].Before, context.Liquids[0].After), "water", "protein");
+        var convertedRecipe = dynamicRecipe with
+        {
+            RecipeId = owner + ".composition",
+            Output = new ForgeMachineContainerOutput([]) { ResolveContents = composition }
+        };
+        Expect(catalog.RegisterAdditional(owner, owner + ".liquid", [convertedRecipe]).Status == SubmitStatus.Accepted &&
+            catalog.TryGet(owner + ".liquid", out var compositionProfile) &&
+            ((ForgeMachineContainerOutput)compositionProfile!.Recipes.Last().Value.Output).ResolveContents == composition,
+            "composition resolver was rejected or lost during freezing");
+        Expect(catalog.RegisterAdditional(owner, owner + ".liquid", [convertedRecipe with
+            { RecipeId = owner + ".ambiguous", Output = new ForgeMachineContainerOutput([new("water", 10)])
+                { ResolveContents = composition } }]).Status == SubmitStatus.Invalid,
+            "static and resolved contents were both accepted");
         var mixedContainer = liquidRecipe with { RecipeId = owner + ".mixed_container", ItemInputs = [new("scrap", 2)] };
         Expect(catalog.Register(owner, new(owner + ".mixed_container", liquidTemplate with { ItemInput = new(6, 4) },
             [mixedContainer], new()), Stage).Status == SubmitStatus.Accepted,
             "simultaneous item/liquid inputs to installed container rejected");
-        var simple = new ForgeMachineRecipe(owner + ".glass", [new("glass", 2)], new ForgeMachineItemOutput("quartz"));
-        var native = new ForgeMachineDefinition("furnace",
-            new(new(6, 4), new(ForgeMachineOutputKind.Items, new(6, 4))), [simple], new(8));
-        Func<GameItem, GameInventory, bool> probe = (_, _) => false;
-        Expect(catalog.RegisterNative(owner, native, probe).Status == SubmitStatus.Accepted, "native furnace rejected");
-        Expect(catalog.TryGet("furnace", out var furnace) && ReferenceEquals(furnace!.NativeBatchProbe, probe), "native probe lost");
-        Expect(catalog.RegisterNative(owner, native with { Recipes = [simple with { RecipeId = owner + ".glass2" }] }, null).Status ==
-            SubmitStatus.Accepted && catalog.TryGet("furnace", out furnace) && ReferenceEquals(furnace!.NativeBatchProbe, probe),
-            "later native recipe registration dropped probe");
-        Expect(catalog.RegisterNative(owner, native with { MachineId = "other" }, probe).Status == SubmitStatus.Invalid,
-            "unsupported native machine accepted");
+        var externalInputs = new List<ForgeMachineIngredient> { new("raw_material", 2) };
+        var externalRecipes = new List<ForgeMachineRecipe>
+        { new(owner + ".external", externalInputs, new ForgeMachineItemOutput("part")) };
+        var external = new ForgeMachineDefinition("existing_machine",
+            new(new(6, 4), new(ForgeMachineOutputKind.Items, new(6, 4))), externalRecipes, new(8));
+        Expect(catalog.Register(owner, external, Stage).Status == SubmitStatus.Invalid &&
+            !catalog.TryGet("existing_machine", out _), "external batch rules claimed a machine ID");
+        Expect(MachineCatalog.TryFreezeDefinition(owner, external, out var frozenBatch),
+            "explicit generic batch definition rejected");
+        externalInputs.Clear(); externalRecipes.Clear();
+        Expect(frozenBatch.Recipes.Count == 1 && frozenBatch.Recipes[0].ItemInputs.Count == 1 &&
+            !catalog.TryGet("existing_machine", out _), "caller changed frozen batch rules or batch was registered");
+        Expect(!MachineCatalog.TryFreezeDefinition(owner, frozenBatch with { MachineId = "" }, out _),
+            "missing batch machine identity accepted");
+        Expect(!MachineCatalog.TryFreezeDefinition("other.owner", frozenBatch, out _),
+            "foreign batch recipe ownership accepted");
         Expect(catalog.Register(owner, stable with { MachineId = owner + ".failed" },
             _ => new(SubmitStatus.Conflict, "native collision")).Status == SubmitStatus.Conflict &&
             !catalog.TryGet(owner + ".failed", out _), "native failure published a machine profile");
-        Expect(catalog.Snapshot(true, false).Single(view => view.NativeMachine).RuntimeInstalled == false &&
-            catalog.Snapshot(true, false).Where(view => !view.NativeMachine).All(view => view.RuntimeInstalled),
-            "optional furnace hook failure disabled templates or claimed native availability");
+        Expect(catalog.Snapshot(true).All(view => view.RuntimeInstalled) &&
+            catalog.Snapshot(false).All(view => !view.RuntimeInstalled), "template readiness snapshot incorrect");
         Console.WriteLine($"Machine template catalog checks passed: {checks} assertions.");
         MachineBatchChecks.Run();
     }
@@ -143,7 +192,42 @@ internal static class MachineBatchChecks
             "component draw changed other liquids");
         Expect(MachineBatchMath.Add(specific, [new("protein", 50_000)]).Contents.SequenceEqual(liquid.Contents),
             "refill did not restore exact composition");
-        foreach (int parts in new[] { 0, -1, 300_001 })
+        Expect(ReferenceEquals(MachineBatchMath.Consume(liquid, 0, null), liquid), "zero water draw changed the source");
+        var feed = new ForgeMachineLiquidSnapshot(2_000_000,
+            [new("water", 700_000), new("protein", 200_000) { Value = 100m, QualityBasis = 80m },
+             new("salt", 100_000) { Value = 8m }]);
+        var feedAfter = MachineBatchMath.Consume(feed, 400_000, null);
+        var drawn = ForgeLiquidCompositionMath.Consumed(feed, feedAfter);
+        var conversion = ForgeLiquidCompositionMath.ReplaceComponent(drawn, "water", "protein");
+        Expect(conversion.Sum(part => part.Parts) == 400_000 && conversion.All(part => part.LiquidId != "water") &&
+            conversion.Single(part => part.LiquidId == "protein").Parts == 360_000 &&
+            conversion.Single(part => part.LiquidId == "salt") == drawn.Single(part => part.LiquidId == "salt"),
+            "component conversion discarded contaminants, lost volume or left source water");
+        Expect(ForgeLiquidCompositionMath.BaseValue(conversion) == ForgeLiquidCompositionMath.BaseValue(drawn) &&
+            conversion.Single(part => part.LiquidId == "protein").QualityBasis == 43.2m,
+            "component conversion lost proportional component value or quality basis");
+        var destination = new ForgeMachineLiquidSnapshot(1_000_000,
+            [new("water", 200_000), new("protein", 0), new("salt", 0)]);
+        var combined = MachineBatchMath.Add(destination, conversion);
+        Expect(combined.TotalParts == 600_000 && combined.Contents[0].Parts == 200_000 &&
+            combined.Contents[1].Parts == 360_000 && combined.Contents[2].Parts == 40_000,
+            "converted mixture replaced existing output liquid instead of mixing");
+        Expect(MachineBatchMath.BaseValue(combined) == 62.4m &&
+            MachineBatchMath.BaseValue(MachineBatchMath.Consume(combined, 180_000, "protein")) == 36.8m,
+            "mixed biomass/water price or partial biomass consumption did not follow component proportions");
+        try { MachineBatchMath.Add(destination with { CapacityParts = 599_999 }, conversion);
+            throw new Exception("converted mixture overflow accepted"); }
+        catch (ArgumentOutOfRangeException) { checks++; }
+        // A failed destination readback restores the entire mixed output and
+        // source, including contaminant parts and their value ledger.
+        var liveSource = feed; var liveDestination = destination;
+        var failedConversion = MachineTransaction.Run([
+            new("source", () => liveSource = feedAfter, () => { liveSource = feed; return true; }),
+            new("destination", () => { liveDestination = combined; throw new Exception("readback failure"); },
+                () => { liveDestination = destination; return true; })]);
+        Expect(!failedConversion.Committed && failedConversion.Restored && liveSource == feed && liveDestination == destination,
+            "conversion rollback failed to restore both original compositions");
+        foreach (int parts in new[] { -1, 300_001 })
         {
             try { MachineBatchMath.Consume(liquid, parts, null); throw new Exception("invalid draw accepted"); }
             catch (ArgumentOutOfRangeException) { checks++; }

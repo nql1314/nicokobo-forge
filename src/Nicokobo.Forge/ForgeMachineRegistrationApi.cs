@@ -1,4 +1,3 @@
-using Il2Cpp;
 using Nicokobo.Forge.Registration;
 
 namespace Nicokobo.Forge;
@@ -10,7 +9,7 @@ public static class ForgeMachineRegistrationApi
     private static readonly MachineCatalog Catalog = new();
     private static Action<string>? _log;
     public static IReadOnlyList<ForgeMachineView> Snapshot() =>
-        Catalog.Snapshot(ForgeMachineRuntimeApi.RuntimeInstalled, ForgeMachineHooks.NativeFurnaceInstalled);
+        Catalog.Snapshot(ForgeMachineRuntimeApi.RuntimeInstalled);
 
     public static SubmitResult RegisterMachine(string ownerId, ForgeMachineDefinition definition)
     {
@@ -22,17 +21,6 @@ public static class ForgeMachineRegistrationApi
     public static SubmitResult RegisterAdditionalRecipes(string ownerId, string machineId,
         IReadOnlyList<ForgeMachineRecipe> recipes) => Catalog.RegisterAdditional(ownerId, machineId, recipes);
 
-    /// <summary>Optional vanilla furnace extension. A true or failing probe
-    /// preserves native processing. Only this API installs furnace hooks.</summary>
-    public static SubmitResult RegisterExistingMachine(string ownerId, string machineId,
-        IReadOnlyList<ForgeMachineRecipe> recipes, ForgeMachinePowerRule power,
-        Func<GameItem, GameInventory, bool>? nativeBatchProbe = null)
-    {
-        var template = new ForgeMachineTemplate(new(6, 4), new(ForgeMachineOutputKind.Items, new(6, 4)));
-        var result = Catalog.RegisterNative(ownerId, new(machineId, template, recipes, power), nativeBatchProbe);
-        if (result.Status == SubmitStatus.Accepted) ForgeMachineHooks.InstallNativeFurnace();
-        return result;
-    }
     internal static bool HasMachines => Catalog.HasMachines;
     internal static bool TryGet(string machineId, out MachineProfile? profile) => Catalog.TryGet(machineId, out profile);
     internal static void Log(string message) => _log?.Invoke(message);

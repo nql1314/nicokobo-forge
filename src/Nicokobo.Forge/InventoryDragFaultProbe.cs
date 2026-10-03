@@ -3,6 +3,9 @@ using Il2Cpp;
 
 namespace Nicokobo.Forge;
 
+/// <summary>Diagnostic only. Forge installs native ContainerHelper whitelists, so
+/// its own slots never carry an interop bridge; this catches a foreign
+/// DelegateSupport delegate that would throw inside InvokeAllReduce.</summary>
 internal static class InventoryDragFaultProbe
 {
     private const string Owner = "nicokobo.forge.inventory_drag_fault";
@@ -17,16 +20,29 @@ internal static class InventoryDragFaultProbe
         var harmony = new HarmonyLib.Harmony(Owner);
         try
         {
-            var target = AccessTools.Method(typeof(GameSlotInventory),
-                nameof(GameSlotInventory.MayHaveValidInventorySlot),
-                [typeof(GameItem)]) ?? throw new MissingMethodException(
-                nameof(GameSlotInventory),
+            // Every concrete override of the virtual method the drag handler calls.
+            // The abstract declaration on GameInventory has no body to patch.
+            var prefix = new HarmonyMethod(AccessTools.Method(
+                typeof(InventoryDragFaultProbe), nameof(BeforeCheck))!);
+            var finalizer = new HarmonyMethod(AccessTools.Method(
+                typeof(InventoryDragFaultProbe), nameof(AfterFault))!);
+            int patched = 0;
+            foreach (var slotType in typeof(GameInventory).Assembly.GetTypes()
+                .Where(type => type != typeof(GameInventory) && type.IsSubclassOf(typeof(GameInventory))))
+            {
+                var target = AccessTools.DeclaredMethod(slotType,
+                    nameof(GameSlotInventory.MayHaveValidInventorySlot), [typeof(GameItem)]);
+                if (target == null) continue;
+                try { harmony.Patch(target, prefix: prefix, finalizer: finalizer); patched++; }
+                catch (Exception ex)
+                {
+                    log($"[WARN] [NicokoboForge/InventoryDrag] {slotType.Name} not patched: " +
+                        $"{ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            if (patched == 0) throw new MissingMethodException("GameInventory",
                 nameof(GameSlotInventory.MayHaveValidInventorySlot));
-            harmony.Patch(target,
-                prefix: new HarmonyMethod(AccessTools.Method(
-                    typeof(InventoryDragFaultProbe), nameof(BeforeCheck))!),
-                finalizer: new HarmonyMethod(AccessTools.Method(
-                    typeof(InventoryDragFaultProbe), nameof(AfterFault))!));
+            log($"[NicokoboForge/InventoryDrag] probe installed on {patched} slot types");
             return true;
         }
         catch (Exception ex)
@@ -38,26 +54,26 @@ internal static class InventoryDragFaultProbe
         }
     }
 
-    private static void BeforeCheck(GameSlotInventory __instance, GameItem item)
+    private static void BeforeCheck(GameInventory __instance, GameItem item)
     {
         try
         {
             if (__instance == null || __instance.Pointer == IntPtr.Zero ||
-                !Seen.Add(__instance.Pointer) || Seen.Count > 128) return;
+                !Seen.Add(__instance.Pointer) || Seen.Count > ForgeNumbers.Diagnostics.MaxDragSlots) return;
             _log?.Invoke($"[WARN] [NicokoboForge/InventoryDrag] slot={Describe(__instance, item)}");
         }
         catch { /* Diagnostics must not interrupt the native drag. */ }
     }
 
     private static Exception? AfterFault(Exception? __exception,
-        GameSlotInventory __instance, GameItem item, ref bool __result)
+        GameInventory __instance, GameItem item, ref bool __result)
     {
         if (__exception == null) return null;
         if (!(__exception is System.Reflection.TargetException ||
             __exception.Message.Contains("Object does not match target type",
                 StringComparison.Ordinal))) return __exception;
         __result = false;
-        if (_faults++ < 8)
+        if (_faults++ < ForgeNumbers.Diagnostics.MaxDragFaultLogs)
         {
             try
             {
@@ -70,7 +86,7 @@ internal static class InventoryDragFaultProbe
         return null;
     }
 
-    private static string Describe(GameSlotInventory slot, GameItem item)
+    private static string Describe(GameInventory slot, GameItem item)
     {
         string add = DescribeDelegate(slot.mayInventoryAddItemFunc);
         string remove = DescribeDelegate(slot.mayInventoryRemoveItemFunc);

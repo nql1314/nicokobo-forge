@@ -1,71 +1,68 @@
 # Nicokobo Forge / 模组前置框架
 
-Author: Nicokobo · Version: 0.5.0
+Author: Nicokobo · Version: **0.6.7** · Target: **Probably Stolen Demo，Steam Build `25382790`**
 
-## Summary / 摘要
+Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，并内置 Nico工坊的全开局名片与原版成就页。各内容 Mod 维护自己的物品、配方、价格、成长和独立解锁页。
 
-**English:** A shared dependency for Probably Stolen Demo content mods, supporting new items, effects, and the Nico Workshop. Forge adds no gameplay content by itself.
+## 安装
 
-**中文：**Probably Stolen Demo 内容 Mod 的共用前置，支持新物品、效果与 Nico 工坊；单独安装不会增加玩法内容。
+1. 游戏需已安装 [MelonLoader](https://melonwiki.xyz/)。
+2. 将 `Nicokobo.Forge-0.6.7.dll` 与所需 Mod DLL 复制到游戏 `Mods/`；只使用原版成就时可单独安装 Forge。
+3. 更新时移出旧 DLL，Forge 和每个内容 Mod 各只保留一份。使用同一次配套构建的文件。
 
-This local `0.5.0` candidate targets **Probably Stolen Demo Steam Build 25382790**. It replaces the previous machine API with native UI templates, item/liquid/mixed inputs, a single item or container output template, module and battery slots, and transactional nightly processing. Content mods must be rebuilt; old machine saves are not migrated. Local builds do not prove in-game UI, production or save/reload behavior.
+当前源码配套：机械飞升 `0.1.25`、模组矩阵 `1.1.1`、物流脉络 `0.2.1`、合成扩展 `0.9.22`。源码版本和本地包不代表游戏当前已安装版本；本轮构建、安装与实机验证范围见[当前进度](docs/FORGE_PROGRESS.md)。
 
-当前 `0.5.0` 面向 **Probably Stolen Demo Steam Build 25382790**。机器 API 已替换为原版 UI 模板声明：支持物品、液体或两者同时输入，每台机器选择物品仓或容器输出，并配置模组仓、电池和手册槽。Forge 统一处理液体组分、动态体积、每批／每件耗电、仓库容量、逐项读回及失败恢复，每台机器每夜最多尝试一批。自定义机器复用两个公共生命周期 Hook；原版熔炉扩展按需加装两个钩子。合成扩展 K01–K05 和机械飞升的 K05 追加配方已迁移到新接口，需要配套重新编译，不提供旧接口兼容或旧存档迁移。游戏内 UI、过夜和新档重载待验证。本地默认日志为 `INFO`，用户配置优先。Forge 补充垃圾桶清理仍停用。
+## Nico工坊
 
-公共 API 已按注册、运行时、生命周期、模组、文本、库存、周目数据、电量和液体划分。机核协议的重复接入改为公共订阅，必要原生操作集中到适配器，说明与边界见 [API 职责](docs/API_BOUNDARIES.md)。配套候选为模组矩阵 1.1.0、物流脉络 0.2.0、合成扩展 0.8.0、机械飞升 0.1.8。
+所有开局由 Forge 发放 `nicokobo.forge.nico_card` 名片，按 N 或双击名片打开“原版”页。10 项成就分别显示进度、达成和领奖，奖励按周目一次性领取。满背包会延迟名片发放或保留领奖资格；通关徽章是展示标记，不占库存。安装机械飞升后另有“伪人：机械飞升”页，只在对应开局开放。条件与奖励见[成就方案](docs/WORKSHOP_ACHIEVEMENT_DESIGN.md)。
 
----
+名片采用深色底、铜色边框与大 N 标志，保留 2×1 占格；工坊标题栏采用 `nicokobo.com` 的齿轮 Logo，点击带下划线的网址会用系统默认浏览器打开网站。网站 Logo 原图嵌入 `src/Nicokobo.Forge/Assets/Brand/nicokobo_logo.png`。名片图标源图与生成提示保存在 `src/Nicokobo.Forge/Assets/IconSources/`，用 `py scripts/export_workshop_card.py` 导出库存图标及本地设计预览。
+
+名片在正常初始化时加入原生日用品掉落表，保留所有开局的赠送入口。内容 Mod 各自声明物品掉落；十二种最终义体仅由所属 Mod 制造，合成扩展的五台机器声明为可重复购买的夜间商店库存。
+
+## 通用能力
+
+- 物品、设施、节点、机器模组及效果注册，稳定 ID、所有者与冲突诊断。
+- 公共生命周期、模组观察与文本接入，开局 ID 和周目数据承载。
+- 原版机器 UI 模板、物品／液体输入、物品或容器输出、电池／模组／手册槽、每夜一批及失败恢复。
+- 液体组分与价值账本、生产材料价值计算，以及内容方声明的机器生产倍率透传。
+- Nico 工坊的独立标签、解锁星图、条件展示与回调分派。
+- 内容方嵌入式图集的发布与恢复、只读 ES3 文件解析、原生补丁入口检查。
+- 库存只读快照与完整单件搬运预检；`InventoryTransfer` 当前为 `false`。
+
+动作前查看 `ForgeCapabilities.Current`；注册 `Accepted` 与目录 `Applied` 是不同状态。具体契约见 [API 职责](docs/API_BOUNDARIES.md)和[能力范围](docs/SCOPE.md)。
+
+## 开发与数值
+
+框架自己的默认值、限制、重试及工坊参数集中在 [BuildConfig](BuildConfig/README.md)，随 `Nicokobo.Forge.dll` 编译。内容 Mod 的数值位于[关联仓库的 BuildConfig](../probably-stolen/mods-melonloader/BuildConfig/README.md)。
+
+在 Forge 仓库执行：
+
+```powershell
+.\scripts\Build-P0.ps1 -GameDir 'F:\SteamLibrary\steamapps\common\Probably Stolen Demo'
+```
+
+默认检查并编译核心与四个示例；`-IncludeProbes` 加入工坊和效果探针。要构建、检查并打包四个内容 Mod，在 `probably-stolen` 仓库执行：
+
+```powershell
+.\mods-melonloader\Build-ForgeMods.ps1
+```
+
+默认生成本地文件。开发环境、输出位置、日志与依赖选择见[开发说明](docs/DEVELOPMENT.md)。框架默认日志为 `INFO`，用户 `MelonPreferences.cfg` 设置优先。
+
+## 文档
+
+- [文档索引](docs/README.md)：当前 API、示例和历史证据入口。
+- [机器 API](docs/MACHINE_API.md)：注册、投料、液体、电量、生产价值和事务。
+- [公共服务](docs/SHARED_SERVICES.md)：图集、ES3 读取、补丁目标检查与现有 Mod 迁移。
+- [工坊图谱](docs/WORKSHOP_GRAPH.md)：链、前置、条件、奖励与内容方的交易职责。
+- [物流接入边界](docs/LOGISTICS_API_PROGRESS.md)：已开放的读取／预检与待实现项。
+- [当前进度](docs/FORGE_PROGRESS.md)：本地验证、未验收项与日期明确的探针记录。
 
 ## English
 
-### Dependencies
+A shared dependency for Probably Stolen Demo content mods, targeting Steam Build `25382790`. Forge provides registration, lifecycle events, native machine templates, liquid and power transactions, production value support, and the Nico Workshop. It includes an all-start workshop card and ten native achievements with per-run rewards. Content mods own their gameplay definitions and separate progression pages.
 
-- **Probably Stolen Demo**, Steam Build `25382790`
-- [MelonLoader](https://melonwiki.xyz/)
-
-### Installation
-
-1. Copy `Nicokobo.Forge.dll` from the matching content mod bundle into the game's `Mods/` folder. Keep only one copy of Forge there; remove older Forge DLLs when updating.
-2. Copy any content mod that requires Forge into `Mods/` as directed by that mod.
-3. Launch the game. Forge has no standalone gameplay content or settings panel.
-
-### What Forge provides
-
-- A shared base for compatible mods to register items, facilities, nodes, machine modules, and effects.
-- Native machine UI templates, recipe registration, mixed item/liquid admission, item or container output, and atomic nightly resource processing. See [Machine API](docs/MACHINE_API.md).
-- Integration points for a Nico Workshop with tabs from multiple mods.
-- Shared support for content mods' start IDs and per-run data.
-
-The items, upgrades, unlock costs, and workshop entries come from the content mods you install. Each content mod documents its own controls and requirements.
-
-### License
+Copy the matching Forge and content DLLs into `Mods/`, keeping one copy per assembly. Build with `scripts/Build-P0.ps1`; use `Build-ForgeMods.ps1` in the companion repository for all four content mods. Numeric defaults are compiled from [BuildConfig](BuildConfig/README.md). Inventory transfer remains unavailable. Build results and dated native probes have separate validation scopes.
 
 Released under the [MIT License](LICENSE).
-
----
-
-## 中文
-
-### 依赖
-
-- **Probably Stolen Demo**，Steam Build `25382790`
-- [MelonLoader](https://melonwiki.xyz/)
-
-### 安装
-
-1. 将配套内容 Mod 包中的 `Nicokobo.Forge.dll` 复制到游戏的 `Mods/` 目录。更新时移除旧版 Forge DLL，确保目录中只保留一份。
-2. 按对应内容 Mod 的说明，将需要 Forge 的 Mod 复制到 `Mods/`。
-3. 启动游戏。Forge 本身没有独立的玩法内容或设置面板。
-
-### Forge 提供什么
-
-- 为兼容的 Mod 提供物品、设施、节点、机器模组和效果的共用注册基础。
-- 提供机器 UI 模板、物品与液体并用输入、物品或容器输出及统一过夜事务，调用方式见[机器 API](docs/MACHINE_API.md)。
-- 提供可由多个 Mod 共用标签页的 Nico 工坊。
-- 为内容 Mod 提供开局 ID 和周目数据的共用支持。
-
-具体物品、解锁价格和工坊条目由安装的内容 Mod 提供；操作方式和额外依赖请查看相应 Mod 的说明。
-
-### 许可证
-
-本项目基于 [MIT 许可证](LICENSE) 发布。

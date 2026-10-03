@@ -1,7 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\..\BuildConfig\ForgeNumbers.cs" Link="BuildConfig\ForgeNumbers.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementRules.cs" Link="Workshop/AchievementRules.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementSaveReadback.cs" Link="Workshop/AchievementSaveReadback.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Workshop/WorkshopInputCapture.cs" Link="Workshop/WorkshopInputCapture.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Workshop/DragIdleGate.cs" Link="Workshop/DragIdleGate.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Runtime/InventoryReadCache.cs" Link="Runtime/InventoryReadCache.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeSaveReadbackApi.cs" Link="ForgeSaveReadbackApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeSpriteModels.cs" Link="ForgeSpriteModels.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeAssetsApi.cs" Link="ForgeAssetsApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Runtime/SpriteAtlasInstaller.cs" Link="Runtime/SpriteAtlasInstaller.cs" />
+
     <Compile Include="../../src/Nicokobo.Forge/Runtime/OwnedCallbacks.cs" Link="OwnedCallbacks.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Runtime/NativeModuleInventory.cs" Link="NativeModuleInventory.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/EnergyDebit.cs" Link="EnergyDebit.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/ModuleAdmissionCatalog.cs" Link="ModuleAdmissionCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeMachineModels.cs" Link="ForgeMachineModels.cs" />
@@ -9,6 +21,10 @@
     <Compile Include="../../src/Nicokobo.Forge/Logging/ModLogLevel.cs" Link="ModLogLevel.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineLiquidMath.cs" Link="MachineLiquidMath.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineBatchMath.cs" Link="MachineBatchMath.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeLiquidCompositionMath.cs" Link="ForgeLiquidCompositionMath.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeProductionValueMath.cs" Link="ForgeProductionValueMath.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeProductionValueApi.cs" Link="ForgeProductionValueApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/LiquidValueLedger.cs" Link="LiquidValueLedger.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineTransaction.cs" Link="MachineTransaction.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/DeclarationCatalog.cs" Link="DeclarationCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/NativeItemCatalog.cs" Link="NativeItemCatalog.cs" />

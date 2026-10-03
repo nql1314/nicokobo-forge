@@ -1,10 +1,12 @@
-# 按功能划分的公共 API
-
-当前 Forge `0.5.0` 的职责、事件契约与迁移入口见 [API_BOUNDARIES.md](API_BOUNDARIES.md)。核心和所有内容调用者需使用同一份 Forge DLL；机核发布包必须经统一构建与 Obfuscar。`scripts/Build-P0.ps1` 先执行 32 项只读互操作元数据签名检查，再执行领域检查并编译核心与示例。
-
 # Forge 开发与关联构建
 
-Forge 持有通用声明、能力门控、原生适配和事件分派。物品内容、配方数值、奖励交易和资源由内容 Mod 持有。内容项目的图集加载工具位于 `probably-stolen/mods-melonloader/shared/EmbeddedSpriteAtlas.cs`，不属于 Forge API。
+当前 Forge `0.6.5` 的职责与事件契约见 [API_BOUNDARIES.md](API_BOUNDARIES.md)。核心和所有内容调用者需使用同一份 Forge DLL；机核发布包必须经统一构建与 Obfuscar。`scripts/Build-P0.ps1` 执行互操作元数据签名、领域规则和独立原生入口保护检查，再编译核心与示例；合成扩展单独核对熔炉与液体 Hook。检查使用合成元数据、图形结构和故障注入端口，不启动游戏；数量与结果统一见[当前进度](FORGE_PROGRESS.md)。
+
+## 职责与数值入口
+
+Forge 持有通用声明、能力门控、原生适配和事件分派。物品内容、配方数值、奖励交易和资源由内容 Mod 持有。图集加载、ES3 文件读取和原生入口检查已提取为 Forge API，接入见 [SHARED_SERVICES.md](SHARED_SERVICES.md)。旧图集共享源码及编译开关已移除，图片仍嵌入内容程序集。
+
+框架可调整数值集中在 [`BuildConfig/ForgeNumbers.cs`](../BuildConfig/ForgeNumbers.cs)，四个内容 Mod 的内置数值集中在关联仓库的 `mods-melonloader/BuildConfig/`。这些源码随所属 DLL 编译，无新增运行时设置；分类、单位与构建方式见[编译内置数值](../BuildConfig/README.md)。
 
 ## 机器职责
 
@@ -14,10 +16,14 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 | `ForgeBootstrap.cs` | 安装各功能并发布能力门控 |
 | `ForgeMachineRegistrationApi.cs` / `ForgeMachineModels.cs` | 公共声明入口和数据模型 |
 | `Registration/MachineCatalog.cs` | 校验、整批冲突检查、不可变配置和投料索引 |
-| `ForgeMachineHooks.cs` | 订阅公共读档／过夜事件，按需安装原版熔炉投料及生产钩子 |
+| `ForgeMachineHooks.cs` | 自定义机器订阅公共读档／过夜事件 |
+| `ForgeMachineBatchProcessor.cs` | 内容方显式调用的通用批次事务；不注册机器、不安装玩法 Hook |
 | `ForgeMachineUi.cs` | 原版 UI 组件、可配置输入输出仓、电池、模组及本机槽位回调 |
 | `ForgeMachineRuntime.cs` | 机器发现、批次选择及统一资源计划 |
-| `ForgeLiquidApi.cs` / `MachineBatchMath.cs` | 原生液体快照、毫升／组分计算、电池计费 |
+| `ForgeLiquidApi.cs` / `MachineBatchMath.cs` | 原生液体快照、毫升／组分计算、液体价值保留、电池计费 |
+| `ForgeLiquidValueRuntime.cs` / `LiquidValueLedger.cs` | 容器变更／倾倒／读取钩子；液体价值账本的保存、解析与按比例重算 |
+| `NativeProductionValue.cs` | 原生内在／最终价值阶段与产物价值合成适配 |
+| `ForgeProductionValueApi.cs` / `ForgeProductionValueMath.cs` | 逐批生产价值汇总、加工倍率折算及产物基础价值的标签写入／读取 |
 | `ForgeMachineTransaction.cs` / `MachineTransaction.cs` | 统一资源事务、写后校验、反向恢复及故障隔离 |
 
 投料判定使用注册时建立的索引；夜间扫描直接检查目录是否为空，发现机器时保留同次配置。输出预处理没有回调时不构造投入展开列表。固体和液体共享原生步骤，各自保留完整回滚。扣料、耗电、耗水和保存所需的逐批重检与读回不能以性能优化为由删除。
@@ -30,11 +36,15 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 .\mods-melonloader\Build-ForgeMods.ps1
 ```
 
-入口先运行 Forge 领域检查，再用一个 MSBuild 会话编译核心和六个示例（含机器模板示例），核心只构建一次。随后运行机械飞升、模块矩阵、物流枢纽和合成扩展的领域检查，编译机械飞升，并调用既有 `Build-MechcoreProtocol.ps1` 编译和混淆三个机核项目。构建前后及三个包内的 Forge 哈希必须相同。它只生成本地文件。
+入口先运行 Forge 签名与领域检查，再用一个 MSBuild 会话编译核心和六个示例，核心只构建一次。随后运行机械飞升、模组矩阵、物流脉络和合成扩展的领域检查，编译机械飞升，并调用 `Build-MechcoreProtocol.ps1` 编译和混淆三个机核项目。构建前后及四个内容包内的 Forge 哈希必须相同。默认只生成本地文件；显式 `-Install` 仅安装 Forge 和机械飞升。
 
-`-GameDir` 指定目标游戏，`-DistRoot` 指定机核发布目录，`-DefaultLogLevel` 显式选择日志级别。默认开发日志为 `INFO`；`DEBUG` 必须显式启用，游戏中的用户偏好仍优先。
+`-GameDir` 指定目标游戏，`-DistRoot` 指定内容发布目录，`-DefaultLogLevel` 显式选择日志级别。未覆盖时 Forge、合成扩展和物流使用 `INFO`，机械飞升与矩阵使用 `WARN`。参数或环境变量 `ModDefaultLogLevel` 显式覆盖本轮各项目；`DEBUG` 必须显式启用，用户偏好仍优先。
 
-单独验证 Forge 时执行 `scripts/Build-P0.ps1 -GameDir <游戏目录>`；加 `-IncludeProbes` 构建工坊和效果探针。它们参与检查，不被加入机核发布包。
+单独验证 Forge 时执行 `scripts/Build-P0.ps1 -GameDir '<游戏目录>'`，默认构建核心与四个示例；加 `-IncludeProbes` 构建工坊和效果探针。它们参与检查，不被加入内容发布包。核心输出为 `src/Nicokobo.Forge/bin/Release/Nicokobo.Forge.dll`；`scripts/Pack-P0.ps1` 另将核心与两个 P0 示例打包到 `dist/p0/`。
+
+构建需要能编译 `net6.0` 的 .NET SDK、.NET 6 运行时、本地游戏、MelonLoader 及游戏互操作程序集。脚本使用目标游戏目录的引用，签名核对不初始化游戏类。
+
+单独的玩家前置包使用 `scripts/Pack-ModSite.ps1`，从已验证版本的 Release DLL 生成 `dist/nicokobo-forge/` 和 ZIP。安装说明由 `docs/RELEASE_README.md` 模板生成，版本从核心工程读取；开发 README 留在仓库，避免玩家包出现源码目录链接。旧发布目录的版本以其 DLL 文件名为准。
 
 四个内容工程从 `mods-melonloader/Directory.Build.targets` 统一引用本地 Forge 构建产物。单项目构建前先构建 Forge，也可以用 `-p:ForgeAssemblyPath=<配套DLL>` 选择明确的依赖；兼容旧参数 `ForgeDll`，同时传入不同依赖会报错。内容项目不再通过 `ProjectReference` 重建 Forge。
 

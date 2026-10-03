@@ -1,28 +1,41 @@
-using Il2Cpp;
-
 namespace Nicokobo.Forge.Registration;
 
 internal sealed record RegisteredMachineRecipe(string OwnerId, ForgeMachineRecipe Value);
 
 internal sealed class MachineProfile(string ownerId, ForgeMachineDefinition definition,
-    bool nativeMachine, IEnumerable<RegisteredMachineRecipe> recipes,
-    Func<GameItem, GameInventory, bool>? nativeBatchProbe = null)
+    IEnumerable<RegisteredMachineRecipe> recipes)
 {
     internal string OwnerId { get; } = ownerId;
     internal ForgeMachineDefinition Definition { get; } = definition;
     internal string MachineId => Definition.MachineId;
-    internal bool NativeMachine { get; } = nativeMachine;
     internal ForgeMachineTemplate Template => Definition.Template;
     internal ForgeMachinePowerRule Power => Definition.Power;
-    internal Func<GameItem, GameInventory, bool>? NativeBatchProbe { get; } = nativeBatchProbe;
     internal IReadOnlyList<RegisteredMachineRecipe> Recipes { get; } = Array.AsReadOnly(recipes.ToArray());
     private readonly HashSet<string> _feedstock = recipes.SelectMany(entry =>
         entry.Value.ItemInputs.Select(input => input.ItemId)).ToHashSet(StringComparer.Ordinal);
-    private readonly HashSet<string> _admitted = recipes.SelectMany(entry =>
-        entry.Value.ItemInputs.Select(input => input.ItemId).Concat(entry.Value.AuxiliaryItemIds))
-        .ToHashSet(StringComparer.Ordinal);
+    private readonly HashSet<string> _admitted = MachineAdmission.InputIds(
+        recipes.Select(entry => entry.Value)).ToHashSet(StringComparer.Ordinal);
     internal bool IsFeedstock(string id) => _feedstock.Contains(id);
+    internal bool IsFeedstockTag(Func<string, bool> isTag) => Recipes.Any(entry =>
+        entry.Value.ItemInputs.Any(input => input.ItemTag != null && isTag(input.ItemTag)));
     internal bool Accepts(string id) => _admitted.Contains(id);
+}
+
+/// <summary>The single frozen source of the native item-input whitelist. Ordering
+/// is stable so the same list can be logged and handed to the native whitelist.</summary>
+internal static class MachineAdmission
+{
+    internal static string[] InputIds(IEnumerable<ForgeMachineRecipe> recipes) => recipes
+        .SelectMany(recipe => recipe.ItemInputs.Select(input => input.ItemId)
+            .Concat(recipe.AuxiliaryItemIds))
+        .Where(id => !string.IsNullOrWhiteSpace(id))
+        .Distinct(StringComparer.Ordinal)
+        .OrderBy(id => id, StringComparer.Ordinal)
+        .ToArray();
+    internal static string[] InputTags(IEnumerable<ForgeMachineRecipe> recipes) => recipes
+        .SelectMany(recipe => recipe.ItemInputs.Select(input => input.ItemTag))
+        .Where(tag => !string.IsNullOrWhiteSpace(tag)).Select(tag => tag!)
+        .Distinct(StringComparer.Ordinal).OrderBy(tag => tag, StringComparer.Ordinal).ToArray();
 }
 
 internal sealed class MachineCatalog
@@ -33,12 +46,11 @@ internal sealed class MachineCatalog
     internal bool TryGet(string id, out MachineProfile? profile)
     { lock (_gate) return _machines.TryGetValue(id, out profile); }
 
-    internal IReadOnlyList<ForgeMachineView> Snapshot(bool installed, bool nativeInstalled)
+    internal IReadOnlyList<ForgeMachineView> Snapshot(bool installed)
     {
         lock (_gate) return _machines.Values.OrderBy(profile => profile.MachineId,
             StringComparer.Ordinal).Select(profile => new ForgeMachineView(profile.MachineId,
-                profile.NativeMachine, profile.Template, profile.Recipes.Count,
-                installed && (!profile.NativeMachine || nativeInstalled))).ToArray();
+                profile.Template, profile.Recipes.Count, installed)).ToArray();
     }
 
     internal SubmitResult Register(string owner, ForgeMachineDefinition? definition,
@@ -53,30 +65,9 @@ internal sealed class MachineCatalog
                 return new(SubmitStatus.Conflict, "Machine ID already claimed");
             var result = stageItem(frozen);
             if (result.Status is not (SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)) return result;
-            _machines.Add(frozen.MachineId, new(owner, frozen, false,
+            _machines.Add(frozen.MachineId, new(owner, frozen,
                 frozen.Recipes.Select(recipe => new RegisteredMachineRecipe(owner, recipe))));
             return new(SubmitStatus.Accepted, "Machine template and recipes staged");
-        }
-    }
-
-    internal SubmitResult RegisterNative(string owner, ForgeMachineDefinition definition,
-        Func<GameItem, GameInventory, bool>? probe)
-    {
-        if (definition.MachineId != "furnace" || definition.Template?.Output?.Kind != ForgeMachineOutputKind.Items ||
-            definition.Template.LiquidInputs is not { Count: 0 } ||
-            !TryFreezeDefinition(owner, definition, out var frozen))
-            return new(SubmitStatus.Invalid, "Only native furnace item recipes are supported");
-        lock (_gate)
-        {
-            _machines.TryGetValue("furnace", out var existing);
-            if (existing != null && (!existing.NativeMachine ||
-                (probe != null && existing.NativeBatchProbe != null && !Equals(probe, existing.NativeBatchProbe)) ||
-                !Equals(existing.Power, frozen.Power) || HasConflicts(existing, frozen.Recipes)))
-                return new(SubmitStatus.Conflict, "Native machine rules or recipe ID already claimed");
-            var additions = frozen.Recipes.Select(recipe => new RegisteredMachineRecipe(owner, recipe));
-            _machines["furnace"] = new(owner, existing?.Definition ?? frozen, true,
-                (existing?.Recipes ?? []).Concat(additions), probe ?? existing?.NativeBatchProbe);
-            return new(SubmitStatus.Accepted, "Native furnace recipes staged");
         }
     }
 
@@ -87,12 +78,10 @@ internal sealed class MachineCatalog
         {
             if (!_machines.TryGetValue(id, out var existing))
                 return new(SubmitStatus.Invalid, "Target machine has not been registered");
-            if (existing.NativeMachine)
-                return new(SubmitStatus.Conflict, "Use native registration for a native machine");
             if (!TryFreezeRecipes(owner, recipes, existing.Template, out var frozen))
                 return new(SubmitStatus.Invalid, "Recipe does not fit the target template");
             if (HasConflicts(existing, frozen)) return new(SubmitStatus.Conflict, "Recipe ID already claimed");
-            _machines[id] = new(existing.OwnerId, existing.Definition, false,
+            _machines[id] = new(existing.OwnerId, existing.Definition,
                 existing.Recipes.Concat(frozen.Select(recipe => new RegisteredMachineRecipe(owner, recipe))));
             return new(SubmitStatus.Accepted, "Additional recipes staged");
         }
@@ -101,27 +90,28 @@ internal sealed class MachineCatalog
     private static bool Owned(string owner, string id) => !string.IsNullOrWhiteSpace(owner) &&
         !string.IsNullOrWhiteSpace(id) && id.StartsWith(owner + ".", StringComparison.Ordinal);
     private static bool Grid(ForgeMachineGrid? size) => size != null &&
-        size.Width is >= 1 and <= 32 && size.Height is >= 1 and <= 32;
+        size.Width is >= 1 and <= ForgeNumbers.Machines.MaxGridSide && size.Height is >= 1 and <= ForgeNumbers.Machines.MaxGridSide;
     private static bool HasConflicts(MachineProfile profile, IEnumerable<ForgeMachineRecipe> recipes) =>
         recipes.Any(recipe => profile.Recipes.Any(entry => entry.Value.RecipeId == recipe.RecipeId));
 
-    private static bool TryFreezeDefinition(string owner, ForgeMachineDefinition definition,
+    internal static bool TryFreezeDefinition(string owner, ForgeMachineDefinition definition,
         out ForgeMachineDefinition frozen)
     {
         frozen = definition;
         var t = definition.Template;
-        if (string.IsNullOrWhiteSpace(owner) || t == null || t.Output == null ||
+        if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(definition.MachineId) || t == null || t.Output == null ||
             !Enum.IsDefined(t.Output.Kind) || !Grid(t.Output.Size) ||
             (t.ItemInput != null && !Grid(t.ItemInput)) || (t.Battery != null && !Grid(t.Battery.Size)) ||
             (t.Modules != null && (!Grid(t.Modules.Size) || t.Modules.AllowedTypes is not { Count: > 0 } ||
                 t.Modules.AllowedTypes.Any(string.IsNullOrWhiteSpace))) ||
-            t.LiquidInputs == null || t.LiquidInputs.Count > 8 ||
+            t.LiquidInputs == null || t.LiquidInputs.Count > ForgeNumbers.Machines.MaxLiquidInputSlots ||
             t.LiquidInputs.Any(slot => slot == null || string.IsNullOrWhiteSpace(slot.SlotId) ||
-                !Grid(slot.Size) || string.IsNullOrWhiteSpace(slot.Label)) ||
+                !Grid(slot.Size) || slot.Label == null) ||
             t.LiquidInputs.Select(slot => slot.SlotId).Distinct(StringComparer.Ordinal).Count() != t.LiquidInputs.Count ||
             (t.ItemInput == null && t.LiquidInputs.Count == 0) ||
             (t.Output.Kind == ForgeMachineOutputKind.Items && t.Output.ContainerCondition != null) ||
             definition.Power == null || definition.Power.Cost < 0 ||
+            definition.ProductionMarkupPercent is < 0 or > ForgeNumbers.Machines.MaxProductionMarkupPercent ||
             (t.Battery == null && (definition.Power.Cost != 0 || definition.Power.ResolveCost != null)) ||
             !TryFreezeRecipes(owner, definition.Recipes, t, out var recipes)) return false;
         frozen = definition with
@@ -150,7 +140,8 @@ internal sealed class MachineCatalog
                 recipe.ItemInputs == null || recipe.LiquidInputs == null || recipe.AuxiliaryItemIds == null ||
                 (recipe.ItemInputs.Count == 0 && recipe.LiquidInputs.Count == 0) ||
                 (template.ItemInput == null && (recipe.ItemInputs.Count > 0 || recipe.AuxiliaryItemIds.Count > 0)) ||
-                recipe.ItemInputs.Any(input => input == null || string.IsNullOrWhiteSpace(input.ItemId) ||
+                recipe.ItemInputs.Any(input => input == null || input.ItemId == null ||
+                    (string.IsNullOrWhiteSpace(input.ItemId) == string.IsNullOrWhiteSpace(input.ItemTag)) ||
                     input.Count < 1 || (input.WholeStack && input.Count != 1)) ||
                 recipe.AuxiliaryItemIds.Any(string.IsNullOrWhiteSpace) ||
                 recipe.LiquidInputs.Any(input => input == null || !slots.Contains(input.SlotId) ||
@@ -180,14 +171,14 @@ internal sealed class MachineCatalog
     {
         output = value!;
         if (kind == ForgeMachineOutputKind.Items && value is ForgeMachineItemOutput item &&
-            !string.IsNullOrWhiteSpace(item.ItemId) && item.Count is >= 1 and <= 256 &&
+            !string.IsNullOrWhiteSpace(item.ItemId) && item.Count is >= 1 and <= ForgeNumbers.Machines.MaxOutputCount &&
             (item.Contents == null || Contents(item.Contents)))
         {
             output = item with { Contents = item.Contents == null ? null : Array.AsReadOnly(item.Contents.ToArray()) };
             return true;
         }
         if (kind == ForgeMachineOutputKind.Container && value is ForgeMachineContainerOutput container &&
-            Contents(container.Contents))
+            (container.ResolveContents == null ? Contents(container.Contents) : container.Contents is { Count: 0 }))
         {
             output = container with { Contents = Array.AsReadOnly(container.Contents.ToArray()) };
             return true;

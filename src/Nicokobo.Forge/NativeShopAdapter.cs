@@ -120,7 +120,7 @@ internal static class NativeShopAdapter
             if ((offer = NativeItemRegistry.Declarations().FirstOrDefault(x => x.ItemId == __0.identifier)) == null ||
                 offer?.Options.NightShop != NightShopStockPolicy.Repeatable) return;
             _pendingNightShopRefresh = new(offer.ItemId, __0.uniqueId, 0,
-                DateTime.UtcNow.AddMilliseconds(100));
+                DateTime.UtcNow.AddMilliseconds(ForgeNumbers.Shop.RefreshDelayMilliseconds));
         }
         SafeLog(_log, $"[NicokoboForge/NightShop] id={offer.ItemId}; " +
             $"status=RefreshQueued; purchased={__0.uniqueId}");
@@ -155,17 +155,17 @@ internal static class NativeShopAdapter
         {
             if (_pendingNightShopRefresh != pending) return;
             int attempts = pending.Attempts + 1;
-            if (attempts >= 40)
+            if (attempts >= ForgeNumbers.Shop.MaxReplacementAttempts)
             {
                 _pendingNightShopRefresh = null;
                 SafeLog(_log, $"[WARN] [NicokoboForge/NightShop] id={pending.ItemId}; " +
-                    "status=RefreshFailed; reason=no free accepted replacement after 40 attempts");
+                    $"status=RefreshFailed; reason=no free accepted replacement after {ForgeNumbers.Shop.MaxReplacementAttempts} attempts");
                 return;
             }
             _pendingNightShopRefresh = pending with
             {
                 Attempts = attempts,
-                NotBeforeUtc = DateTime.UtcNow.AddMilliseconds(250)
+                NotBeforeUtc = DateTime.UtcNow.AddMilliseconds(ForgeNumbers.Shop.RetryDelayMilliseconds)
             };
         }
     }

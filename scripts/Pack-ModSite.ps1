@@ -30,11 +30,13 @@ if (-not $expectedDistRoot.StartsWith($projectRoot + [IO.Path]::DirectorySeparat
 New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
 Get-ChildItem -LiteralPath $packageRoot -File -Filter 'Nicokobo.Forge*.dll' | Remove-Item -Force
 
-foreach ($name in @('README.md')) {
-    $source = Join-Path $projectRoot $name
-    if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Document missing: $source" }
-    Copy-Item -LiteralPath $source -Destination (Join-Path $packageRoot $name) -Force
+$readmeTemplate = Join-Path $projectRoot 'docs\RELEASE_README.md'
+if (-not (Test-Path -LiteralPath $readmeTemplate -PathType Leaf)) {
+    throw "Document missing: $readmeTemplate"
 }
+$readmeText = [IO.File]::ReadAllText($readmeTemplate).Replace('@FORGE_VERSION@', $version)
+[IO.File]::WriteAllText((Join-Path $packageRoot 'README.md'), $readmeText,
+    [Text.UTF8Encoding]::new($false))
 Copy-Item -LiteralPath $sourceDll -Destination (Join-Path $packageRoot $distDllName) -Force
 $cover = Join-Path $projectRoot 'cover.png'
 if (Test-Path -LiteralPath $cover -PathType Leaf) {

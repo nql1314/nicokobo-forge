@@ -1,3 +1,4 @@
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using UnityEngine;
 
 namespace Nicokobo.Forge;
@@ -6,17 +7,22 @@ internal readonly record struct ForgeWorkshopUiCommand(
     string? TabId,
     string? SelectId,
     bool Purchase,
-    bool Close);
+    bool Close,
+    bool OpenWebsite = false);
 
 // Independent IMGUI storefront. It borrows the visual hierarchy and muted
 // palette of the Wilds Network page without reading, cloning or mutating any
 // native Wilds UI objects.
 internal static class ForgeWorkshopOverlay
 {
-    private const float DesignWidth = 1100f;
-    private const float DesignHeight = 760f;
-    private const float WindowWidth = 1060f;
-    private const float WindowHeight = 710f;
+    internal const string WebsiteUrl = "https://nicokobo.com";
+    private const string WebsiteLabel = "nicokobo.com";
+    private const string WebsiteLogoResource =
+        "Nicokobo.Forge.Assets.Brand.nicokobo_logo.png";
+    private const float DesignWidth = ForgeNumbers.Workshop.DesignWidth;
+    private const float DesignHeight = ForgeNumbers.Workshop.DesignHeight;
+    private const float WindowWidth = ForgeNumbers.Workshop.WindowWidth;
+    private const float WindowHeight = ForgeNumbers.Workshop.WindowHeight;
 
     private static readonly Color Backdrop = new(0.035f, 0.027f, 0.035f, 0.78f);
     private static readonly Color Window = new(0.29f, 0.23f, 0.28f, 1f);
@@ -45,8 +51,10 @@ internal static class ForgeWorkshopOverlay
     private static Texture2D? _nodeLockedTexture;
     private static Texture2D? _borderTexture;
     private static Texture2D? _accentTexture;
+    private static Texture2D? _websiteLogoTexture;
     private static readonly Dictionary<Texture2D, GUIStyle> FillStyles = new();
     private static GUIStyle? _titleStyle;
+    private static GUIStyle? _websiteStyle;
     private static GUIStyle? _statStyle;
     private static GUIStyle? _detailTitleStyle;
     private static GUIStyle? _bodyStyle;
@@ -79,21 +87,24 @@ internal static class ForgeWorkshopOverlay
         if (new Rect(header.xMax - 46f, header.y + 8f, 34f, 34f)
                 .Contains(mouse))
             return new ForgeWorkshopUiCommand(null, null, false, true);
+        if (WebsiteRect(header).Contains(mouse))
+            return new ForgeWorkshopUiCommand(null, null, false, false,
+                OpenWebsite: true);
         var tabBar = new Rect(window.x + 18f, header.yMax + 8f,
             window.width - 36f, 36f);
         int pageStart = TabPageStart(tabs, activeTabId);
-        if (tabs.Count > 6 && new Rect(tabBar.x, tabBar.y, 34f, 36f)
+        if (tabs.Count > ForgeNumbers.Workshop.VisibleTabs && new Rect(tabBar.x, tabBar.y, 34f, 36f)
                 .Contains(mouse) && pageStart > 0)
             return new ForgeWorkshopUiCommand(tabs[pageStart - 1].Id,
                 null, false, false);
-        if (tabs.Count > 6 && new Rect(tabBar.xMax - 34f, tabBar.y,
-                34f, 36f).Contains(mouse) && pageStart + 6 < tabs.Count)
-            return new ForgeWorkshopUiCommand(tabs[pageStart + 6].Id,
+        if (tabs.Count > ForgeNumbers.Workshop.VisibleTabs && new Rect(tabBar.xMax - 34f, tabBar.y,
+                34f, 36f).Contains(mouse) && pageStart + ForgeNumbers.Workshop.VisibleTabs < tabs.Count)
+            return new ForgeWorkshopUiCommand(tabs[pageStart + ForgeNumbers.Workshop.VisibleTabs].Id,
                 null, false, false);
-        for (int index = pageStart; index < Math.Min(pageStart + 6, tabs.Count);
+        for (int index = pageStart; index < Math.Min(pageStart + ForgeNumbers.Workshop.VisibleTabs, tabs.Count);
              index++)
-            if (TabRect(tabBar, Math.Min(tabs.Count, 6), index - pageStart,
-                    tabs.Count > 6).Contains(mouse))
+            if (TabRect(tabBar, Math.Min(tabs.Count, ForgeNumbers.Workshop.VisibleTabs), index - pageStart,
+                    tabs.Count > ForgeNumbers.Workshop.VisibleTabs).Contains(mouse))
                 return new ForgeWorkshopUiCommand(tabs[index].Id,
                     null, false, false);
         float bodyY = tabBar.yMax + 8f;
@@ -115,21 +126,24 @@ internal static class ForgeWorkshopOverlay
     }
 
     private static float Scale() => Mathf.Clamp(Mathf.Min(
-        Screen.width / DesignWidth, Screen.height / DesignHeight), 0.55f, 1f);
+        Screen.width / DesignWidth, Screen.height / DesignHeight), ForgeNumbers.Workshop.MinimumScale, 1f);
 
     private static Rect WindowRect(float scale) => new(
         (Screen.width / scale - WindowWidth) * 0.5f,
         (Screen.height / scale - WindowHeight) * 0.5f,
         WindowWidth, WindowHeight);
 
+    private static Rect WebsiteRect(Rect header) => new(
+        header.xMax - 230f, header.y + 9f, 160f, 34f);
+
     private static int TabPageStart(IReadOnlyList<ForgeWorkshopTabHeader> tabs,
         string activeTabId) => Math.Max(0, tabs.ToList().FindIndex(x =>
-            x.Id == activeTabId) / 6 * 6);
+            x.Id == activeTabId) / ForgeNumbers.Workshop.VisibleTabs * ForgeNumbers.Workshop.VisibleTabs);
 
     private static Rect TabRect(Rect bar, int count, int index,
         bool paged = false)
     {
-        const float gap = 8f;
+        const float gap = ForgeNumbers.Workshop.TabGap;
         float usable = bar.width - (paged ? 76f : 0f);
         float width = (usable - gap * (count - 1)) / count;
         return new Rect(bar.x + (paged ? 38f : 0f) + index * (width + gap), bar.y,
@@ -161,15 +175,25 @@ internal static class ForgeWorkshopOverlay
             var header = new Rect(window.x + 3f, window.y + 3f,
                 window.width - 6f, 52f);
             Fill(header, _headerTexture!);
-            GUI.Label(new Rect(header.x + 16f, header.y + 7f, 540f, 38f),
+            DrawWebsiteLogo(new Rect(header.x + 16f, header.y + 7f, 42f, 38f));
+            GUI.Label(new Rect(header.x + 62f, header.y + 7f, 480f, 38f),
                 english ? "NICO WORKSHOP" : "Nico工坊", _titleStyle!);
+            var website = WebsiteRect(header);
+            var pointer = Input.mousePosition;
+            bool websiteHovered = website.Contains(new Vector2(pointer.x / scale,
+                (Screen.height - pointer.y) / scale));
+            _websiteStyle!.normal.textColor = websiteHovered ? Accent : Text;
+            GUI.Label(website, WebsiteLabel, _websiteStyle);
+            float linkWidth = _websiteStyle.CalcSize(new GUIContent(WebsiteLabel)).x;
+            Fill(new Rect(website.xMax - linkWidth, website.yMax - 7f,
+                linkWidth, websiteHovered ? 2f : 1f), _accentTexture!);
             GUI.Label(new Rect(header.xMax - 46f, header.y + 8f, 34f, 34f),
                 "X", _closeStyle!);
 
             var tabBar = new Rect(window.x + 18f, header.yMax + 8f,
                 window.width - 36f, 36f);
             int pageStart = TabPageStart(tabs, activeTabId);
-            if (tabs.Count > 6)
+            if (tabs.Count > ForgeNumbers.Workshop.VisibleTabs)
             {
                 GUI.Label(new Rect(tabBar.x, tabBar.y, 34f, 36f), "<",
                     _nodeStyle!);
@@ -177,11 +201,11 @@ internal static class ForgeWorkshopOverlay
                     _nodeStyle!);
             }
             for (int index = pageStart;
-                 index < Math.Min(pageStart + 6, tabs.Count); index++)
+                 index < Math.Min(pageStart + ForgeNumbers.Workshop.VisibleTabs, tabs.Count); index++)
             {
                 var tab = tabs[index];
-                GUI.Label(TabRect(tabBar, Math.Min(tabs.Count, 6),
-                        index - pageStart, tabs.Count > 6),
+                GUI.Label(TabRect(tabBar, Math.Min(tabs.Count, ForgeNumbers.Workshop.VisibleTabs),
+                        index - pageStart, tabs.Count > ForgeNumbers.Workshop.VisibleTabs),
                     english ? tab.EnglishTitle : tab.ChineseTitle,
                     tab.Id == activeTabId ? _selectedNodeStyle! : _nodeStyle!);
             }
@@ -205,7 +229,7 @@ internal static class ForgeWorkshopOverlay
                 selected.Id, english);
 
             var current = Event.current;
-            if (current != null && current.isMouse)
+            if (current != null && (current.isMouse || current.type == EventType.ScrollWheel))
                 current.Use();
         }
         finally
@@ -233,7 +257,7 @@ internal static class ForgeWorkshopOverlay
             english);
 
         var stateStyle = selected.Unlocked ? _unlockedStateStyle!
-            : selected.PrerequisiteMet ? _readyStateStyle! : _lockedStateStyle!;
+            : selected.Completed == true || selected.Completed == null && selected.PrerequisiteMet ? _readyStateStyle! : _lockedStateStyle!;
         GUI.Label(new Rect(x, area.y + 433f, width, 34f), selected.StateText,
             stateStyle);
 
@@ -258,11 +282,11 @@ internal static class ForgeWorkshopOverlay
             english ? "PROGRESSION MAP" : "解锁星图", _sectionStyle!);
         foreach (var entry in entries)
         {
-            foreach (var dependency in entry.Dependencies)
+            foreach (var dependency in entry.Dependencies.Concat(entry.VisualLinks).Distinct(StringComparer.Ordinal))
             {
                 if (positions.TryGetValue(dependency, out var source))
                     DrawLink(source.center, positions[entry.Id].center,
-                        entry.PrerequisiteMet || entry.Unlocked);
+                        entry.Completed ?? (entry.PrerequisiteMet || entry.Unlocked));
             }
         }
         foreach (var entry in entries)
@@ -271,7 +295,9 @@ internal static class ForgeWorkshopOverlay
                 : !entry.PrerequisiteMet && !entry.Unlocked
                     ? _lockedNodeStyle! : _nodeStyle!;
             string prefix = entry.Unlocked
-                ? (english ? "DONE" : "已解锁")
+                ? (english ? "DONE" : entry.Completed.HasValue ? "已领取" : "已解锁")
+                : entry.Completed == true
+                    ? (english ? "CLAIM" : "待领取")
                 : !entry.PrerequisiteMet
                     ? (english ? "LOCKED" : "未满足")
                     : entry.NodeCostText;
@@ -300,8 +326,8 @@ internal static class ForgeWorkshopOverlay
                     Mathf.Cos(angle) * radius - Mathf.Sin(angle) * offset;
                 float y = entry.GraphY ??
                     Mathf.Sin(angle) * radius + Mathf.Cos(angle) * offset;
-                const float nodeWidth = 116f;
-                const float nodeHeight = 62f;
+                const float nodeWidth = ForgeNumbers.Workshop.NodeWidth;
+                const float nodeHeight = ForgeNumbers.Workshop.NodeHeight;
                 float centerX = area.center.x + x * (area.width / 2f - 70f);
                 float centerY = area.center.y + 15f +
                     y * (area.height / 2f - 66f);
@@ -344,6 +370,9 @@ internal static class ForgeWorkshopOverlay
     {
         if (entry.Conditions.Count == 0 && entry.Rewards.Count == 0)
             return entry.CostText;
+        if (entry.Completed.HasValue)
+            return entry.CostText + "\n" + (english ? "Rewards" : "奖励") + "\n" + string.Join("\n", entry.Rewards.Select(reward =>
+                $"+ {ResourceName(reward.Kind, reward.ResourceId, reward.DisplayName, english)} ×{reward.Quantity:N0}"));
         var lines = new List<string> { english ? "Requirements" : "解锁条件" };
         foreach (var condition in entry.Conditions)
             lines.Add($"{(condition.Satisfied ? "✓" : "○")} " +
@@ -373,6 +402,44 @@ internal static class ForgeWorkshopOverlay
             rect.width - thickness * 2f, rect.height - thickness * 2f), fill);
     }
 
+    private static void DrawWebsiteLogo(Rect rect)
+    {
+        var logo = _websiteLogoTexture!;
+        float scale = Mathf.Min(rect.width / logo.width, rect.height / logo.height);
+        float width = logo.width * scale;
+        float height = logo.height * scale;
+        Fill(new Rect(rect.center.x - width / 2f, rect.center.y - height / 2f,
+            width, height), logo);
+    }
+
+    private static Texture2D LoadWebsiteLogo()
+    {
+        using var stream = typeof(ForgeWorkshopOverlay).Assembly
+            .GetManifestResourceStream(WebsiteLogoResource)
+            ?? throw new InvalidOperationException("Embedded website logo missing");
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false)
+        {
+            name = "nico_website_logo",
+            hideFlags = HideFlags.HideAndDontSave,
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+        try
+        {
+            if (!ImageConversion.LoadImage(texture,
+                    new Il2CppStructArray<byte>(memory.ToArray()), true))
+                throw new InvalidOperationException("Embedded website logo could not be decoded");
+            return texture;
+        }
+        catch
+        {
+            UnityEngine.Object.Destroy(texture);
+            throw;
+        }
+    }
+
     // This game's IL2CPP build strips the GUI.DrawTexture overload chain.
     // GUI.Box with a cached background style is used by the existing status UI.
     private static void Fill(Rect rect, Texture2D texture)
@@ -381,6 +448,7 @@ internal static class ForgeWorkshopOverlay
     private static void EnsureStyles()
     {
         if (_titleStyle != null) return;
+        _websiteLogoTexture = LoadWebsiteLogo();
         _backdropTexture = Solid(Backdrop, "nico_backdrop");
         _windowTexture = Solid(Window, "nico_window");
         _headerTexture = Solid(Header, "nico_header");
@@ -395,41 +463,43 @@ internal static class ForgeWorkshopOverlay
         foreach (var texture in new[] { _backdropTexture, _windowTexture,
                      _headerTexture, _panelTexture, _sectionTexture,
                      _nodeTexture, _nodeHoverTexture, _nodeSelectedTexture,
-                     _nodeLockedTexture, _borderTexture, _accentTexture })
+                     _nodeLockedTexture, _borderTexture, _accentTexture, _websiteLogoTexture })
         {
             var style = new GUIStyle(GUI.skin.label);
+            style.border = new RectOffset(0, 0, 0, 0);
             style.normal.background = texture;
             FillStyles.Add(texture!, style);
         }
 
-        _titleStyle = Label(27, Accent, FontStyle.Bold, TextAnchor.MiddleLeft);
-        _statStyle = Label(14, Text, FontStyle.Normal, TextAnchor.MiddleCenter);
+        _titleStyle = Label(ForgeNumbers.Workshop.TitleFontSize, Accent, FontStyle.Bold, TextAnchor.MiddleLeft);
+        _websiteStyle = Label(20, Text, FontStyle.Normal, TextAnchor.MiddleRight);
+        _statStyle = Label(ForgeNumbers.Workshop.StatFontSize, Text, FontStyle.Normal, TextAnchor.MiddleCenter);
         _statStyle.normal.background = _sectionTexture;
-        _detailTitleStyle = Label(22, Accent, FontStyle.Bold,
+        _detailTitleStyle = Label(ForgeNumbers.Workshop.DetailTitleFontSize, Accent, FontStyle.Bold,
             TextAnchor.MiddleLeft);
-        _bodyStyle = Label(15, Text, FontStyle.Normal, TextAnchor.UpperLeft);
+        _bodyStyle = Label(ForgeNumbers.Workshop.BodyFontSize, Text, FontStyle.Normal, TextAnchor.UpperLeft);
         _bodyStyle.wordWrap = true;
-        _costStyle = Label(13, Text, FontStyle.Normal, TextAnchor.UpperLeft);
+        _costStyle = Label(ForgeNumbers.Workshop.CostFontSize, Text, FontStyle.Normal, TextAnchor.UpperLeft);
         _costStyle.wordWrap = true;
-        _mutedStyle = Label(13, Muted, FontStyle.Normal, TextAnchor.MiddleLeft);
-        _sectionStyle = Label(14, Text, FontStyle.Bold, TextAnchor.MiddleLeft);
+        _mutedStyle = Label(ForgeNumbers.Workshop.MutedFontSize, Muted, FontStyle.Normal, TextAnchor.MiddleLeft);
+        _sectionStyle = Label(ForgeNumbers.Workshop.SectionFontSize, Text, FontStyle.Bold, TextAnchor.MiddleLeft);
 
         _nodeStyle = Button(_nodeTexture, _nodeHoverTexture, Text);
         _selectedNodeStyle = Button(_nodeSelectedTexture, _nodeHoverTexture,
             new Color(1f, 0.88f, 0.72f, 1f));
         _lockedNodeStyle = Button(_nodeLockedTexture, _nodeHoverTexture, Disabled);
         _purchaseStyle = Button(_accentTexture, _nodeHoverTexture, Text);
-        _purchaseStyle.fontSize = 17;
+        _purchaseStyle.fontSize = ForgeNumbers.Workshop.PurchaseFontSize;
         _disabledPurchaseStyle = Button(_nodeLockedTexture, _nodeLockedTexture,
             Disabled);
-        _disabledPurchaseStyle.fontSize = 17;
+        _disabledPurchaseStyle.fontSize = ForgeNumbers.Workshop.PurchaseFontSize;
         _closeStyle = Button(_nodeTexture, _nodeHoverTexture, Text);
-        _closeStyle.fontSize = 18;
-        _unlockedStateStyle = Label(15, Ready, FontStyle.Bold,
+        _closeStyle.fontSize = ForgeNumbers.Workshop.CloseFontSize;
+        _unlockedStateStyle = Label(ForgeNumbers.Workshop.StateFontSize, Ready, FontStyle.Bold,
             TextAnchor.MiddleCenter);
-        _readyStateStyle = Label(15, Accent, FontStyle.Bold,
+        _readyStateStyle = Label(ForgeNumbers.Workshop.StateFontSize, Accent, FontStyle.Bold,
             TextAnchor.MiddleCenter);
-        _lockedStateStyle = Label(15, Muted, FontStyle.Bold,
+        _lockedStateStyle = Label(ForgeNumbers.Workshop.StateFontSize, Muted, FontStyle.Bold,
             TextAnchor.MiddleCenter);
     }
 
@@ -452,7 +522,7 @@ internal static class ForgeWorkshopOverlay
     {
         var style = new GUIStyle(GUI.skin.button)
         {
-            fontSize = 13,
+            fontSize = ForgeNumbers.Workshop.ButtonFontSize,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
             wordWrap = true,

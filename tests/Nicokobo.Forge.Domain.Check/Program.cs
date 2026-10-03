@@ -4,7 +4,14 @@ using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
 MachineCatalogChecks.Run();
+ProductionValueChecks.Run();
 RuntimeBoundaryChecks.Run();
+ModuleInventoryChecks.Run();
+AchievementChecks.Run();
+WorkshopInputChecks.Run();
+InventoryReadChecks.Run();
+SpriteAtlasChecks.Run();
+SaveReadbackChecks.Run();
 
 static void Expect(bool condition, string message)
 {

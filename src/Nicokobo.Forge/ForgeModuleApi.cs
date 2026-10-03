@@ -49,7 +49,7 @@ public static partial class ForgeModuleApi
     public static GameGridInventory? GetInventory(GameItem machine)
     {
         if (!_allowed || machine == null || machine.Pointer == IntPtr.Zero) return null;
-        return MachineHelper.GetModuleInv(machine);
+        return NativeModuleInventory.Read(machine);
     }
     public static IReadOnlyList<GameItem> FindInstalled(GameItem machine, string moduleId, string? moduleType = null)
     {

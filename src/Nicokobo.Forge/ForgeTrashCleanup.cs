@@ -91,17 +91,17 @@ internal static class ForgeTrashCleanup
             void VisitInventory(GameInventory? inventory)
             {
                 if (inventory == null || inventory.Pointer == IntPtr.Zero ||
-                    ++visitedNodes > 4096) return;
+                    ++visitedNodes > ForgeNumbers.Inventory.MaxTrashTraversalNodes) return;
                 var contents = inventory.childItems;
                 if (contents == null) return;
-                for (int i = 0; i < contents.Count && i < 2048; i++)
+                for (int i = 0; i < contents.Count && i < ForgeNumbers.Inventory.MaxTrashContainerItems; i++)
                     VisitItem(contents[i]);
             }
 
             void VisitItem(GameItem? item)
             {
                 if (item == null || item.Pointer == IntPtr.Zero ||
-                    !seen.Add(item.Pointer) || ++visitedNodes > 4096) return;
+                    !seen.Add(item.Pointer) || ++visitedNodes > ForgeNumbers.Inventory.MaxTrashTraversalNodes) return;
                 if (NativeItemRegistry.IsAppliedItem(item.identifier))
                 {
                     var trash = item.GetParentWithIdentifier("trashcan");
@@ -110,7 +110,7 @@ internal static class ForgeTrashCleanup
                 }
                 var children = item.children;
                 if (children == null) return;
-                for (int i = 0; i < children.Count && i < 64; i++)
+                for (int i = 0; i < children.Count && i < ForgeNumbers.Inventory.MaxChildrenPerItem; i++)
                     try { VisitInventory(children[i].Cast<GameInventory>()); }
                     catch (InvalidCastException) { }
             }

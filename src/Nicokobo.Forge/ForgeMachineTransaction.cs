@@ -192,15 +192,25 @@ internal static partial class ForgeMachineRuntime
     }
     private static bool PlaceOutput(GameInventory output, GameItem product)
     {
-        var slot = output.TryFindOneValidInventorySlot(product);
-        if (slot?.targetItem != null)
+        // Native furnace outputs reject player insertion. Production bypasses
+        // only that admission while retaining native shape/capacity checks.
+        var admission = output.mayInventoryAddItemFunc;
+        bool locked = output.overrideLockInsert;
+        output.mayInventoryAddItemFunc = null;
+        output.overrideLockInsert = false;
+        try
         {
-            string id = product.identifier;
-            try { product.identifier = id + ".forge_empty_slot_probe"; slot = output.TryFindOneValidInventorySlot(product); }
-            finally { product.identifier = id; }
+            var slot = output.TryFindOneValidInventorySlot(product);
+            if (slot?.targetItem != null)
+            {
+                string id = product.identifier;
+                try { product.identifier = id + ".forge_empty_slot_probe"; slot = output.TryFindOneValidInventorySlot(product); }
+                finally { product.identifier = id; }
+            }
+            if (slot == null || slot.Pointer == IntPtr.Zero || slot.targetItem != null || !slot.IsValid()) return false;
+            slot.AcceptUnchecked();
+            return product.parentInventory?.Pointer == output.Pointer;
         }
-        if (slot == null || slot.Pointer == IntPtr.Zero || slot.targetItem != null || !slot.IsValid()) return false;
-        slot.AcceptUnchecked();
-        return product.parentInventory?.Pointer == output.Pointer;
+        finally { output.mayInventoryAddItemFunc = admission; output.overrideLockInsert = locked; }
     }
 }

@@ -1,38 +1,37 @@
-# Nicokobo Forge 的 scope 与扩展边界
+# Nicokobo Forge 的能力与扩展边界
 
-更新：2026-10-01。Nicokobo Forge 是供其他 Probably Stolen Mod 使用的通用前置 API；内容 Mod 各自拥有物品、规则和存档数据。当前证据与待验收项见[进度记录](FORGE_PROGRESS.md)。
+更新：2026-10-03。Forge 是 Probably Stolen 内容 Mod 的通用前置。框架维护注册、能力门控、原生适配、公共事件和资源事务；内容 Mod 各自维护物品、玩法规则与存档格式。
 
-2026-09-30 的职责拆分和统一构建入口见[开发说明](DEVELOPMENT.md)。注册目录、原生适配和内容规则分别维护；图集加载仍在内容项目的共享工具中。
+## 框架提供
 
-## In scope：框架提供
+| 能力 | 公共入口与契约 |
+| --- | --- |
+| 内容声明、所有者与冲突诊断 | `ForgeApi`、`ForgeItemApi`、`ForgeEffectApi`、`ForgeContentApi`；通过快照分别检查 `Staged / Applied / Conflict / Failed` |
+| 普通物品、设施、节点与机器模组 | `RegisterItem`、`RegisterAmenity`、`RegisterNode`、`RegisterModule`；内容方提供工厂和稳定 ID，框架持有委托并适配目录 |
+| 原版 UI 机器模板与资源事务 | `ForgeMachineRegistrationApi` 声明输入、输出、电池、模组及手册；运行时处理材料、液体、电量、容量、逐项读回和恢复 |
+| 显式批次处理 | `ForgeMachineRuntimeApi.CreateBatchProcessor` 复用事务；调用者提供实时槽位、投料规则、时机与同夜去重 |
+| 电量、液体与生产价值 | `ForgePowerApi`、`ForgeLiquidApi`、`ForgeProductionValueApi` 及纯计算类；内容方决定配方与系数 |
+| Nico 工坊 | `ForgeWorkshopApi.RegisterChain` 声明独立图谱与回调；条件和奖励用于展示，实际交易由提供者完成；Forge 内置全开局名片与原版成就提供者，内容 Mod 持有各自的独立页面 |
+| 夜间商店补货 | `NativeItemOptions` 声明 `Repeatable / Unique / None`；可用条件由内容方提供，框架核对实际货架落点 |
+| 生命周期、模组与文本 | `ForgeLifecycleApi`、`ForgeModuleApi`、`ForgePresentationApi`；共享观察 Hook 和拥有者回调 |
+| 开局与周目数据 | `ForgeStartApi` 认领开局 ID；`ForgeRunDataApi.Read / Stage` 读取及比较后暂存所属 JSON，文件保存与回读由内容方确认 |
+| 图集与只读公共服务 | `ForgeAssetsApi` 提供图片发布和赋图；`ForgeSaveReadbackApi` 读取 ES3 文本，内容方校验业务结果；`ForgeHookApi` 检查原生补丁入口。见[公共服务](SHARED_SERVICES.md) |
+| 库存读取与搬运预检 | `ForgeInventoryApi.CaptureDirect / PreviewWholeGridTransfer` 只读；`InventoryTransfer = false`，预检不提交搬运 |
 
-| 通用能力 | 当前状态 | 内容 Mod 的使用方式 |
-| --- | --- | --- |
-| 所有者、稳定 ID、依赖与冲突诊断 | 声明注册中心及原生物品/效果 `Snapshot()` 可用 | 查询每项 `Staged / Applied / Conflict / Failed`；声明接受不代替目录应用 |
-| 原生普通物品、设施物品、节点与机器模组注册 | `RegisterItem` / `RegisterNode` 接 `MiscItemDirectory`，`RegisterAmenity` 接 `AmenitiesItemDirectory`，`RegisterModule` 接 `ModuleDirectory`；按构建门控 | 传入自己的工厂；Nicokobo Forge 持有委托、检查 ID 和实际类型 |
-| 原版 UI 机器模板与混合输入 | `ForgeMachineRegistrationApi.RegisterMachine` 声明输入仓、液体容器槽、单一输出仓、电池、模组仓及手册；统一过夜事务负责资源预检、液体组分、产物、电量、容量、读回与撤回；原版熔炉扩展按需安装专用钩子 | 内容 Mod 提供 `ForgeMachineDefinition`、外观与配方；现有机器已迁到 0.5.0 API，不保留旧模式或存档迁移；注册、目录应用与实机验收分别检查 |
-| Nico 工坊解锁星图 | `RegisterChain` 注册独立链；节点可声明位置、依赖、信用点/物品条件、消耗标记及奖励 | 内容 Mod 返回当前周目快照，并在解锁回调中重新验资、扣除、发奖和保存；Forge 不自动转移资源 |
-| 夜间商店补货 | 原生物品注册可附带 `NativeItemOptions`，声明 `Repeatable` 或 `Unique`；唯一项按玩家实际拥有状态过滤 | 内容 Mod 提供可用条件；Forge 在原生库存生成完成后创建并核对货架落点 |
-| 模组/节点效果注册 | `ForgeEffectApi.RegisterEffect` 可编译；Nicokobo Forge 管理效果 ID、目录时机与随机池资格 | 内容 Mod 提供效果对象、回调与具体数值；当前尚无游戏内效果调用证据 |
-| 独立开局身份认领 | `RegisterStart` 可编译 | 内容 Mod 实现菜单、初始内容与保存流程 |
-| 周目数据承载 | `ForgeRunDataApi.Read` / `Stage` 可编译，按构建和签名门控 | 使用自己的键与 schema；`Stage` 仅写内存，保存后须读回 |
-| 通用库存读取与搬运预检 | `CaptureDirect` 与 `PreviewWholeGridTransfer` 只读入口可编译；写入 API 尚未开放 | 内容 Mod 用快照识别实例、预检完整单件位置；接纳与回滚验证后再开放写入 |
-| 能力查询 | `ForgeCapabilities.Current` 报告普通/设施/模块目录、夜间补货、效果、周目暂存、库存读取和完整单件预检门控；搬运明确为 false | 内容 Mod 在动作前判断相应能力，不能把注册 Accepted 当作目录或界面已应用 |
-| 扩展入口 | 公共程序集供内容 Mod 引用；示例工程说明边界 | 内容 Mod 在自己的程序集实现规则、UI、网络与适配器 |
+原生注册应在目录初始化前提交。`Accepted` 表示声明暂存成功，目录 `Applied` 才表示工厂已接入。当前 API 不保证目录初始化后的迟到注册立即生效。动作前查询 `ForgeCapabilities.Current`，一项能力失效不自动停用其他能力。
 
-## Out of scope：内容 Mod 自己实现
+## 内容 Mod 负责
 
-- 伪人开局的剧情、数值、神经接口效果、菜单呈现、初始物资与失败清理。
-- 物流记忆卡的黑白名单策略、卡与节点绑定、周围箱子范围、压入/弹出调度、网络容量、Wilds 解锁、界面和热键。
-- 具体物品 ID、价格、图标、文本、掉落与配方；物流三种物品的字段仍由内容规格确定。
-- 未经验证的原生物品序列化、整箱上传、跨库存事务与网络库存持久化。Nicokobo Forge 不将其声明为已支持。
+- 具体物品 ID、外观、名称、价格、获得途径、配方和效果。
+- 独立开局的菜单、初始物资、健康／暴露、经营规则及失败处理。
+- 内容 Mod 工坊节点的资格、信用点和物品扣除、奖励、失败恢复与保存；Forge 内置原版页使用自己的周目记录和有界原生发奖事务。
+- 原版熔炉扩展的投料、配方、原版优先级、夜间调度与生产 Hook。
+- 物流卡规则、节点绑定、网络容量、调度、UI、Wilds 解锁及网络存档。
 
-原生注册应在游戏目录初始化前提交。`Accepted` 只表示 ID 和工厂已暂存；内容 Mod 要通过 `Snapshot()` 查询 `Applied`，并在执行玩法前查看 `ForgeCapabilities.Current`。目录尚未初始化、构建门控失败或补丁不可用时，状态会保持 `Staged`；当前 API 不保证目录初始化后的迟到注册立即生效。
+`samples/Nicokobo.Forge.LogisticsExtension` 是内容侧示例库，不装入游戏，也不编入 Forge 核心。实际物流 Mod 已有物品定义和网络领域规则，实际搬运、货物持久化及原生电量仍待实现。
 
-普通物品、模块目录、效果随机池、周目数据和库存观察各按自身所需签名门控。P0 只读诊断探针失败时，注册入口仍可独立尝试安装；某一能力不可用不自动关闭其他能力。
+## 数值与验证
 
-`samples/Nicokobo.Forge.LogisticsExtension` 是内容侧示例库，不装入游戏，也不属于 `Nicokobo.Forge.dll`。其记忆卡规则与网络路由展示怎样在框架通用入口之上开发；实际物流 Mod 需要在物品字段、原生搬运和保存闭环确认后接入。
+框架通用数值由 [Forge BuildConfig](../BuildConfig/README.md) 集中维护；玩法数值由[内容 Mod BuildConfig](../../probably-stolen/mods-melonloader/BuildConfig/README.md)维护。两者随所属 DLL 编译，依赖边界保持明确。
 
-## 能力证据
-
-纯逻辑检查、编译、安装、游戏日志和存档重载分别记录。`ForgeRunDataApi` 与 `ForgeInventoryApi.CaptureDirect` 目前只有签名门控和领域检查证据，尚无实际读写调用证据；内容侧物流示例只有纯逻辑/编译证据。任何跨库存移动或网络入库都必须先预检、写后读回，并在失败时验证恢复；缺少无损序列化或可靠回滚时拒绝执行。
+签名检查、领域检查、编译、安装、游戏日志、实际资源变化及存档重载分别记录。API 存在、注册接受或能力为真都不能代替玩法验收。未开放的库存写入、整箱上传和网络货物存储不能声明为已支持；相关实现应先完成写后读回、拒绝时双方不变、失败恢复与保存重载。当前证据和待验收项见 [FORGE_PROGRESS.md](FORGE_PROGRESS.md)。
