@@ -1,6 +1,6 @@
 # Forge 开发与关联构建
 
-当前 Forge `0.6.5` 的职责与事件契约见 [API_BOUNDARIES.md](API_BOUNDARIES.md)。核心和所有内容调用者需使用同一份 Forge DLL；机核发布包必须经统一构建与 Obfuscar。`scripts/Build-P0.ps1` 执行互操作元数据签名、领域规则和独立原生入口保护检查，再编译核心与示例；合成扩展单独核对熔炉与液体 Hook。检查使用合成元数据、图形结构和故障注入端口，不启动游戏；数量与结果统一见[当前进度](FORGE_PROGRESS.md)。
+Forge 的职责与事件契约见 [API_BOUNDARIES.md](API_BOUNDARIES.md)。核心和所有内容调用者需使用同一份 Forge DLL；机核发布包必须经统一构建与 Obfuscar。`scripts/Build-P0.ps1` 执行互操作元数据签名、领域规则和独立原生入口保护检查，再编译核心与示例；合成扩展单独核对熔炉与液体 Hook。检查使用合成元数据、图形结构和故障注入端口，不启动游戏；数量与结果统一见[当前进度](FORGE_PROGRESS.md)。
 
 ## 职责与数值入口
 

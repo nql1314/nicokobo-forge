@@ -1,6 +1,6 @@
-# Forge 机器模板 API（0.6.4）
+# Forge 机器模板 API
 
-面向 Probably Stolen Demo Steam Build `25382790`。以下契约对应 Forge `0.6.4`；内容 Mod 需针对配套 DLL 编译。通用默认值、单位与上限集中在 [BuildConfig/ForgeNumbers.cs](../BuildConfig/ForgeNumbers.cs)，本文数值为当前编译默认值。
+面向 Probably Stolen Demo Steam Build `25382790`。以下契约对应当前源码；版本与验证范围见[当前进度](FORGE_PROGRESS.md)，内容 Mod 需针对配套 DLL 编译。通用默认值、单位与上限集中在 [BuildConfig/ForgeNumbers.cs](../BuildConfig/ForgeNumbers.cs)，本文数值为当前编译默认值。
 
 Forge 负责原版机器 UI 模板、设施物品注册、槽位回调、过夜发现、产物落点、液体组分、电池扣减和失败恢复。内容 Mod 提供物品外观、稳定 ID、配方、条件与数值；`ConfigureItem` 不应替换窗口或添加原生生产回调。数值和条件回调只能读取状态，`PrepareItem` 只能修改它收到的新产物。
 

@@ -1,6 +1,6 @@
 # Forge 文档索引
 
-当前源码：Forge `0.6.5`，目标 Demo Steam Build `25382790`。
+目标 Demo Steam Build `25382790`。源码版本、配套组件和验证状态统一见[当前进度](FORGE_PROGRESS.md)。
 
 | 文档 | 用途 |
 | --- | --- |
