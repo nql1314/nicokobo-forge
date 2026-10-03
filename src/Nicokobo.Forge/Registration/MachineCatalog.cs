@@ -42,6 +42,7 @@ internal sealed class MachineCatalog
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, MachineProfile> _machines = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _reserved = new(StringComparer.Ordinal);
     internal bool HasMachines { get { lock (_gate) return _machines.Count > 0; } }
     internal bool TryGet(string id, out MachineProfile? profile)
     { lock (_gate) return _machines.TryGetValue(id, out profile); }
@@ -61,12 +62,28 @@ internal sealed class MachineCatalog
             return new(SubmitStatus.Invalid, "Invalid machine template or recipe");
         lock (_gate)
         {
+            // A machine ID is claimed exactly once: unlike plain items, a repeated
+            // submission is reported as a conflict instead of AlreadyPresent.
             if (_machines.ContainsKey(frozen.MachineId))
                 return new(SubmitStatus.Conflict, "Machine ID already claimed");
-            var result = stageItem(frozen);
+            // Reserve the ID so a concurrent submission cannot stage the same
+            // machine twice; the native staging call stays outside the lock.
+            if (!_reserved.Add(frozen.MachineId))
+                return new(SubmitStatus.Invalid, "Machine ID is already being staged");
+        }
+        SubmitResult result;
+        try { result = stageItem(frozen); }
+        catch
+        {
+            lock (_gate) _reserved.Remove(frozen.MachineId);
+            throw;
+        }
+        lock (_gate)
+        {
+            _reserved.Remove(frozen.MachineId);
             if (result.Status is not (SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)) return result;
-            _machines.Add(frozen.MachineId, new(owner, frozen,
-                frozen.Recipes.Select(recipe => new RegisteredMachineRecipe(owner, recipe))));
+            _machines[frozen.MachineId] = new(owner, frozen,
+                frozen.Recipes.Select(recipe => new RegisteredMachineRecipe(owner, recipe)));
             return new(SubmitStatus.Accepted, "Machine template and recipes staged");
         }
     }
@@ -80,7 +97,9 @@ internal sealed class MachineCatalog
                 return new(SubmitStatus.Invalid, "Target machine has not been registered");
             if (!TryFreezeRecipes(owner, recipes, existing.Template, out var frozen))
                 return new(SubmitStatus.Invalid, "Recipe does not fit the target template");
-            if (HasConflicts(existing, frozen)) return new(SubmitStatus.Conflict, "Recipe ID already claimed");
+            if (frozen.Any(recipe => existing.Recipes.Any(entry =>
+                    entry.Value.RecipeId == recipe.RecipeId)))
+                return new(SubmitStatus.Conflict, "Recipe ID already claimed");
             _machines[id] = new(existing.OwnerId, existing.Definition,
                 existing.Recipes.Concat(frozen.Select(recipe => new RegisteredMachineRecipe(owner, recipe))));
             return new(SubmitStatus.Accepted, "Additional recipes staged");
@@ -91,8 +110,6 @@ internal sealed class MachineCatalog
         !string.IsNullOrWhiteSpace(id) && id.StartsWith(owner + ".", StringComparison.Ordinal);
     private static bool Grid(ForgeMachineGrid? size) => size != null &&
         size.Width is >= 1 and <= ForgeNumbers.Machines.MaxGridSide && size.Height is >= 1 and <= ForgeNumbers.Machines.MaxGridSide;
-    private static bool HasConflicts(MachineProfile profile, IEnumerable<ForgeMachineRecipe> recipes) =>
-        recipes.Any(recipe => profile.Recipes.Any(entry => entry.Value.RecipeId == recipe.RecipeId));
 
     internal static bool TryFreezeDefinition(string owner, ForgeMachineDefinition definition,
         out ForgeMachineDefinition frozen)

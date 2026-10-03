@@ -39,6 +39,8 @@ internal static class ForgeBootstrap
             report.ModuleDirectorySignaturesMatch,
             report.AmenityDirectorySignatureMatch);
         NativeShopAdapter.Configure(report.KnownBuild && report.NightShopSignaturesMatch, log.Callback);
+        NativeNpcStockAdapter.Configure(report.KnownBuild && nativeNodeInstalled &&
+            report.NightShopSignaturesMatch, log.Callback);
         ForgeNativeItemPresentation.Install(harmony,
             report.KnownBuild && nativeNodeInstalled,
             log.Callback);
@@ -57,7 +59,8 @@ internal static class ForgeBootstrap
             report.KnownBuild && report.RunDataSignaturesMatch,
             report.KnownBuild && report.InventoryReadSignaturesMatch,
             report.KnownBuild && report.InventoryPreviewSignaturesMatch,
-            nativeEffectInstalled, false, machineInstalled));
+            nativeEffectInstalled, false, machineInstalled)
+            { NpcTradeStock = NativeNpcStockAdapter.Installed });
         Workshop.NativeWorkshop.Install(report.KnownBuild && nativeNodeInstalled &&
             report.RunDataSignaturesMatch && report.InventoryReadSignaturesMatch && report.InventoryPreviewSignaturesMatch,
             log.Callback);
@@ -66,6 +69,7 @@ internal static class ForgeBootstrap
             $"moduleHookInstalled={NativeItemRegistry.ModuleHookInstalled}; " +
             $"amenityHookInstalled={NativeItemRegistry.AmenityHookInstalled}; " +
             $"nightShopHookInstalled={NativeShopAdapter.Installed}; " +
+            $"npcStockHookInstalled={NativeNpcStockAdapter.Installed}; " +
             $"nativeEffectHookInstalled={nativeEffectInstalled}; " +
             $"machineHooksInstalled={machineInstalled}; " +
             $"inventoryDragProbeInstalled={inventoryDragProbeInstalled}; " +

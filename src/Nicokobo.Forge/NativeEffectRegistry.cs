@@ -19,6 +19,7 @@ internal static class NativeEffectRegistry
         new(StringComparer.Ordinal);
     private static readonly Dictionary<string, NativeApplicationView> Outcomes =
         new(StringComparer.Ordinal);
+    private const string RandomHookId = "nicokobo.forge.effect_random_pool";
     private static Action<string>? _log;
     private static HarmonyLib.Harmony? _harmony;
     private static bool _allowed;
@@ -46,7 +47,7 @@ internal static class NativeEffectRegistry
         SafeLog(log, prefix + $"[NicokoboForge/Effect] owner={ownerId}; id={effectId}; " +
             $"randomEligible={randomEligible}; status={result.Status}; reason={result.Reason}");
         if (result.Status is SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)
-            TryInstall();
+            MarkDirectoryPending();
         return result;
     }
 
@@ -74,7 +75,7 @@ internal static class NativeEffectRegistry
         SafeLog(log, prefix + $"[NicokoboForge/Effect] owner={ownerId}; batch={effects.Count}; " +
             $"status={result.Status}; reason={result.Reason}");
         if (result.Status is SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)
-            TryInstall();
+            MarkDirectoryPending();
         return result;
     }
 
@@ -114,12 +115,14 @@ internal static class NativeEffectRegistry
 
     internal static void Configure(HarmonyLib.Harmony harmony, bool allowed)
     {
-        _harmony = new HarmonyLib.Harmony("nicokobo.forge.effect_random_pool");
+        _harmony = harmony;
         _allowed = allowed;
-        if (allowed && StagedCount > 0) TryInstall();
+        if (allowed && StagedCount > 0) MarkDirectoryPending();
     }
 
-    private static bool TryInstall()
+    // The native directory applies effects after it is populated, so this only
+    // marks the pending state; the actual hook is installed from OnDirectoryReady.
+    private static bool MarkDirectoryPending()
     {
         if (!_allowed) return false;
         _directoryHookInstalled = true;
@@ -161,7 +164,7 @@ internal static class NativeEffectRegistry
         }
         try
         {
-            if (!NativeHookSet.Install(_harmony!.Id, [new(typeof(ModuleEffectHelper), nameof(ModuleEffectHelper.InitRandomEffect),
+            if (!NativeHookSet.Install(RandomHookId, [new(typeof(ModuleEffectHelper), nameof(ModuleEffectHelper.InitRandomEffect),
                 [typeof(GameItem), typeof(int)], typeof(void), typeof(NativeEffectRegistry), nameof(RandomPrefix), Finalizer: nameof(RandomFinalizer))], _log)) return false;
             _enabled = true;
             _randomInstalled = true;

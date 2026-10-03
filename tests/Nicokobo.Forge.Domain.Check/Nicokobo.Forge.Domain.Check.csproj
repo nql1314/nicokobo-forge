@@ -28,6 +28,7 @@
     <Compile Include="../../src/Nicokobo.Forge/MachineTransaction.cs" Link="MachineTransaction.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/DeclarationCatalog.cs" Link="DeclarationCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/NativeItemCatalog.cs" Link="NativeItemCatalog.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Registration/NativeNpcStockPolicy.cs" Link="NativeNpcStockPolicy.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/NativeEffectCatalog.cs" Link="NativeEffectCatalog.cs" />
     <Compile Include="../../samples/Nicokobo.Forge.LogisticsExtension/LogisticsRules.cs" Link="LogisticsRules.cs" />
     <Compile Include="../../samples/Nicokobo.Forge.LogisticsExtension/LogisticsRouting.cs" Link="LogisticsRouting.cs" />

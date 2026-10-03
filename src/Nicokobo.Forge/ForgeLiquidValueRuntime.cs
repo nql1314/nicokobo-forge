@@ -20,25 +20,30 @@ internal static class ForgeLiquidValueRuntime
     internal static void Store(GameItem item, ForgeMachineLiquidSnapshot snapshot)
     {
         bool valued = snapshot.Contents.Any(part => part.Value != null && part.Parts > 0);
-        string saved = valued ? LiquidValueLedger.Encode(snapshot) : "";
         bool previouslyValued = HasLedger(item);
-        if (valued || previouslyValued)
-        {
-            var tags = item.state?.dict ?? throw new InvalidOperationException("Liquid state unavailable");
-            if (!tags.TryGetValue(Tag, out var tag) || tag == null)
-                tags[Tag] = tag = new TagState(Tag, Tag);
-            tag.Enable(); tag.SetString(saved);
-            item.SyncModifiedState();
-            if (item.GetTagReadonly(Tag)?.valueString != saved)
-                throw new InvalidOperationException("Liquid value ledger readback mismatch");
-        }
-        if (valued)
-        {
-            decimal value = decimal.Ceiling(MachineBatchMath.BaseValue(snapshot));
-            item.unitValue = value <= long.MaxValue ? (long)value :
-                throw new OverflowException("Liquid value too large");
-        }
-        else if (previouslyValued) item.unitValue = WaterFeatureHelper.GetWaterPrice(item);
+        if (!valued && !previouslyValued) return;
+        string saved = valued ? LiquidValueLedger.Encode(snapshot) : "";
+        long target = valued ? UnitValue(snapshot) : WaterFeatureHelper.GetWaterPrice(item);
+        // Read paths reapply the ledger every frame; skip the tag write, the
+        // JSON round trip and the modified-state sync when nothing changed.
+        if (item.unitValue == target &&
+            string.Equals(item.GetTagReadonly(Tag)?.valueString, saved, StringComparison.Ordinal))
+            return;
+        var tags = item.state?.dict ?? throw new InvalidOperationException("Liquid state unavailable");
+        if (!tags.TryGetValue(Tag, out var tag) || tag == null)
+            tags[Tag] = tag = new TagState(Tag, Tag);
+        tag.Enable(); tag.SetString(saved);
+        item.SyncModifiedState();
+        if (item.GetTagReadonly(Tag)?.valueString != saved)
+            throw new InvalidOperationException("Liquid value ledger readback mismatch");
+        item.unitValue = target;
+    }
+
+    private static long UnitValue(ForgeMachineLiquidSnapshot snapshot)
+    {
+        decimal value = decimal.Ceiling(MachineBatchMath.BaseValue(snapshot));
+        return value <= long.MaxValue ? (long)value :
+            throw new OverflowException("Liquid value too large");
     }
 
     internal static bool Install(Action<string> log)
@@ -62,7 +67,14 @@ internal static class ForgeLiquidValueRuntime
 
     internal static void Uninstall() => NativeHookSet.Remove(Owner, _log);
 
-    private static void ValuePrefix(GameItem __instance) => RefreshPostfix(__instance);
+    private static bool _refreshing;
+    private static void ValuePrefix(GameItem __instance)
+    {
+        if (_refreshing) return;
+        _refreshing = true;
+        try { RefreshPostfix(__instance); }
+        finally { _refreshing = false; }
+    }
     internal static void RefreshValue(GameItem item)
     {
         if (!HasLedger(item)) return;
@@ -76,21 +88,29 @@ internal static class ForgeLiquidValueRuntime
         {
             RefreshValue(__0);
         }
-        catch (Exception ex) { _log?.Invoke("[WARN] [NicokoboForge/LiquidValue] refresh failed: " + ex.Message); }
+        catch (Exception ex) { Warn("refresh", ex); }
     }
     private static void ChangePrefix(GameItem __0, out ForgeMachineLiquidSnapshot? __state) =>
         __state = HasLedger(__0) ? ForgeLiquidApi.Capture(__0) : null;
     private static void ChangePostfix(GameItem __0, ForgeMachineLiquidSnapshot? __state)
     {
         if (__state == null) return;
-        var current = ForgeLiquidApi.CaptureRaw(__0);
-        if (current != null) Store(__0, LiquidValueLedger.Reconcile(__state, current));
+        try
+        {
+            var current = ForgeLiquidApi.CaptureRaw(__0);
+            if (current != null) Store(__0, LiquidValueLedger.Reconcile(__state, current));
+        }
+        catch (Exception ex) { Warn("change", ex); }
     }
     private static void EmptyPostfix(GameItem __0)
     {
         if (!HasLedger(__0)) return;
-        var current = ForgeLiquidApi.CaptureRaw(__0);
-        if (current != null) Store(__0, current);
+        try
+        {
+            var current = ForgeLiquidApi.CaptureRaw(__0);
+            if (current != null) Store(__0, current);
+        }
+        catch (Exception ex) { Warn("empty", ex); }
     }
     private static void TransferPrefix(GameItem __0, GameItem __1, out TransferState? __state)
     {
@@ -102,9 +122,22 @@ internal static class ForgeLiquidValueRuntime
     private static void TransferPostfix(GameItem __0, GameItem __1, TransferState? __state)
     {
         if (__state == null) return;
-        var source = ForgeLiquidApi.CaptureRaw(__0); var target = ForgeLiquidApi.CaptureRaw(__1);
-        if (source == null || target == null) throw new InvalidOperationException("Transferred containers unavailable");
-        var values = MachineBatchMath.TransferValues(__state.Source, source, __state.Target, target);
-        Store(__0, values.Source); Store(__1, values.Target);
+        try
+        {
+            var source = ForgeLiquidApi.CaptureRaw(__0); var target = ForgeLiquidApi.CaptureRaw(__1);
+            if (source == null || target == null)
+            {
+                // Native postfixes must not raise into the IL2CPP call site.
+                Warn("transfer", new InvalidOperationException("Transferred containers unavailable"));
+                return;
+            }
+            var values = MachineBatchMath.TransferValues(__state.Source, source, __state.Target, target);
+            Store(__0, values.Source); Store(__1, values.Target);
+        }
+        catch (Exception ex) { Warn("transfer", ex); }
     }
+    private static void Warn(string stage, Exception ex) =>
+        TryLog($"[WARN] [NicokoboForge/LiquidValue] {stage} postfix skipped: " +
+            $"{ex.GetType().Name}: {ex.Message}");
+    private static void TryLog(string message) { try { _log?.Invoke(message); } catch { } }
 }

@@ -9,19 +9,35 @@ internal static class NativeAchievementAdapter
         string id = item.identifier;
         bool owned = ForgeInventoryApi.IsPlayerOwned(item);
         if (!owned) return new(item.uniqueId, id, false, item.unitCount);
-        bool water = id == "water_jug" && item.IsTag("LIQUID_CONTAINER_TAG") &&
-            item.GetTagReadonly("LIQUID_CONTAINER_CAPACITY").valueInt > 0 && WaterHelper.IsFull(item) && WaterHelper.GetTotalVolume(item) == item.GetTagReadonly("LIQUID_CONTAINER_CAPACITY").valueInt &&
-            WaterFeatureHelper.GetPurityArrayIndex(WaterHelper.GetWaterPurity(item)) == 0;
+        // Only a tagged jug has a capacity tag; every other item must not read it.
+        bool water = false;
+        if (id == "water_jug" && item.IsTag("LIQUID_CONTAINER_TAG"))
+        {
+            int capacity = RequiredInt(item, "LIQUID_CONTAINER_CAPACITY");
+            water = capacity > 0 && WaterHelper.IsFull(item) &&
+                WaterHelper.GetTotalVolume(item) == capacity &&
+                WaterFeatureHelper.GetPurityArrayIndex(WaterHelper.GetWaterPurity(item)) == 0;
+        }
         bool rat = id == "rat" && !HusbandryHelper.IsAnimalDead(item);
-        float grams = rat ? item.GetTagReadonly("ANIMAL_WEIGHT_TAG").valueFloat : 0;
+        float grams = rat ? RequiredFloat(item, "ANIMAL_WEIGHT_TAG") : 0;
         bool perfect = id == "metal_ingot" &&
             IngotPurityHelper.GetPurity(item) == "INGOT_PURITY_PERFECT";
         bool wine = AchievementRules.IsWineBottle(id) && WineHelper.IsFinishedWine(item) && !item.IsTag("WINE_COUNTERFEIT_TAG") &&
             WineHelper.GetWineQualityTier(item) == ForgeNumbers.Achievements.WineTopTier;
         int age = wine ? AgableHelper.GetAge(item) : 0;
-        int scanner = id == "metal_scanner" ? item.GetTagReadonly("SCAV_SCANNER_DOUBLE_CHANCE").valueInt : 0;
+        int scanner = id == "metal_scanner" ? RequiredInt(item, "SCAV_SCANNER_DOUBLE_CHANCE") : 0;
         return new(item.GetUniqueID(), id, owned, item.unitCount, water, rat, grams, perfect, wine, age, scanner);
     }
+
+    // A missing native tag is a contract change, not an empty value: report it
+    // explicitly so the caller records the goal as unavailable instead of
+    // failing with an opaque NullReferenceException.
+    private static int RequiredInt(GameItem item, string name) =>
+        (item.GetTagReadonly(name) ?? throw new InvalidOperationException(
+            $"Native achievement tag unavailable: {name}")).valueInt;
+    private static float RequiredFloat(GameItem item, string name) =>
+        (item.GetTagReadonly(name) ?? throw new InvalidOperationException(
+            $"Native achievement tag unavailable: {name}")).valueFloat;
 
     internal static bool Relevant(string id) => id is "water_jug" or "rat" or "metal_ingot" or "wine_bloomberry" or "wine_bottle" || AchievementRules.Tools.Contains(id);
     internal static AchievementItem[] CaptureTools(PlayerStore store) => ForgeInventoryApi.CaptureRunItems(store)

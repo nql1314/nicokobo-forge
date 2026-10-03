@@ -27,6 +27,7 @@ internal static class AchievementRules
     internal const string CardId = "nicokobo.forge.nico_card";
     internal const string CardNode = "$card";
     internal const string SaveKey = "nicokobo.forge.native_achievements";
+    internal const string VictoryNode = "workshop_master";
     internal static readonly string[] Tools = ["flashlight", "screwdriver", "wire_cutter", "welder", "metal_scanner"];
     internal static readonly string[] Factions = ["FACTION_LOWER_LEVEL", "FACTION_UPPER_LEVEL",
         "FACTION_SECURITY", "FACTION_BLACK_MARKET", "FACTION_REVOLUTION", "FACTION_CARTEL"];
@@ -88,6 +89,8 @@ internal static class AchievementRules
     }
 
     internal static bool IsVictory(string ending) => ending is "buyout" or "buyout_mortgage";
+    internal static bool HasVictoryBudgetReward(AchievementState? state) =>
+        state?.Claimed.Contains(VictoryNode) == true;
     // Native self-brewing retains wine_bottle even after it becomes finished BloomBerry Wine.
     internal static bool IsWineBottle(string id) => id is "wine_bottle" or "wine_bloomberry";
     internal static AchievementState Latch(AchievementState state, IReadOnlyDictionary<string, AchievementEvidence> evidence)

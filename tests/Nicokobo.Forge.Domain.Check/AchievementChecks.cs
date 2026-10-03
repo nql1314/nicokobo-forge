@@ -81,8 +81,16 @@ internal static class AchievementChecks
         Reject(() => AchievementRules.Claim(claimed), "Repeat claim accepted");
         Reject(() => AchievementRules.Claim(empty with { Pending = new("workshop_master", []) }), "Uncompleted goal claimed");
         var victory = AchievementRules.Latch(empty, AchievementRules.Evaluate(new([], 0, 0, 0, "buyout"), false));
+        Expect(!AchievementRules.HasVictoryBudgetReward(null) && !AchievementRules.HasVictoryBudgetReward(empty),
+            "Victory budget activated without this run's claimed reward");
+        Expect(!AchievementRules.HasVictoryBudgetReward(victory) &&
+            !AchievementRules.HasVictoryBudgetReward(victory with { Pending = new("workshop_master", []) }),
+            "Completion or pending delivery activated the victory budget");
         var badge = AchievementRules.Claim(victory with { Pending = new("workshop_master", []) });
         Expect(badge.Claimed.Contains("workshop_master"), "Inventory-free victory badge failed");
+        Expect(AchievementRules.HasVictoryBudgetReward(badge), "Claimed victory did not activate its budget reward");
+        Expect(AchievementRules.HasVictoryBudgetReward(AchievementRules.Decode(AchievementRules.Encode(badge), "run-a", 0)),
+            "Existing schema-1 victory claims did not preserve the budget reward across reload");
         Expect(AchievementRules.Claim(empty with { Pending = new(AchievementRules.CardNode, [new(AchievementRules.CardId, 50, 1)]) }).CardGranted, "Card recovery failed");
         SaveChecks(pendingJson, manifest);
         var catalog = new NativeItemCatalog(); Func<object> factory = () => new();

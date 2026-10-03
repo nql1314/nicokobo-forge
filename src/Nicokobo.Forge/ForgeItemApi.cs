@@ -23,13 +23,30 @@ public static class ForgeItemApi
         if (!ForgeCapabilities.Current.KnownGameBuild || string.IsNullOrWhiteSpace(itemId))
             throw new InvalidOperationException("Item creation adapter unavailable");
         var item = DirectoryMaster.Item(itemId, owned);
-        return item != null && item.Pointer != IntPtr.Zero && item.identifier == itemId
-            ? item : throw new InvalidOperationException("Native item factory returned an invalid item: " + itemId);
+        if (item != null && item.Pointer != IntPtr.Zero && item.identifier == itemId) return item;
+        // A rejected factory result is still a live native handle the caller
+        // never sees; release it instead of leaving it detached.
+        DestroyIfDetached(item);
+        throw new InvalidOperationException("Native item factory returned an invalid item: " + itemId);
     }
     public static string GetDisplayName(string itemId)
     {
         var item = Create(itemId, false);
         try { return item.GetDisplayName(false); }
-        finally { if (item.parentInventory == null) item.Destroy(); }
+        finally { DestroyIfDetached(item); }
+    }
+    private static void DestroyIfDetached(GameItem? item)
+    {
+        if (item == null) return;
+        try
+        {
+            if (item.Pointer == IntPtr.Zero || item.parentInventory != null) return;
+            item.Destroy();
+        }
+        catch (Exception ex)
+        {
+            try { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Items] detached instance cleanup failed: {ex.Message}"); }
+            catch { }
+        }
     }
 }

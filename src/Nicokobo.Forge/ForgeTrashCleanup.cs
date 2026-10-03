@@ -3,6 +3,10 @@ using Il2Cpp;
 
 namespace Nicokobo.Forge;
 
+// Intentionally dormant: this component is not wired into ForgeBootstrap.
+// docs/FORGE_PROGRESS.md keeps supplementary trash cleanup disabled until it
+// is validated on a disposable save. Keep the contract check and the
+// fail-safe install so enabling it later stays a one-line change.
 internal static class ForgeTrashCleanup
 {
     private static Action<string>? _log;

@@ -57,7 +57,11 @@ internal static class NativeWorkshop
             var card = ForgeItemApi.RegisterItem(OwnerId, AchievementRules.CardId, CreateCard, new NativeItemOptions(
                 Name: new("Nico工坊名片", "Nico Workshop Card"),
                 ShortDescription: CardDescription,
-                FlavorText: CardFlavor));
+                FlavorText: CardFlavor)
+            {
+                NpcTrade = new(NpcTradeStockCategory.Household,
+                    ForgeNumbers.Achievements.CardLootWeight) { SkipWhenOwned = true }
+            });
             if (card.Status is not (SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)) throw new InvalidOperationException(card.Reason);
             if (card.Status == SubmitStatus.Accepted)
                 LootRegistry.AddEntry(OwnerId, TableMaster.householdTable,
@@ -65,6 +69,7 @@ internal static class NativeWorkshop
             var tab = ForgeWorkshopApi.RegisterChain(OwnerId, ChainId, "原版", "Base Game", Snapshot, Claim);
             if (tab.Status is not (SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)) throw new InvalidOperationException(tab.Reason);
             _enabled = true;
+            NativeVictoryBudget.Install(log);
             ForgeWorkshopApi.SetDefaultChain(ChainId);
             InstallObservationHooks(log);
             log("[INFO] [NicokoboForge/Workshop] native achievements registered; nodes=10; card=all starts; completion!=claim");
@@ -170,6 +175,7 @@ internal static class NativeWorkshop
         _store = null; _state = null; _confirmed = null; _json = null; _confirmedJson = null;
         _bindRequested = false; _busy = false; _saving = false; _blocked = false; _dirty = true; _wasVisible = false;
         Idle.Reset();
+        NativeVictoryBudget.Reset();
         _ending = ""; _message = ""; _lastFailure = ""; Unavailable.Clear(); _evidence.Clear(); _nextUpdate = DateTime.MinValue; _nextSave = DateTime.MinValue;
     }
 
@@ -272,6 +278,8 @@ internal static class NativeWorkshop
         var check = Readback(_json, _state.Pending);
         if (!check.Matched) { Warn("Save readback pending: " + check.Reason); return false; }
         _confirmedJson = _json; _confirmed = AchievementRules.Decode(_json, _state.RunId, _state.SlotId);
+        NativeVictoryBudget.SetActive(!_blocked && AchievementRules.HasVictoryBudgetReward(_confirmed),
+            _store.currentClientInstance?.GetClientBlueprint());
         _lastFailure = ""; return true;
     }
     private static AchievementSaveResult Readback(string json, PendingReward? pending = null) =>
@@ -297,6 +305,7 @@ internal static class NativeWorkshop
 
     private static void Claim(string id)
     {
+        if (id == AchievementRules.VictoryNode && !NativeVictoryBudget.Installed) return;
         if (!Current() || _blocked || _busy || _state!.Pending != null || _json != _confirmedJson ||
             _confirmed?.Completed.ContainsKey(id) != true || _state.Claimed.Contains(id)) return;
         var definition = AchievementRules.Definitions.FirstOrDefault(x => x.Id == id);
@@ -401,20 +410,25 @@ internal static class NativeWorkshop
             bool completed = _confirmed?.Completed.ContainsKey(definition.Id) == true;
             bool claimed = _confirmed?.Claimed.Contains(definition.Id) == true;
             bool pending = _state?.Pending != null || _json != _confirmedJson;
+            bool rewardAvailable = definition.Id != AchievementRules.VictoryNode || NativeVictoryBudget.Installed;
             string progress = _evidence.GetValueOrDefault(definition.Id)?.Progress ?? (english ? "Checking native state" : "读取原生状态");
             string state = claimed ? (english ? "Claimed" : "已领取") : completed ? (english ? "Completed · unclaimed" : "已达成 · 未领取") : (english ? "In progress" : "未达成");
-            if (definition.Id == "workshop_master" && claimed) state = english ? "Victory badge awarded" : "通关纪念徽章已领取";
+            if (definition.Id == AchievementRules.VictoryNode && claimed)
+                state = english ? "Victory badge awarded · NPC purchase budgets x2" : "通关纪念徽章已领取 · NPC收购预算×2";
             if (_blocked) state = english ? "Achievement record unavailable" : "成就记录不可用";
+            else if (!rewardAvailable) state = english ? "Purchase budget reward unavailable" : "收购预算奖励暂不可用";
             else if (pending) state += english ? " · save pending" : " · 等待保存";
             else if (!completed && Unavailable.ContainsKey(definition.Id)) state = english ? "Native progress temporarily unavailable" : "原生进度暂不可读取";
             string cost = (english ? "Progress: " : "当前进度：") + progress;
-            if (definition.Rewards.Length == 0) cost += english ? "\nReward: Victory commemorative badge\nWorkshop display; no inventory space" : "\n奖励：通关纪念徽章\n工坊展示标记，不占库存";
+            if (definition.Id == AchievementRules.VictoryNode) cost += english
+                ? "\nReward: Victory commemorative badge + all NPC purchase budgets x2\nActive after claiming for this run; no inventory space"
+                : "\n奖励：通关纪念徽章＋所有NPC收购预算×2\n领取后本周目持续生效，不占库存";
             return new ForgeWorkshopEntry(definition.Id, english ? definition.English : definition.Chinese,
                 definition.Id == "workshop_master" ? (english ? "Native victory" : "原版通关") : (english ? "Native achievement" : "原版成就"),
                 english ? definition.ConditionEnglish : definition.ConditionChinese,
                 english ? "Independent goal" : "独立判定", cost, completed ? (english ? "CLAIM" : "可领奖") : progress,
                 state, claimed ? (english ? "Claimed" : "已领取") : (english ? "Claim reward" : "领取奖励"),
-                claimed, true, completed && !claimed && !pending && !_blocked && _state?.Claimed.Contains(definition.Id) != true)
+                claimed, true, completed && !claimed && !pending && !_blocked && rewardAvailable && _state?.Claimed.Contains(definition.Id) != true)
             {
                 Completed = completed,
                 Rewards = definition.Rewards.Select(x => new ForgeWorkshopReward(ForgeWorkshopResourceKind.Item, x.ItemId, x.Count) { DisplayName = english ? x.English : x.Chinese }).ToArray(),
@@ -425,7 +439,10 @@ internal static class NativeWorkshop
         return new(_store.playerCash, english, Groups, entries, _message);
     }
     private static bool English() => ForgePresentationApi.PreferEnglish();
-    private static void Block(string reason) { _blocked = true; _message = reason; Warn(reason); }
+    private static void Block(string reason)
+    {
+        _blocked = true; NativeVictoryBudget.SetActive(false, null); _message = reason; Warn(reason);
+    }
     private static void Log(string line) { try { _log?.Invoke("[INFO] [NicokoboForge/Workshop] " + line); } catch { } }
     private static void Warn(string line)
     {

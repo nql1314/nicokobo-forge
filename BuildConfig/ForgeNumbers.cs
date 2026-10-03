@@ -27,6 +27,7 @@ internal static class ForgeNumbers
         internal const int Attractiveness = 1000;
         internal const int Reputation = 200;
         internal const int SerumCount = 5;
+        internal const int VictoryBudgetMultiplier = 2;
         internal const int UpdateMilliseconds = 1000;
         internal const int DragQuietMilliseconds = 250;
         internal const int CardRetrySeconds = 5;

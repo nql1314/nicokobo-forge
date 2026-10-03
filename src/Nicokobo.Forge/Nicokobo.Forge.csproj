@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>Nicokobo.Forge</AssemblyName>
     <RootNamespace>Nicokobo.Forge</RootNamespace>
-    <Version>0.6.8</Version>
+    <Version>0.6.14</Version>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -37,5 +37,6 @@
     <Reference Include="UnityEngine.UIModule"><HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Localization"><HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\Unity.Localization.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.ResourceManager"><HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\Unity.ResourceManager.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>

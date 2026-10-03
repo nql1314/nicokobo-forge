@@ -62,8 +62,9 @@ internal static class ForgeMachineHooks
         try { __result = ForgeMachineUi.FindDropSlot(__instance, item); }
         catch (Exception ex)
         {
-            __result = null;
-            ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] drop routing failed: {ex.Message}");
+            // Fall back to the native slot search instead of rejecting the drop.
+            ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] drop routing failed; native fallback: {ex.Message}");
+            return true;
         }
         return false;
     }

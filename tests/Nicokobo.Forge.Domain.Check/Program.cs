@@ -127,6 +127,85 @@ Expect(nativeNodes.Submit("nicokobo.aug", amenityId, NativeItemKind.Amenity,
 Expect(nativeNodes.Snapshot().Count == 4, "Rejected native item changed the catalog");
 
 var moduleBatch = new NativeItemCatalog();
+var npcStock = new NativeItemCatalog();
+foreach (var (id, category, weight) in new[]
+{
+    ("a_quartz", NpcTradeStockCategory.Ore, 0.5f),
+    ("b_titanium", NpcTradeStockCategory.Ore, 0.5f),
+    ("c_module", NpcTradeStockCategory.Module, 1f)
+})
+    Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock." + id, NativeItemKind.Item,
+        neuralFactory, new() { NpcTrade = new(category, weight) }).Status == SubmitStatus.Accepted,
+        "Valid NPC stock was rejected");
+Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.final_cybernetic", NativeItemKind.Item,
+    neuralFactory).Status == SubmitStatus.Accepted, "Manufacturing-only item registration failed");
+var npcOffers = npcStock.Snapshot();
+Expect(NativeNpcStockPolicy.Select(npcOffers, NpcTradeStockCategory.Ore, 0)?.ItemId.EndsWith("a_quartz") == true,
+    "Miner stock did not reach quartz at the lower roll boundary");
+Expect(NativeNpcStockPolicy.Select(npcOffers, NpcTradeStockCategory.Ore, 0.5)?.ItemId.EndsWith("b_titanium") == true,
+    "Miner stock did not reach titanium at the next weighted interval");
+Expect(NativeNpcStockPolicy.Select(npcOffers, NpcTradeStockCategory.Ore, 0.999999)?.ItemId.EndsWith("b_titanium") == true,
+    "Miner stock leaked a module or manufacturing-only item into the ore pool");
+Expect(NativeNpcStockPolicy.Select(npcOffers, NativeNpcStockPolicy.All, 0.75)?.ItemId.EndsWith("c_module") == true,
+    "General supply did not include eligible modules");
+Expect(NativeNpcStockPolicy.Select(npcOffers, NpcTradeStockCategory.Machine, 0.5) == null,
+    "Empty supplier category produced stock");
+foreach (var (sample, expectedId) in new[]
+{
+    (0d, "common_ore"), (0.499999, "common_ore"),
+    (0.5, "nicokobo.stock.a_quartz"), (0.749999, "nicokobo.stock.a_quartz"),
+    (0.75, "nicokobo.stock.b_titanium"), (0.999999, "nicokobo.stock.b_titanium")
+})
+    Expect(NativeNpcStockPolicy.SelectMinerOre(npcOffers, sample) == expectedId,
+        "Miner batch draw omitted native ore, selected a non-ore item, or used the wrong weighted boundary");
+Expect(NativeNpcStockPolicy.SelectMinerOre([], 0.999999) == "common_ore" &&
+    NativeNpcStockPolicy.SelectMinerOre(npcOffers.Where(offer => offer.Options.NpcTrade?.Category == NpcTradeStockCategory.Module).ToArray(),
+        0.999999) == "common_ore", "Miner without registered ore lost its native supply");
+foreach (var (id, category) in new[] { ("drink", NpcTradeStockCategory.Food), ("gel", NpcTradeStockCategory.Medical) })
+{
+    var foodStock = new NativeItemCatalog();
+    Expect(foodStock.Submit("nicokobo.food", "nicokobo.food." + id, NativeItemKind.Item,
+        neuralFactory, new() { NpcTrade = new(category) }).Status == SubmitStatus.Accepted,
+        "Food or medical NPC stock was rejected");
+    var foodOffers = foodStock.Snapshot();
+    Expect(NativeNpcStockPolicy.Select(foodOffers, category, 0.5)?.ItemId == "nicokobo.food." + id &&
+        NativeNpcStockPolicy.Select(foodOffers, NativeNpcStockPolicy.All, 0.5)?.ItemId == "nicokobo.food." + id &&
+        NativeNpcStockPolicy.Select(foodOffers, NpcTradeStockCategory.Ore, 0.5) == null,
+        "General supply omitted consumables or mineral supply selected them");
+}
+var cardStock = new NativeItemCatalog();
+const string uniqueCardId = "nicokobo.forge.nico_card";
+const string repeatableHouseholdId = "nicokobo.forge.stock_fixture";
+Expect(cardStock.Submit("nicokobo.forge", uniqueCardId, NativeItemKind.Item, neuralFactory,
+    new() { NpcTrade = new(NpcTradeStockCategory.Household) { SkipWhenOwned = true } }).Status == SubmitStatus.Accepted &&
+    cardStock.Submit("nicokobo.forge", repeatableHouseholdId, NativeItemKind.Item, neuralFactory,
+    new() { NpcTrade = new(NpcTradeStockCategory.Household) }).Status == SubmitStatus.Accepted,
+    "Owned-stock policy registration failed");
+var cardOffers = cardStock.Snapshot();
+var ownedStockIds = new HashSet<string>(StringComparer.Ordinal) { uniqueCardId, repeatableHouseholdId };
+foreach (double sample in new[] { 0, 0.5, 0.999999 })
+    Expect(NativeNpcStockPolicy.Select(cardOffers, NpcTradeStockCategory.Household, sample, ownedStockIds)?.ItemId == repeatableHouseholdId,
+        "Owned card occupied a weighted interval or owned repeatable stock was suppressed");
+Expect(NativeNpcStockPolicy.Select(cardOffers.Where(offer => offer.ItemId == uniqueCardId).ToArray(),
+    NpcTradeStockCategory.Household, 0.5, ownedStockIds) == null,
+    "An owned card remained eligible when it was the only offer");
+ownedStockIds.Remove(uniqueCardId);
+Expect(NativeNpcStockPolicy.Select(cardOffers, NpcTradeStockCategory.Household, 0, ownedStockIds)?.ItemId == uniqueCardId,
+    "Card stock did not become eligible after ownership ended");
+foreach (double sample in new[] { -0.1, 1, double.NaN, double.PositiveInfinity })
+    Expect(NativeNpcStockPolicy.Select(npcOffers, NativeNpcStockPolicy.All, sample) == null &&
+        NativeNpcStockPolicy.SelectMinerOre(npcOffers, sample) == null,
+        "Invalid random sample selected NPC stock");
+foreach (float weight in new[] { 0, -1, float.NaN, float.PositiveInfinity })
+    Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.invalid", NativeItemKind.Item,
+        neuralFactory, new() { NpcTrade = new(NpcTradeStockCategory.Ore, weight) }).Status == SubmitStatus.Invalid,
+        "Invalid NPC weight was staged");
+Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.invalid", NativeItemKind.Item,
+    neuralFactory, new() { NpcTrade = new(NpcTradeStockCategory.Ore | NpcTradeStockCategory.Module) }).Status == SubmitStatus.Invalid,
+    "One NPC item was allowed to claim multiple supply categories");
+Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.a_quartz", NativeItemKind.Item,
+    neuralFactory, new() { NpcTrade = new(NpcTradeStockCategory.Ore, 1f) }).Status == SubmitStatus.Conflict,
+    "NPC weight changed under a previously staged item ID");
 var goodModules = new[]
 {
     new NativeItemBatchEntry("nicokobo.matrix.first", NativeItemKind.Module,

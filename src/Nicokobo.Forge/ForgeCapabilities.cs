@@ -6,7 +6,10 @@ public sealed record ForgeCapabilitySnapshot(bool KnownGameBuild,
     bool RunDataStaging,
     bool DirectInventoryRead, bool WholeTransferPreview,
     bool NativeEffectRegistration, bool InventoryTransfer,
-    bool MachineNightProcessing);
+    bool MachineNightProcessing)
+{
+    public bool NpcTradeStock { get; init; }
+}
 
 /// <summary>Read-only capability report for content Mods. A true gate means the
 /// adapter is installed, not that a particular Mod item or save has succeeded.</summary>

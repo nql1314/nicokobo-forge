@@ -49,6 +49,38 @@ try {
     Assert-AdapterMethod 'Il2Cpp.ContainerHelper' 'AllowOnlyTaggedItem' 'System.Void' @('Il2Cpp.GameInventory', 'System.String', 'System.Boolean', 'System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.ContainerHelper' 'InitContainerItem' 'System.Void' @('Il2Cpp.GameInventory', 'Il2Cpp.GameItem', $adapterStringList, $adapterStringList)
     Assert-AdapterMethod 'Il2Cpp.StoreClientList' 'PlaceInventorInventory' 'System.Void' @('System.Boolean')
+    Assert-AdapterMethod 'Il2Cpp.StoreClientList' 'PlaceSupplierInventory' 'System.Void' @()
+    foreach ($adapterMethod in @('_CreateMiner_b__38_0', '_CreateJunker_b__21_0',
+        '_CreateScrapper_b__35_0', '_CreateLowerLevelRareMerchant_b__64_0', '_CreateInventorStorage_b__31_0',
+        '_CreateThief_b__47_0', '_CreatePettyThief_b__48_0', '_CreateBrokeUpperLevel_b__69_0',
+        '_CreateFoodThief_b__49_0',
+        '_CreateShadyPharmacist_b__34_0', '_CreateScavBlood_b__58_0', '_CreateRareLowerLevelChemist_b__65_0')) {
+        Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c' $adapterMethod 'System.Void' @()
+    }
+    Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c__DisplayClass22_0' '_CreateJunkerSellOnly_b__0' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c__DisplayClass37_0' '_CreateLowerLevelChemist_b__0' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c__DisplayClass41_0' '_CreateScavGeneral_b__0' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c__DisplayClass42_0' '_CreateScavCrate_b__0' 'System.Void' @()
+    foreach ($adapterMethod in @('_CreateScavHaul_b__8_0', '_CreateSalvagePilot_b__14_0', '_CreateOldScav_b__17_0',
+        '_CreateConspiracyClient_b__22_0', '_CreatePeatClient_b__21_0', '_CreateNurse1_b__5_0')) {
+        Assert-AdapterMethod 'Il2Cpp.StoreClientListMinor/__c' $adapterMethod 'System.Void' @()
+    }
+    foreach ($adapterMethod in @('_CreateRevRaider_b__0_0', '_CreateRevQuartermaster_b__1_0')) {
+        Assert-AdapterMethod 'Il2Cpp.StoreClientListRev/__c' $adapterMethod 'System.Void' @()
+    }
+    foreach ($adapterMethod in @('_CreateRetiredWinemaker_b__4_0',
+        '_CreateRetiredJunker_b__5_0', '_CreateRetiredChemist_b__7_0')) {
+        Assert-AdapterMethod 'Il2Cpp.StoreClientListSpec/__c' $adapterMethod 'System.Void' @()
+    }
+    foreach ($adapterMethod in @('_CreateFoodSurplusClient_b__0_0', '_CreateFoodSurplusClient_b__0_1',
+        '_CreateMedicalSurplusClient_b__1_0', '_CreateMedicalSurplusClient_b__1_1',
+        '_CreateMaterialSurplusClient_b__4_0', '_CreateMaterialSurplusClient_b__4_1')) {
+        Assert-AdapterMethod 'Il2Cpp.StoreClientListSurplus/__c' $adapterMethod 'System.Void' @()
+    }
+    Assert-AdapterMethod 'Il2Cpp.StoreClientListEvent/__c' '_CreateScavengerHouseholdClient_b__8_0' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.RNG' 'GetRandomDouble' 'System.Double' @('System.Double', 'System.Double')
+    Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'AddDirectSellingItemToTable' 'System.Void' @(
+        'Il2Cpp.GameItem', 'System.Boolean', 'System.Boolean', 'System.Boolean', 'System.Int32')
     Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'OnItemBought' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
     Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'FindAllItem' $adapterItemList @('System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.GeneralHelper' 'IsItemOwned' 'System.Boolean' @('Il2Cpp.GameItem')
@@ -79,6 +111,12 @@ try {
         Assert-AdapterMethod 'Il2Cpp.PlayerStore' $adapterMethod 'System.Void' @()
     }
     Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'ExecuteGameOver' 'System.Void' @('System.String')
+    Assert-AdapterMethod 'Il2Cpp.StoreClient' 'SetBudget' 'System.Void' @('System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.StoreClient' 'SetBudget' 'System.Void' @('System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.StoreClient' 'SetClientBudget' 'System.Void' @('System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.StoreClient' 'GetBudget' 'System.Int32' @()
+    Assert-AdapterMethod 'Il2Cpp.StoreClient' 'OverrideBudget' 'System.Void' @('System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.StoreClientInstance' 'CreateClientInstance' 'Il2Cpp.StoreClientInstance' @('Il2Cpp.StoreClient')
     foreach ($adapterMethod in @('GetTotalEstimatedValue', 'GetCurrentStoreAttractiveness')) {
         Assert-AdapterMethod 'Il2Cpp.PlayerStore' $adapterMethod 'System.Int32' @()
     }

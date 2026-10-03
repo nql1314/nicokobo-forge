@@ -100,6 +100,7 @@ internal static class NativeItemRegistry
         SafeLog(log, prefix + $"[NicokoboForge/Module] owner={ownerId}; batch={modules.Count}; " +
             $"status={result.Status}; reason={result.Reason}");
         NativeShopAdapter.DeclarationsChanged();
+        NativeNpcStockAdapter.DeclarationsChanged();
         return result;
     }
 
@@ -121,6 +122,7 @@ internal static class NativeItemRegistry
         SafeLog(log, prefix + $"[NicokoboForge/{kind}] owner={ownerId}; id={nativeItemId}; " +
             $"status={result.Status}; reason={result.Reason}");
         NativeShopAdapter.DeclarationsChanged();
+        NativeNpcStockAdapter.DeclarationsChanged();
         return result;
     }
 

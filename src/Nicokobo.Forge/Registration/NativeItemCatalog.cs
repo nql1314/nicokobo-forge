@@ -11,19 +11,43 @@ public enum NightShopStockPolicy
     Unique
 }
 
+[Flags]
+public enum NpcTradeStockCategory
+{
+    None = 0,
+    Material = 1,
+    Ore = 2,
+    Module = 4,
+    Machine = 8,
+    Household = 16,
+    Food = 32,
+    Medical = 64
+}
+
+/// <summary>Relative weight within a supplier's eligible custom stock.</summary>
+public sealed record NpcTradeStockOptions(NpcTradeStockCategory Category, float Weight = 1f)
+{
+    /// <summary>Exclude this offer while the player owns a positive quantity.</summary>
+    public bool SkipWhenOwned { get; init; }
+}
+
 public sealed record LocalizedItemText(string Chinese, string English)
 {
     public string For(bool english) => english ? English : Chinese;
 }
 
-/// <summary>Optional stock and localized tooltip text for a native item.
+/// <summary>Optional night-shop/NPC stock and localized tooltip text for a native item.
 /// Availability is evaluated only when the night shop generates its stock.</summary>
 public sealed record NativeItemOptions(
     NightShopStockPolicy NightShop = NightShopStockPolicy.None,
     Func<bool>? IsNightShopAvailable = null,
     LocalizedItemText? Name = null,
     LocalizedItemText? ShortDescription = null,
-    LocalizedItemText? FlavorText = null);
+    LocalizedItemText? FlavorText = null)
+{
+    // Keep the existing constructor contract for other content Mods.
+    public NpcTradeStockOptions? NpcTrade { get; init; }
+}
 
 internal sealed record NativeItemDeclaration(string OwnerId, string ItemId,
     NativeItemKind Kind, Delegate Factory, NativeItemOptions Options);
@@ -91,6 +115,10 @@ internal sealed class NativeItemCatalog
         options ??= new();
         if (!Enum.IsDefined(options.NightShop))
             return new(SubmitStatus.Invalid, "Night-shop stock policy is invalid");
+        if (options.NpcTrade is { } npc &&
+            (!Enum.IsDefined(npc.Category) || npc.Category == NpcTradeStockCategory.None ||
+             !float.IsFinite(npc.Weight) || npc.Weight <= 0))
+            return new(SubmitStatus.Invalid, "NPC stock needs one category and a positive finite weight");
         if (_items.TryGetValue(itemId, out var old))
             return old.OwnerId == ownerId && old.Kind == kind && old.Factory.Equals(factory) &&
                    old.Options == options

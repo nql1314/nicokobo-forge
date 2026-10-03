@@ -2,7 +2,7 @@ using MelonLoader;
 using MelonLoader.Utils;
 using Nicokobo.Forge.Logging;
 
-[assembly: MelonInfo(typeof(Nicokobo.Forge.Plugin), "Nicokobo Forge", "0.6.8", "Nicokobo")]
+[assembly: MelonInfo(typeof(Nicokobo.Forge.Plugin), "Nicokobo Forge", "0.6.14", "Nicokobo")]
 [assembly: MelonProcess("Probably Stolen.exe")]
 
 namespace Nicokobo.Forge;
@@ -22,6 +22,7 @@ public sealed class Plugin : MelonMod
 
     public override void OnUpdate()
     {
+        NativeNpcStockAdapter.Update();
         NativeShopAdapter.Update();
         Workshop.NativeWorkshop.Update();
         ForgeWorkshopApi.Update();
