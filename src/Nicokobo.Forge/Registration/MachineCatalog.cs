@@ -2,22 +2,30 @@ namespace Nicokobo.Forge.Registration;
 
 internal sealed record RegisteredMachineRecipe(string OwnerId, ForgeMachineRecipe Value);
 
-internal sealed class MachineProfile(string ownerId, ForgeMachineDefinition definition,
-    IEnumerable<RegisteredMachineRecipe> recipes)
+internal sealed class MachineProfile
 {
-    internal string OwnerId { get; } = ownerId;
-    internal ForgeMachineDefinition Definition { get; } = definition;
+    internal MachineProfile(string ownerId, ForgeMachineDefinition definition,
+        IEnumerable<RegisteredMachineRecipe> recipes)
+    {
+        OwnerId = ownerId;
+        Definition = definition;
+        Recipes = Array.AsReadOnly(recipes.ToArray());
+        _feedstock = Recipes.SelectMany(entry => entry.Value.ItemInputs.Select(input => input.ItemId))
+            .ToHashSet(StringComparer.Ordinal);
+        _admitted = MachineAdmission.InputIds(Recipes.Select(entry => entry.Value)).ToHashSet(StringComparer.Ordinal);
+        _feedstockTags = MachineAdmission.InputTags(Recipes.Select(entry => entry.Value));
+    }
+    internal string OwnerId { get; }
+    internal ForgeMachineDefinition Definition { get; }
     internal string MachineId => Definition.MachineId;
     internal ForgeMachineTemplate Template => Definition.Template;
     internal ForgeMachinePowerRule Power => Definition.Power;
-    internal IReadOnlyList<RegisteredMachineRecipe> Recipes { get; } = Array.AsReadOnly(recipes.ToArray());
-    private readonly HashSet<string> _feedstock = recipes.SelectMany(entry =>
-        entry.Value.ItemInputs.Select(input => input.ItemId)).ToHashSet(StringComparer.Ordinal);
-    private readonly HashSet<string> _admitted = MachineAdmission.InputIds(
-        recipes.Select(entry => entry.Value)).ToHashSet(StringComparer.Ordinal);
+    internal IReadOnlyList<RegisteredMachineRecipe> Recipes { get; }
+    private readonly HashSet<string> _feedstock;
+    private readonly HashSet<string> _admitted;
+    private readonly string[] _feedstockTags;
     internal bool IsFeedstock(string id) => _feedstock.Contains(id);
-    internal bool IsFeedstockTag(Func<string, bool> isTag) => Recipes.Any(entry =>
-        entry.Value.ItemInputs.Any(input => input.ItemTag != null && isTag(input.ItemTag)));
+    internal bool IsFeedstockTag(Func<string, bool> isTag) => _feedstockTags.Any(isTag);
     internal bool Accepts(string id) => _admitted.Contains(id);
 }
 

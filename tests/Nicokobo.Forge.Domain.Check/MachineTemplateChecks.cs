@@ -161,6 +161,20 @@ internal static class MachineCatalogChecks
             !catalog.TryGet(owner + ".failed", out _), "native failure published a machine profile");
         Expect(catalog.Snapshot(true).All(view => view.RuntimeInstalled) &&
             catalog.Snapshot(false).All(view => !view.RuntimeInstalled), "template readiness snapshot incorrect");
+        int enumerations = 0, tagReads = 0;
+        IEnumerable<RegisteredMachineRecipe> RepeatedTags()
+        {
+            enumerations++;
+            for (int index = 0; index < 400; index++)
+                yield return new(owner, extra with { RecipeId = owner + ".tag_" + index,
+                    ItemInputs = [new("", 1) { ItemTag = "MUSIC_CATEGORY" }] });
+        }
+        var indexed = new MachineProfile(owner, first.Definition, RepeatedTags());
+        bool matchesTag = indexed.IsFeedstockTag(_ => { tagReads++; return false; });
+        Console.WriteLine($"Machine profile work: sourceEnumerations={enumerations}; falseTagReads={tagReads}; recipes=400.");
+        Expect(!matchesTag && enumerations == 1, "profile enumerated its source more than once");
+        Expect(tagReads == 1, "drop routing repeated the same native tag read for every recipe");
+        Expect(indexed.IsFeedstockTag(tag => tag == "MUSIC_CATEGORY"), "tag index changed admission");
         Console.WriteLine($"Machine template catalog checks passed: {checks} assertions.");
         MachineBatchChecks.Run();
     }
@@ -173,6 +187,28 @@ internal static class MachineBatchChecks
         int checks = 0;
         void Expect(bool value, string message)
         { checks++; if (!value) throw new Exception("Machine batch: " + message); }
+        var gate = new MachineBatchGate();
+        var firstMachine = new IntPtr(1);
+        using (var outer = gate.TryEnter(firstMachine))
+        {
+            Expect(outer != null && gate.TryEnter(firstMachine) == null, "same-machine nested batch acquired a lease");
+            using var independent = gate.TryEnter(new IntPtr(2));
+            Expect(independent != null, "independent machine blocked by an active batch");
+            int inputs = 2, nestedOutputs = 0;
+            var failedOuter = MachineTransaction.Run([new("prepare", () =>
+            {
+                using var nested = gate.TryEnter(firstMachine);
+                if (nested != null) { inputs--; nestedOutputs++; }
+                throw new Exception("outer output preparation failed");
+            }, () => { inputs = 2; return true; })]);
+            Expect(!failedOuter.Committed && failedOuter.Restored && inputs == 2 && nestedOutputs == 0,
+                "outer rollback restored the inputs of a committed nested batch");
+        }
+        var released = gate.TryEnter(firstMachine);
+        Expect(released != null, "failed batch retained its lease");
+        released!.Dispose(); released.Dispose();
+        using (var reused = gate.TryEnter(firstMachine))
+            Expect(reused != null, "repeated disposal prevented the next batch");
         Expect(ForgeMachinePowerMath.CalculateCost(8, 3) == 8 && ForgeMachinePowerMath.CalculateCost(8, 3, true) == 24,
             "batch/per-output billing");
         Expect(ForgeMachinePowerMath.CalculateCost(0, 256, true) == 0, "zero cost rejected");

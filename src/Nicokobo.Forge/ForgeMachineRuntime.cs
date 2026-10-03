@@ -16,6 +16,7 @@ internal static partial class ForgeMachineRuntime
     private const string FaultTag = "NICOKOBO_FORGE_MACHINE_FAULT";
     private static readonly HashSet<(int Slot, string Run, int Day, int Item)> Attempted = [];
     private static readonly HashSet<int> Quarantined = [];
+    private static readonly MachineBatchGate Batches = new();
     private static (int Slot, string Run, int Day) _night;
     internal static void BeforeLoadGame()
     { ForgeMachineUi.Reset(); Attempted.Clear(); Quarantined.Clear(); _night = default; }
@@ -77,6 +78,8 @@ internal static partial class ForgeMachineRuntime
         if (!ForgeMachineRuntimeApi.RuntimeInstalled) return "runtime-unavailable";
         if (machine == null || machine.Pointer == IntPtr.Zero || machine.identifier != profile.MachineId ||
             machine.GetUniqueID() <= 0) return "machine-invalid";
+        using var batch = Batches.TryEnter(machine.Pointer);
+        if (batch == null) return "machine-busy";
         if (!GeneralHelper.IsItemOwned(machine)) return "machine-not-owned";
         if (Quarantined.Contains(machine.GetUniqueID()) || !string.IsNullOrEmpty(machine.GetTagReadonly(FaultTag)?.valueString))
             return "quarantined";
