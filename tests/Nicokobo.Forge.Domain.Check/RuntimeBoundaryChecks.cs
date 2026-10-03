@@ -90,6 +90,15 @@ static class RuntimeBoundaryChecks
         Check(admission.Submit("test.one", [new("furnace", ["test.one.type.a", "test.one.type.a"])]).Status == SubmitStatus.Invalid, "Duplicate type accepted");
         Check(admission.Submit("test.one", [new("a", ["test.one.type.a"]), new("a", ["test.one.type.b"])]).Status == SubmitStatus.Invalid, "Duplicate machine accepted");
 
+        var reentrant = new ModuleAdmissionCatalog();
+        var interrupted = reentrant.Submit("test.one",
+            [new("purifier", ["test.one.type.purifier"]), new("furnace", ["test.one.type.outer"])],
+            () => reentrant.Submit("test.one", [new("furnace", ["test.one.type.inner"])]).Status == SubmitStatus.Accepted);
+        Check(interrupted.Status == SubmitStatus.Conflict, "Adapter re-entry concealed a batch conflict");
+        Check(reentrant.Merge("purifier", []).Length == 0, "Adapter re-entry published a partial batch");
+        Check(reentrant.Merge("furnace", []).SequenceEqual(new[] { "test.one.type.inner" }),
+            "Conflicting outer batch replaced the reentrant owner's rules");
+
         for (int energy = 0; energy <= 6; energy++)
         for (int cost = 0; cost <= 7; cost++)
         {

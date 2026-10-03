@@ -28,6 +28,12 @@ internal sealed class ModuleAdmissionCatalog
         if (ensureAdapter != null && !ensureAdapter()) return new(SubmitStatus.Invalid, "Module bay adapter unavailable");
         lock (_gate)
         {
+            // Native adapter setup runs outside the lock and may re-enter this
+            // catalog. Recheck the entire batch before publishing any rule.
+            foreach (var (machine, types) in frozen)
+                if (_rules.TryGetValue((owner, machine), out var old) &&
+                    !old.SequenceEqual(types, StringComparer.Ordinal))
+                    return new(SubmitStatus.Conflict, "Owner admission changed during adapter setup");
             bool added = false;
             foreach (var (machine, types) in frozen) added |= _rules.TryAdd((owner, machine), types);
             return new(added ? SubmitStatus.Accepted : SubmitStatus.AlreadyPresent, "Module admission staged");
