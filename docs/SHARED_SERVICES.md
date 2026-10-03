@@ -1,6 +1,6 @@
 # 公共资源、存档读取与补丁检查
 
-本页是 2026-10-03 审查后新增 API 的接入说明。内容 Mod 继续维护图片资源、物品字段、交易结果和玩法规则。
+本页记录当前公共服务的接入契约。内容 Mod 继续维护图片资源、物品字段、交易结果和玩法规则。
 
 ## 嵌入式图集
 
@@ -75,7 +75,7 @@ if (!ForgeHookApi.TryValidateNativeTarget(target, out var reason))
 
 当前构建的 `GameInventory.Expel` 与 `UncheckedAccept` 是原生抽象声明，生成的互操作包装却可能呈现为普通方法。机械飞升工坊已改用 `GameGridInventory`、`GameSlotInventory`、`GameGridScrollableInventory` 和 `GameCharacterRaidInventory` 的具体实现，并使用此检查。
 
-## 同帧库存效果读取（0.6.6）
+## 同帧库存效果读取
 
 `ForgeInventoryApi.CaptureOwnedItemCounts(store)` 返回自有且数量为正的物品 ID／数量只读字典。效果读取在同一帧和同一周目共用一份脱离原生句柄的快照；具体库存转移、数量修改、所有权标签与载入／新周目／日夜边界在前后回调中使快照失效。下一帧始终重新采集，捕获失败或捕获中发生变更时不发布可复用结果。整组原生观察钩子不可用时退回每次新采集。
 
@@ -88,6 +88,7 @@ if (!ForgeHookApi.TryValidateNativeTarget(target, out var reason))
 | 现有实现 | 本轮处理与理由 |
 | --- | --- |
 | 机器批次、电量、液体和生产价值 | 已有专门 Forge API，继续复用 |
+| 两个内容 Mod 的整批附加成本算术 | 0.6.15 增加 `PerOutputWithOverhead`；材料倍率后加整批成本，按产量分摊并只取整一次。电价和基础耗电选择仍在内容方 |
 | 图集读取与发布 | 已提取；资源仍在内容程序集 |
 | ES3 读取、语法和唯一字段查找 | 已提取；奖励、现金、声望和所有权比较仍在所属 Mod |
 | 原生入口有效性检查 | 已开放；不替 Mod 安装玩法 Hook 或改变其构建门控 |

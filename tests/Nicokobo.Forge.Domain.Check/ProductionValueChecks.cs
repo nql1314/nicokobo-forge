@@ -15,6 +15,32 @@ internal static class ProductionValueChecks
         Expect(ForgeProductionValueMath.PerOutput(124.8m, 50) == 188, "fractional water cost");
         Expect(ForgeProductionValueMath.PerOutput(120m, 50) == 180, "zero water draw still prices food");
         Expect(ForgeProductionValueMath.PerOutput(108m, 50, 2) == 81, "multiple outputs divide the batch cost");
+        Expect(ForgeProductionValueMath.PerOutputWithOverhead(100m, 25, 20m) == 145,
+            "batch overhead is added after material markup");
+        Expect(ForgeProductionValueMath.PerOutputWithOverhead(100m, 25, 10m, 3) == 45,
+            "one overhead is shared across all outputs before rounding");
+        Expect(ForgeProductionValueMath.PerOutputWithOverhead(29m, 35, 20m) == 60,
+            "fractional material markup is rounded only with overhead");
+        Expect(ForgeProductionValueMath.PerOutputWithOverhead(41m, 25, 20m) == 72,
+            "repair gel keeps the existing content price");
+        Expect(ForgeProductionValueMath.PerOutputWithOverhead(0m, 25, .1m, 2) == 1,
+            "fractional overhead without materials remains payable");
+        Expect(ForgeProductionValueMath.PerOutputWithOverhead(124.8m, 50, 0m, 2) ==
+            ForgeProductionValueMath.PerOutput(124.8m, 50, 2), "zero overhead preserves the existing API");
+        foreach (var (value, percent, overhead, count) in new[]
+            { (-1m, 25, 0m, 1), (1m, -1, 0m, 1), (1m, 25, -1m, 1),
+              (1m, 25, 0m, 0), (1m, 25, 0m, ForgeNumbers.Machines.MaxOutputCount + 1) })
+        {
+            try { ForgeProductionValueMath.PerOutputWithOverhead(value, percent, overhead, count);
+                throw new Exception("invalid overhead price accepted"); }
+            catch (ArgumentOutOfRangeException) { checks++; }
+        }
+        foreach (var overhead in new[] { 1m, decimal.MaxValue })
+        {
+            try { ForgeProductionValueMath.PerOutputWithOverhead(long.MaxValue, 0, overhead);
+                throw new Exception("overhead overflow accepted"); }
+            catch (OverflowException) { checks++; }
+        }
         foreach (var (value, percent, count) in new[] { (-1m, 25, 1), (1m, -1, 1), (1m, 25, 0) })
         {
             try { ForgeProductionValueMath.PerOutput(value, percent, count); throw new Exception("invalid price accepted"); }

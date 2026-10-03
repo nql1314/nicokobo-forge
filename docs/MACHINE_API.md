@@ -141,3 +141,5 @@ string status = processor.Process(machine, liveInventories);
 `ForgeMachineLiquidAmount.ResolveValue` 和 `ResolveQualityBasis` 可声明新增液体的实际价值与品质前价值。液体快照按组分保存二者；部分消费、混合、倾倒和回滚保留价值。没有声明价值的原生液体沿用游戏体积计价。实际灌装、原生转移及保存重载仍需单独验证。
 
 `SetBasis` 写入生产基础价值后同步原生有效状态，`ReadBasis` 读取有效快照；内容方通过这两个方法读写基础价值。机器声明的倍率随每批上下文传递。液体账本与机器隔离标签同样遵循有效状态读回约定。
+
+Forge 0.6.15 增加纯计算 `ForgeProductionValueMath.PerOutputWithOverhead(inputValue, markupPercent, batchOverhead, outputCount)`：材料先乘倍率，再加一次整批附加成本，最后按产量分摊并向上取整一次。附加成本必须非负；数量与溢出边界沿用机器事务。既有 `PerOutput` 和 `ForgeProductionValueApi.Calculate` 的签名及无附加成本行为保留。Forge 不指定电价；机械飞升与合成扩展仍自行读取基础电耗并按自己的定价规则传入，保留容器也由内容方决定是否计价。
