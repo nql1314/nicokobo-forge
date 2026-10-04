@@ -27,6 +27,7 @@ internal static class ForgeBootstrap
         ForgeInventoryApi.SetEnabled(report.KnownBuild &&
             report.InventoryReadSignaturesMatch, report.KnownBuild &&
             report.InventoryPreviewSignaturesMatch);
+        ForgeStartSelection.Install(report.KnownBuild, log.Callback);
         Runtime.InventoryReadRuntime.Install(report.KnownBuild && report.InventoryReadSignaturesMatch, log.Callback);
 
         var installed = log.IsDebugEnabled && report.CanInstallReadOnlyProbes &&
@@ -72,6 +73,7 @@ internal static class ForgeBootstrap
             $"npcStockHookInstalled={NativeNpcStockAdapter.Installed}; " +
             $"nativeEffectHookInstalled={nativeEffectInstalled}; " +
             $"machineHooksInstalled={machineInstalled}; " +
+            $"startSelectionHookInstalled={ForgeStartSelection.Installed}; " +
             $"inventoryDragProbeInstalled={inventoryDragProbeInstalled}; " +
             $"stagedEffects={NativeEffectRegistry.StagedCount}; " +
             $"declarations={ForgeApi.Snapshot().Count}");

@@ -9,10 +9,14 @@ What each released version of Nicokobo Forge changed. Install steps are in the [
 ### 中文
 
 - 修复 MelonLoader 生成的互操作程序集哈希变化时，受支持的游戏版本被误判，导致内容注册、生命周期与工坊成就被停用的问题。游戏本体版本与实际接口校验继续生效。
+- 新游戏选择栏统一使用紧凑行高；选项较多时支持鼠标滚轮和细滚动条，原版与 Mod 开局选项共用。
+- 图标固定在栏位左侧并留出文字间距，修复紧凑布局下图标与开局名称重叠的问题。
 
 ### English
 
 - Fixed supported game builds being rejected when the hash of MelonLoader's generated interop assembly changes, disabling content registration, lifecycle callbacks and workshop achievements. Native game-build and interface checks remain enforced.
+- Added compact rows, mouse-wheel scrolling and a thin scrollbar to the shared native and mod new-game selection list.
+- Fixed icons overlapping start names in the compact layout by anchoring icons to the left and reserving text spacing.
 
 ## 0.6.15 — 2026-10-04
 

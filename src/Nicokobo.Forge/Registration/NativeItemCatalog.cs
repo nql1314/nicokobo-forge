@@ -7,7 +7,10 @@ internal enum NativeItemKind { Item, Amenity, Node, Module }
 public enum NightShopStockPolicy
 {
     None,
+    /// <summary>Eligible whenever native shop stock is generated, even if owned.
+    /// A purchase does not trigger replacement stock.</summary>
     Repeatable,
+    /// <summary>Eligible only while the player does not own the item.</summary>
     Unique
 }
 

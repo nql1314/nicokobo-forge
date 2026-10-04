@@ -19,6 +19,7 @@ try {
     foreach ($adapterDirectory in @('MiscItemDirectory', 'ModuleDirectory', 'AmenitiesItemDirectory')) {
         Assert-AdapterMethod "Il2Cpp.$adapterDirectory" 'InitDirectory' 'System.Void' @()
     }
+    Assert-AdapterMethod 'Il2Cpp.MainMenuUIController' 'OnNewGameClick' 'System.Void' @()
     foreach ($adapterMethod in @('LoadGame', 'EndNight', 'EndDay')) {
         Assert-AdapterMethod 'Il2Cpp.PlayerStore' $adapterMethod 'System.Void' @()
     }
@@ -81,7 +82,7 @@ try {
     Assert-AdapterMethod 'Il2Cpp.RNG' 'GetRandomDouble' 'System.Double' @('System.Double', 'System.Double')
     Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'AddDirectSellingItemToTable' 'System.Void' @(
         'Il2Cpp.GameItem', 'System.Boolean', 'System.Boolean', 'System.Boolean', 'System.Int32')
-    Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'OnItemBought' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.GeneralHelper' 'SetItemOwned' 'System.Void' @('Il2Cpp.GameItem', 'System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'FindAllItem' $adapterItemList @('System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.GeneralHelper' 'IsItemOwned' 'System.Boolean' @('Il2Cpp.GameItem')
     Assert-AdapterMethod 'Il2Cpp.GameItemElement' 'GetTooltipBasic' 'Il2Cpp.RichTextBuilder' @()

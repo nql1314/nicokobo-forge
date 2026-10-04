@@ -51,14 +51,19 @@ internal static class BuildProbe
             bool nightShopSignatures = Check(lines, typeof(Il2Cpp.StoreClientList),
                 "PlaceInventorInventory", true, "System.Void", "System.Boolean") &
                 Check(lines, typeof(Il2Cpp.PlayerStore),
-                    "OnItemBought", false, "System.Void", "Il2Cpp.GameItem",
-                    "System.Int32") &
-                Check(lines, typeof(Il2Cpp.PlayerStore),
                     "IsPlayerOwnThisItem", false, "System.Boolean", "System.String") &
                 Check(lines, typeof(Il2Cpp.PlayerStore),
                     "AddDirectSellingItemToTable", false, "System.Void",
                     "Il2Cpp.GameItem", "System.Boolean", "System.Boolean",
-                    "System.Boolean", "System.Int32");
+                    "System.Boolean", "System.Int32") &
+                Check(lines, typeof(Il2Cpp.GeneralHelper),
+                    "SetItemOwned", true, "System.Void", "Il2Cpp.GameItem",
+                    "System.Boolean") &
+                Check(lines, typeof(Il2Cpp.GameGridInventory),
+                    "TryFindOneValidInventorySlot", false, "Il2Cpp.SlotMarker",
+                    "Il2Cpp.GameItem", "System.Boolean") &
+                Check(lines, typeof(Il2Cpp.SlotMarker),
+                    "IsValid", false, "System.Boolean");
             signatures &= Check(lines, typeof(Il2Cpp.PerkUIController),
                 "OpenUI", false, "System.Void");
             signatures &= Check(lines, typeof(Il2Cpp.PlayerStore),

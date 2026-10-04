@@ -22,8 +22,8 @@ public sealed class Plugin : MelonMod
 
     public override void OnUpdate()
     {
+        ForgeStartSelection.Update();
         NativeNpcStockAdapter.Update();
-        NativeShopAdapter.Update();
         Workshop.NativeWorkshop.Update();
         ForgeWorkshopApi.Update();
     }

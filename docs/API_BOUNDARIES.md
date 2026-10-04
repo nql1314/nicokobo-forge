@@ -27,7 +27,7 @@ Forge 持有通用注册、事件分派、构建门控和资源事务；内容 M
 | `ForgeSaveReadbackApi` | 有界 ES3 只读解析和唯一字段检查；调用方验证周目、所属状态及交易结果 |
 | `ForgeHookApi` | 检查 IL2CPP 方法的原生执行入口，不安装内容方补丁 |
 
-`NativeItemRegistry`、`NativeEffectRegistry`、`NativeShopAdapter` 是内部适配器，内容 Mod 通过公共入口调用。商店补货由独立适配器处理，效果注册复用物品目录就绪接入。
+`NativeItemRegistry`、`NativeEffectRegistry`、`NativeShopAdapter` 是内部适配器，内容 Mod 通过公共入口调用。商店库存生成由独立适配器处理，购买后不自动补货；效果注册复用物品目录就绪接入。
 
 ## 独立逻辑与原生端口
 

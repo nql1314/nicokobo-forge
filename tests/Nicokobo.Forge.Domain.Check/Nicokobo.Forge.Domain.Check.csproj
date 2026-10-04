@@ -10,6 +10,9 @@
     <Compile Include="../../src/Nicokobo.Forge/ForgeSaveReadbackApi.cs" Link="ForgeSaveReadbackApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeSpriteModels.cs" Link="ForgeSpriteModels.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeAssetsApi.cs" Link="ForgeAssetsApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/NativeShopAdapter.cs" Link="NativeShopAdapter.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/NativeApplicationView.cs" Link="NativeApplicationView.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeCapabilities.cs" Link="ForgeCapabilities.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/SpriteAtlasInstaller.cs" Link="Runtime/SpriteAtlasInstaller.cs" />
 
     <Compile Include="../../src/Nicokobo.Forge/Runtime/OwnedCallbacks.cs" Link="OwnedCallbacks.cs" />

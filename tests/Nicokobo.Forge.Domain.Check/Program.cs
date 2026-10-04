@@ -11,6 +11,7 @@ AchievementChecks.Run();
 WorkshopInputChecks.Run();
 InventoryReadChecks.Run();
 SpriteAtlasChecks.Run();
+NightShopChecks.Run();
 SaveReadbackChecks.Run();
 
 static void Expect(bool condition, string message)

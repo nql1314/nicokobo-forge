@@ -32,4 +32,4 @@ public sealed class GridPixelElement : PixelElement
     }
 }
 
-public sealed class GameGridInventory : PixelElement;
+public sealed partial class GameGridInventory : PixelElement;

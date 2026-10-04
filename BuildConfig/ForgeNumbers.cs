@@ -88,14 +88,20 @@ internal static class ForgeNumbers
         internal const int MaxJsonDepth = 64;
     }
 
-    internal static class Shop
+    // 新游戏开局选择栏；内容 Mod 只添加卡片，共用 Forge 的布局和滚动。
+    internal static class StartSelection
     {
-        // 夜间商店购买后，首次尝试替换／补货前的等待时间（毫秒）。
-        internal const int RefreshDelayMilliseconds = 100;
-        // 夜间商店替换／补货尚未成功时的重试间隔（毫秒）。
-        internal const int RetryDelayMilliseconds = 250;
-        // 单次夜间商店替换／补货允许的最大尝试次数。
-        internal const int MaxReplacementAttempts = 40;
+        internal const float MaximumRowHeight = 52f;
+        internal const float MinimumRowHeight = 44f;
+        internal const float IconSize = 32f;
+        internal const float IconLeftPadding = 10f;
+        internal const float IconTextGap = 10f;
+        internal const float TextRightPadding = 8f;
+        internal const float RowVerticalPadding = 4f;
+        internal const float ScrollbarSpace = 14f;
+        internal const float ScrollbarWidth = 6f;
+        internal const float ScrollbarInset = 2f;
+        internal const float ScrollbarVerticalPadding = 4f;
     }
 
     // 工坊声明限制、刷新间隔和界面样式；尺寸及字号使用缩放前的设计像素。

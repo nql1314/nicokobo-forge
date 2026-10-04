@@ -1,6 +1,6 @@
 # Nicokobo Forge 的能力与扩展边界
 
-更新：2026-10-03。Forge 是 Probably Stolen 内容 Mod 的通用前置。框架维护注册、能力门控、原生适配、公共事件和资源事务；内容 Mod 各自维护物品、玩法规则与存档格式。
+更新：2026-10-04。Forge 是 Probably Stolen 内容 Mod 的通用前置。框架维护注册、能力门控、原生适配、公共事件和资源事务；内容 Mod 各自维护物品、玩法规则与存档格式。
 
 ## 框架提供
 
@@ -12,10 +12,11 @@
 | 显式批次处理 | `ForgeMachineRuntimeApi.CreateBatchProcessor` 复用事务；调用者提供实时槽位、投料规则、时机与同夜去重 |
 | 电量、液体与生产价值 | `ForgePowerApi`、`ForgeLiquidApi`、`ForgeProductionValueApi` 及纯计算类；内容方决定配方与系数 |
 | Nico 工坊 | `ForgeWorkshopApi.RegisterChain` 声明独立图谱与回调；条件和奖励用于展示，实际交易由提供者完成；Forge 内置全开局名片与原版成就提供者，内容 Mod 持有各自的独立页面 |
-| 夜间商店补货 | `NativeItemOptions` 声明 `Repeatable / Unique / None`；可用条件由内容方提供，框架核对实际货架落点 |
+| 夜间商店库存 | `NativeItemOptions` 声明 `Repeatable / Unique / None`；只在原生商店生成库存时加入商品，购买后不自动补货；可用条件由内容方提供，框架预检货架空间并核对实际落点 |
 | 白天 NPC 供货 | `NativeItemOptions.NpcTrade` 声明物品类别及相对权重，包含食品与医疗品；`SkipWhenOwned` 按玩家实际持有过滤供货。36 条供货入口中，矿工每次抽一种矿物并整批替换，原版生成件数；其余入口在首件原版待售货物前追加一件已应用物品并读取落点。农夫、水商及冰矿工沿用原版供货，每次供货／刷货重新抽取，原生处理归属、阵营限制和容量 |
 | 生命周期、模组与文本 | `ForgeLifecycleApi`、`ForgeModuleApi`、`ForgePresentationApi`；共享观察 Hook 和拥有者回调 |
 | 开局与周目数据 | `ForgeStartApi` 认领开局 ID；`ForgeRunDataApi.Read / Stage` 读取及比较后暂存所属 JSON，文件保存与回读由内容方确认 |
+| 开局选择栏 | Forge 自动处理原版和新增卡片的紧凑行高、裁剪、滚轮和滚动条；内容 Mod 持有卡片文本与选择回调 |
 | 图集与只读公共服务 | `ForgeAssetsApi` 提供图片发布和赋图；`ForgeSaveReadbackApi` 读取 ES3 文本，内容方校验业务结果；`ForgeHookApi` 检查原生补丁入口。见[公共服务](SHARED_SERVICES.md) |
 | 库存读取与搬运预检 | `ForgeInventoryApi.CaptureDirect / PreviewWholeGridTransfer` 只读；`InventoryTransfer = false`，预检不提交搬运 |
 
@@ -24,7 +25,7 @@
 ## 内容 Mod 负责
 
 - 具体物品 ID、外观、名称、价格、获得途径、配方和效果。
-- 独立开局的菜单、初始物资、健康／暴露、经营规则及失败处理。
+- 独立开局的卡片文本、选择与启动逻辑、初始物资、健康／暴露、经营规则及失败处理；选择栏布局与滚动由 Forge 统一处理。
 - 内容 Mod 工坊节点的资格、信用点和物品扣除、奖励、失败恢复与保存；Forge 内置原版页使用自己的周目记录和有界原生发奖事务。
 - 原版熔炉扩展的投料、配方、原版优先级、夜间调度与生产 Hook。
 - 物流卡规则、节点绑定、网络容量、调度、UI、Wilds 解锁及网络存档。
