@@ -20,6 +20,13 @@ try {
         Assert-AdapterMethod "Il2Cpp.$adapterDirectory" 'InitDirectory' 'System.Void' @()
     }
     Assert-AdapterMethod 'Il2Cpp.MainMenuUIController' 'OnNewGameClick' 'System.Void' @()
+    # Dossier expansion uses the original grid and runs before saved-item placement.
+    Assert-AdapterMethod 'Il2Cpp.MiscItemDirectory' 'Dossier' 'Il2Cpp.GameItem' @()
+    Assert-AdapterMethod 'Il2Cpp.EmporiumEntry' 'get_Instance' 'Il2Cpp.EmporiumEntry' @()
+    Assert-AdapterMethod 'Il2Cpp.EmporiumEntry' 'get_dossier' 'Il2Cpp.GameItem' @()
+    Assert-AdapterMethod 'Il2Cpp.GameGridInventory' 'SetShape' 'Il2Cpp.GameGridInventory' @('System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.GameGridInventory' 'get_inventoryShape' 'Il2Cpp.GridShape' @()
+    Assert-AdapterMethod 'Il2Cpp.PixelWindow' 'Validate' 'System.Void' @()
     foreach ($adapterMethod in @('LoadGame', 'EndNight', 'EndDay')) {
         Assert-AdapterMethod 'Il2Cpp.PlayerStore' $adapterMethod 'System.Void' @()
     }

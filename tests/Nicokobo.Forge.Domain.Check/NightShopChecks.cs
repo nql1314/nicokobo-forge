@@ -101,6 +101,24 @@ internal static class NightShopChecks
 
         shelf = Reset();
         Offer(unique, NightShopStockPolicy.Unique);
+        StoreClientList.PlaceInventorInventory(false);
+        Expect(created.Count == 1 && shelf.childItems.Single().identifier == unique,
+            "A missing guide was not offered by native night-shop generation");
+        StoreClientList.PlaceInventorInventory(false);
+        Expect(created.Count == 1 && shelf.childItems.Count == 1,
+            "A guide already on the shelf was duplicated");
+        bought = shelf.childItems[0];
+        PlayerStore.instance!.OnItemBought(bought, 10);
+        StoreClientList.PlaceInventorInventory(false);
+        Expect(created.Count == 1 && shelf.childItems.Count == 0,
+            "An owned guide returned on a later native night-shop generation");
+        PlayerStore.instance.OwnedIds.Remove(unique);
+        StoreClientList.PlaceInventorInventory(false);
+        Expect(created.Count == 2 && shelf.childItems.Single().identifier == unique,
+            "Losing the last guide did not restore its night-shop availability");
+
+        shelf = Reset();
+        Offer(unique, NightShopStockPolicy.Unique);
         PlayerStore.instance!.OwnedIds.Add(unique);
         Offer("test.shop.none", NightShopStockPolicy.None);
         Offer("test.shop.staged", NightShopStockPolicy.Repeatable);

@@ -29,6 +29,7 @@ internal static class ForgeBootstrap
             report.InventoryPreviewSignaturesMatch);
         ForgeStartSelection.Install(report.KnownBuild, log.Callback);
         Runtime.InventoryReadRuntime.Install(report.KnownBuild && report.InventoryReadSignaturesMatch, log.Callback);
+        ForgeDossierExpansion.Install(report.KnownBuild, log.Callback);
 
         var installed = log.IsDebugEnabled && report.CanInstallReadOnlyProbes &&
             LifecycleProbe.Install(harmony, log.Callback);
@@ -61,7 +62,8 @@ internal static class ForgeBootstrap
             report.KnownBuild && report.InventoryReadSignaturesMatch,
             report.KnownBuild && report.InventoryPreviewSignaturesMatch,
             nativeEffectInstalled, false, machineInstalled)
-            { NpcTradeStock = NativeNpcStockAdapter.Installed });
+            { NpcTradeStock = NativeNpcStockAdapter.Installed,
+              DossierExpansion = ForgeDossierExpansion.Installed });
         Workshop.NativeWorkshop.Install(report.KnownBuild && nativeNodeInstalled &&
             report.RunDataSignaturesMatch && report.InventoryReadSignaturesMatch && report.InventoryPreviewSignaturesMatch,
             log.Callback);
@@ -74,6 +76,7 @@ internal static class ForgeBootstrap
             $"nativeEffectHookInstalled={nativeEffectInstalled}; " +
             $"machineHooksInstalled={machineInstalled}; " +
             $"startSelectionHookInstalled={ForgeStartSelection.Installed}; " +
+            $"dossierExpansionInstalled={ForgeDossierExpansion.Installed}; " +
             $"inventoryDragProbeInstalled={inventoryDragProbeInstalled}; " +
             $"stagedEffects={NativeEffectRegistry.StagedCount}; " +
             $"declarations={ForgeApi.Snapshot().Count}");

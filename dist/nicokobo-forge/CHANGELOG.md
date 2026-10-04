@@ -4,6 +4,18 @@ What each released version of Nicokobo Forge changed. Install steps are in the [
 
 各发布版本改了什么。安装步骤见 [README](README.md)。
 
+## 0.6.17 — 2026-10-04
+
+### 中文
+
+- 原版档案箱内部容量扩为 16×16（256 格），在创建和读档恢复物品前扩容，沿用原物品、位置与收纳规则。
+- 更新配套构建至机核协议合集 0.0.3：合成扩展 0.9.41、机械飞升 0.1.39、模组矩阵 1.1.2。
+
+### English
+
+- Expanded the native Dossier inventory to 16×16 (256 cells) on creation and before restoring saved items, preserving contents, positions and item restrictions.
+- Updated the matching Mechcore Protocol build to bundle 0.0.3: Synthesis Expansion 0.9.41, Mechanical Ascension 0.1.39 and Module Matrix 1.1.2.
+
 ## 0.6.16 — 2026-10-04
 
 ### 中文

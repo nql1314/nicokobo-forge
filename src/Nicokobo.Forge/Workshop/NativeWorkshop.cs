@@ -298,8 +298,8 @@ internal static class NativeWorkshop
         }
         if (Stage(AchievementRules.Claim(_state)))
         {
-            Save();
-            _message = English() ? "Reward delivery recovered." : "奖励领取记录已恢复。";
+            bool confirmed = Save();
+            _message = confirmed ? "" : (English() ? "Claim confirmation pending." : "领取记录等待保存确认。");
         }
     }
 
@@ -351,7 +351,7 @@ internal static class NativeWorkshop
             if (!Save()) { _message = English() ? "Delivered; awaiting save confirmation." : "奖励已交付，等待保存确认。"; return; }
             if (!Stage(AchievementRules.Claim(_state!))) return;
             bool confirmed = Save();
-            _message = confirmed ? (English() ? "Reward claimed." : "奖励已领取。") : (English() ? "Claim confirmation pending." : "领取记录等待保存确认。");
+            _message = confirmed ? "" : (English() ? "Claim confirmation pending." : "领取记录等待保存确认。");
             _dirty = true;
             Log($"reward={nodeId}; items={products.Count}; slotReadback={confirmed}");
         }

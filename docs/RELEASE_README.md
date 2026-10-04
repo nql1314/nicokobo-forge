@@ -6,6 +6,8 @@ Probably Stolen Demo 内容 Mod 的共用前置，提供物品／效果注册、
 
 新游戏选择栏使用自适应的紧凑行高，原版和 Mod 选项共用；内容超出时可用鼠标滚轮或拖动细滚动条查看。
 
+原版档案箱内部容量扩为 16×16（256 格），新游戏和已有存档共用，保留原有物品、位置与收纳规则。
+
 ## 安装 / Installation
 
 1. 游戏需已安装 [MelonLoader](https://melonwiki.xyz/)。本系列开发目标为 Demo Steam Build `25382790`。
@@ -15,6 +17,8 @@ Probably Stolen Demo 内容 Mod 的共用前置，提供物品／效果注册、
 Forge includes the Nico Workshop card for all starts and ten native-game achievements with per-run progress and one-time rewards. Press N or double-click the card to open the workshop. Forge can be installed alone for these achievements.
 
 The new-game selection list uses compact, adaptive rows for native and mod options. When the list overflows, use the mouse wheel or drag the thin scrollbar.
+
+The native dossier storage expands to 16×16 (256 cells) for new and existing saves, preserving its items, positions and admission rules.
 
 Install MelonLoader, then copy `Nicokobo.Forge-@FORGE_VERSION@.dll` and matching content mod DLLs into the game's `Mods/` folder. Keep one copy of each assembly and update the dependency together with its content mods.
 

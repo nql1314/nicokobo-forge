@@ -9,6 +9,7 @@ public sealed record ForgeCapabilitySnapshot(bool KnownGameBuild,
     bool MachineNightProcessing)
 {
     public bool NpcTradeStock { get; init; }
+    public bool DossierExpansion { get; init; }
 }
 
 /// <summary>Read-only capability report for content Mods. A true gate means the

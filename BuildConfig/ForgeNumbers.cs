@@ -63,9 +63,11 @@ internal static class ForgeNumbers
         internal const int LifecyclePriority = -100;
     }
 
-    // 库存遍历和估价的数量保护上限；不开放库存搬运能力。
+    // 档案箱尺寸及库存遍历、估价的保护上限；不开放库存搬运能力。
     internal static class Inventory
     {
+        // 原版档案箱内部网格的宽度和高度（格）。
+        internal const int DossierGridSide = 16;
         // 一次直接库存快照允许读取的物品数量上限。
         internal const int MaxDirectItems = 4096;
         // 遍历整个周目的原生物品时允许处理的物品数量上限。

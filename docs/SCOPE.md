@@ -17,6 +17,7 @@
 | 生命周期、模组与文本 | `ForgeLifecycleApi`、`ForgeModuleApi`、`ForgePresentationApi`；共享观察 Hook 和拥有者回调 |
 | 开局与周目数据 | `ForgeStartApi` 认领开局 ID；`ForgeRunDataApi.Read / Stage` 读取及比较后暂存所属 JSON，文件保存与回读由内容方确认 |
 | 开局选择栏 | Forge 自动处理原版和新增卡片的紧凑行高、裁剪、滚轮和滚动条；内容 Mod 持有卡片文本与选择回调 |
+| 原版档案箱 | 内部网格扩为 16×16（256 格）；在原生创建后及读档恢复物品前原位扩容，保留原物品、位置与收纳规则；`ForgeCapabilities.Current.DossierExpansion` 表示扩容钩子已安装 |
 | 图集与只读公共服务 | `ForgeAssetsApi` 提供图片发布和赋图；`ForgeSaveReadbackApi` 读取 ES3 文本，内容方校验业务结果；`ForgeHookApi` 检查原生补丁入口。见[公共服务](SHARED_SERVICES.md) |
 | 库存读取与搬运预检 | `ForgeInventoryApi.CaptureDirect / PreviewWholeGridTransfer` 只读；`InventoryTransfer = false`，预检不提交搬运 |
 

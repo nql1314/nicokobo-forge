@@ -64,8 +64,11 @@ Compress-Archive -LiteralPath $packageRoot -DestinationPath $archivePath -Compre
 if ([string]::IsNullOrWhiteSpace($ModDistRoot)) {
     $ModDistRoot = Join-Path $projectRoot '..\probably-stolen\mods-melonloader\dist'
 }
-$modDistRoot = [IO.Path]::TrimEndingDirectorySeparator(
-    $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ModDistRoot))
+$modDistRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ModDistRoot)
+# [IO.Path]::TrimEndingDirectorySeparator is .NET Core 2.1+ only, so Windows PowerShell 5.1 cannot call it.
+if ($modDistRoot -ne [IO.Path]::GetPathRoot($modDistRoot)) {
+    $modDistRoot = $modDistRoot.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+}
 if ($modDistRoot -ne $expectedDistRoot) {
     $modPackageRoot = Join-Path $modDistRoot 'nicokobo-forge'
     New-Item -ItemType Directory -Path $modPackageRoot -Force | Out-Null
