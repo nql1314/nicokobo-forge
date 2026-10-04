@@ -38,4 +38,5 @@ $manifest = foreach ($artifact in $artifacts) {
     }
 }
 $manifest | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $packageRoot 'manifest.json') -Encoding UTF8
+& (Join-Path $PSScriptRoot 'Pack-ModSite.ps1')
 Write-Output $packageRoot

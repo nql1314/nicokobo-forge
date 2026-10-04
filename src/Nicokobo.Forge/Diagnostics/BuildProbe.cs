@@ -21,8 +21,6 @@ internal static class BuildProbe
 {
     private const string KnownGameSha256 =
         "3BEA17EEEC77ADAB6418918C28A8AA9A06F290582A2972639A48BD7E5A01AB44";
-    private const string KnownInteropSha256 =
-        "9618787115686C0AF6DBC3B65BEE6DEA9DD33A8A998D01572CDC190A42657ACC";
     private const BindingFlags Declared = BindingFlags.Public | BindingFlags.NonPublic |
         BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
 
@@ -34,7 +32,10 @@ internal static class BuildProbe
             string gameHash = Hash(gameRoot == null ? null : Path.Combine(gameRoot, "GameAssembly.dll"));
             string interopHash = Hash(gameRoot == null ? null : Path.Combine(gameRoot,
                 "MelonLoader", "Il2CppAssemblies", "Assembly-CSharp.dll"));
-            bool knownBuild = gameHash == KnownGameSha256 && interopHash == KnownInteropSha256;
+            // MelonLoader regenerates this wrapper assembly locally; its bytes
+            // are not a stable game-build identity. Keep its hash for diagnostics
+            // and validate the loaded wrapper contracts below.
+            bool knownBuild = gameHash == KnownGameSha256;
             lines.Add($"[NicokoboForge/P0] gameBuild=25382790; knownBuild={knownBuild}; GameAssembly.sha256={gameHash}; Assembly-CSharp.sha256={interopHash}");
             lines.Add($"[NicokoboForge/P0] Loader={typeof(MelonLoader.MelonMod).Assembly.GetName().Version}; Harmony={typeof(HarmonyLib.Harmony).Assembly.GetName().Version}; Interop={typeof(Il2CppInterop.Runtime.InteropTypes.Il2CppObjectBase).Assembly.GetName().Version}");
 

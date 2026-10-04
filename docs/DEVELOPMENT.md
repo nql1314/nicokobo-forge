@@ -36,15 +36,17 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 .\mods-melonloader\Build-ForgeMods.ps1
 ```
 
-入口先运行 Forge 签名与领域检查，再用一个 MSBuild 会话编译核心和六个示例，核心只构建一次。随后运行机械飞升、模组矩阵、物流脉络和合成扩展的领域检查，编译机械飞升，并调用 `Build-MechcoreProtocol.ps1` 编译和混淆三个机核项目。构建前后及四个内容包内的 Forge 哈希必须相同。默认只生成本地文件；显式 `-Install` 仅安装 Forge 和机械飞升。
+入口先运行 Forge 签名与领域检查，再用一个 MSBuild 会话编译核心和六个示例，核心只构建一次。随后运行机械飞升、模组矩阵、物流脉络和合成扩展的领域检查，编译机械飞升，并调用 `Build-MechcoreProtocol.ps1` 编译和混淆三个机核项目。构建前后及四个内容包内的 Forge 哈希必须相同。默认只生成本地文件；显式 `-Install` 安装合集内的 Forge、合成扩展、机械飞升和模组矩阵四份 DLL。
 
 `-GameDir` 指定目标游戏，`-DistRoot` 指定内容发布目录，`-DefaultLogLevel` 显式选择日志级别。未覆盖时 Forge、合成扩展和物流使用 `INFO`，机械飞升与矩阵使用 `WARN`。参数或环境变量 `ModDefaultLogLevel` 显式覆盖本轮各项目；`DEBUG` 必须显式启用，用户偏好仍优先。
 
-单独验证 Forge 时执行 `scripts/Build-P0.ps1 -GameDir '<游戏目录>'`，默认构建核心与四个示例；加 `-IncludeProbes` 构建工坊和效果探针。它们参与检查，不被加入内容发布包。核心输出为 `src/Nicokobo.Forge/bin/Release/Nicokobo.Forge.dll`；`scripts/Pack-P0.ps1` 另将核心与两个 P0 示例打包到 `dist/p0/`。
+单独验证 Forge 时执行 `scripts/Build-P0.ps1 -GameDir '<游戏目录>'`，默认构建核心与四个示例；加 `-IncludeProbes` 构建工坊和效果探针。它们参与检查，不被加入内容发布包。核心输出为 `src/Nicokobo.Forge/bin/Release/Nicokobo.Forge.dll`；`scripts/Pack-P0.ps1` 另将核心与两个 P0 示例打包到 `dist/p0/`，并同步更新独立 Forge 玩家包。
 
 构建需要能编译 `net6.0` 的 .NET SDK、.NET 6 运行时、本地游戏、MelonLoader 及游戏互操作程序集。脚本使用目标游戏目录的引用，签名核对不初始化游戏类。
 
-单独的玩家前置包使用 `scripts/Pack-ModSite.ps1`，从已验证版本的 Release DLL 生成 `dist/nicokobo-forge/` 和 ZIP。安装说明由 `docs/RELEASE_README.md` 模板生成，版本从核心工程读取；开发 README 留在仓库，避免玩家包出现源码目录链接。旧发布目录的版本以其 DLL 文件名为准。
+单独的玩家前置包使用 `scripts/Pack-ModSite.ps1`，从已验证版本的 Release DLL 更新 `dist/nicokobo-forge/` 和固定文件名的 `dist/nicokobo-forge.zip`。安装说明由 `docs/RELEASE_README.md` 模板生成，版本从实际 DLL 读取；默认输入同时校验核心工程版本，`-ForgeDll` 可选择与内容 Mod 配套的明确 DLL。发布目录内维护的 `CHANGELOG.md` 等文件随目录一起压缩，ZIP 保留 `nicokobo-forge/` 顶层目录。
+
+该入口同时在关联 `probably-stolen` 仓库的 `mods-melonloader/dist/` 放置相同的 `nicokobo-forge/` 目录及 `nicokobo-forge.zip`，可用 `-ModDistRoot` 指定内容发布根目录。`Build-MechcoreProtocol.ps1` 正常打包成功后调用同一入口，将本轮 `-DistRoot` 作为 Forge 独立包的同步位置；`Build-ForgeMods.ps1` 通过该流程同步更新，无需再手动打包 Forge。`-OnlyProject` 沿用该行为，`-ValidateExistingBinaries` 只检查混淆，不写发布目录。
 
 四个内容工程从 `mods-melonloader/Directory.Build.targets` 统一引用本地 Forge 构建产物。单项目构建前先构建 Forge，也可以用 `-p:ForgeAssemblyPath=<配套DLL>` 选择明确的依赖；兼容旧参数 `ForgeDll`，同时传入不同依赖会报错。内容项目不再通过 `ProjectReference` 重建 Forge。
 
