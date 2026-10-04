@@ -4,6 +4,16 @@ What each released version of Nicokobo Forge changed. Install steps are in the [
 
 各发布版本改了什么。安装步骤见 [README](README.md)。
 
+## 0.6.16 — 2026-10-04
+
+### 中文
+
+- 修复 MelonLoader 生成的互操作程序集哈希变化时，受支持的游戏版本被误判，导致内容注册、生命周期与工坊成就被停用的问题。游戏本体版本与实际接口校验继续生效。
+
+### English
+
+- Fixed supported game builds being rejected when the hash of MelonLoader's generated interop assembly changes, disabling content registration, lifecycle callbacks and workshop achievements. Native game-build and interface checks remain enforced.
+
 ## 0.6.15 — 2026-10-04
 
 ### 中文

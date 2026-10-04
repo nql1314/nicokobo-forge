@@ -1,16 +1,16 @@
 # Nicokobo Forge / 模组前置框架
 
-Author: Nicokobo · Version: **0.6.15** · Target: **Probably Stolen Demo，Steam Build `25382790`**
+Author: Nicokobo · Version: **0.6.16** · Target: **Probably Stolen Demo，Steam Build `25382790`**
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，并内置 Nico工坊的全开局名片与原版成就页。各内容 Mod 维护自己的物品、配方、价格、成长和独立解锁页。
 
 ## 安装
 
 1. 游戏需已安装 [MelonLoader](https://melonwiki.xyz/)。
-2. 将 `Nicokobo.Forge-0.6.15.dll` 与所需 Mod DLL 复制到游戏 `Mods/`；只使用原版成就时可单独安装 Forge。
+2. 将 `Nicokobo.Forge-0.6.16.dll` 与所需 Mod DLL 复制到游戏 `Mods/`；只使用原版成就时可单独安装 Forge。
 3. 更新时移出旧 DLL，Forge 和每个内容 Mod 各只保留一份。使用同一次配套构建的文件。
 
-当前源码配套：机械飞升 `0.1.36`、模组矩阵 `1.1.1`、物流脉络 `0.2.1`、合成扩展 `0.9.39`。源码版本和本地包不代表游戏当前已安装版本；本轮构建、安装与实机验证范围见[当前进度](docs/FORGE_PROGRESS.md)。
+当前源码配套：机械飞升 `0.1.37`、模组矩阵 `1.1.1`、物流脉络 `0.2.1`、合成扩展 `0.9.39`。源码版本和本地包不代表游戏当前已安装版本；本轮构建、安装与实机验证范围见[当前进度](docs/FORGE_PROGRESS.md)。
 
 ## Nico工坊
 
