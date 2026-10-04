@@ -38,6 +38,12 @@ internal static class MachineCatalogChecks
         Expect(catalog.Register(owner, definition, Stage).Status == SubmitStatus.Accepted && staged == 1,
             "mixed input registration rejected");
         Expect(catalog.TryGet(id, out var first) && first != null, "profile missing");
+        Expect(!catalog.TryGet(null, out var missingNull) && missingNull == null,
+            "incomplete native item ID interrupted machine lookup");
+        Expect(!catalog.TryGet("", out var missingEmpty) && missingEmpty == null,
+            "empty native item ID interrupted machine lookup");
+        Expect(!catalog.TryGet(" ", out var missingWhitespace) && missingWhitespace == null,
+            "blank native item ID interrupted machine lookup");
         inputs.Clear(); auxiliary.Add("ore"); modules.Clear(); slots.Clear(); liquidInputs.Clear(); contents.Clear();
         Expect(first!.Definition.ProductionMarkupPercent == 25 &&
             first.Recipes[0].Value.ItemInputs.Count == 1 && first.Template.LiquidInputs.Count == 1 &&

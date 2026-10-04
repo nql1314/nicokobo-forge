@@ -4,6 +4,14 @@ What each released version of Nicokobo Forge changed. Install steps are in the [
 
 各发布版本改了什么。安装步骤见 [README](README.md)。
 
+## 0.6.15 本地审查候选 — 2026-10-04
+
+- 同一机器的生产事务拒绝回调重入，避免内外批次混用资源；缓存配方输入标签，减少重复枚举和读取。
+- 模组准入在适配回调返回后再次检查冲突，避免重入注册覆盖已接纳定义。
+- 新增兼容接口 `ForgeProductionValueMath.PerOutputWithOverhead`，把内容方提供的批次加值与材料倍率一起分摊后向上取整；旧接口保留。
+- 夜间机器扫描跳过空对象、空原生指针和空标识物品，防止单个不完整条目中断其他机器。
+- 领域／HookGuard／示例及规范包构建通过；隔离实际游戏覆盖制造、过夜和跨进程 ES3 重载。程序调用覆盖与真实鼠标操作的边界见 `docs/FORGE_PROGRESS.md`。候选未发布或安装到正式目录。
+
 ## 0.6.6 库存读取与拖放刷新 — 2026-10-03
 
 - Provide detached owned-item counts shared within one frame, invalidated before and after native transfers, quantity/ownership changes and run boundaries. Fresh transaction captures retain their original behavior.

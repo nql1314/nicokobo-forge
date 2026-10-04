@@ -62,6 +62,9 @@ internal static partial class ForgeMachineRuntime
         var found = new List<(GameItem, MachineProfile)>();
         foreach (var item in items)
         {
+            // A foreign factory or a captured native handle may be incomplete.
+            // Ignore that entry so the other machines still receive their cycle.
+            if (item == null || item.Pointer == IntPtr.Zero) continue;
             if (ForgeMachineRegistrationApi.TryGet(item.identifier, out var profile) && profile != null) found.Add((item, profile));
         }
         return found;

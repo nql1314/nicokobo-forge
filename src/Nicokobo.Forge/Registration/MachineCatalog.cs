@@ -52,8 +52,11 @@ internal sealed class MachineCatalog
     private readonly Dictionary<string, MachineProfile> _machines = new(StringComparer.Ordinal);
     private readonly HashSet<string> _reserved = new(StringComparer.Ordinal);
     internal bool HasMachines { get { lock (_gate) return _machines.Count > 0; } }
-    internal bool TryGet(string id, out MachineProfile? profile)
-    { lock (_gate) return _machines.TryGetValue(id, out profile); }
+    internal bool TryGet(string? id, out MachineProfile? profile)
+    {
+        if (string.IsNullOrWhiteSpace(id)) { profile = null; return false; }
+        lock (_gate) return _machines.TryGetValue(id, out profile);
+    }
 
     internal IReadOnlyList<ForgeMachineView> Snapshot(bool installed)
     {
