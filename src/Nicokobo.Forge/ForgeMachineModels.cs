@@ -88,7 +88,13 @@ public sealed record ForgeMachineRecipe(string RecipeId,
 public sealed record ForgeMachineDefinition(string MachineId,
     ForgeMachineTemplate Template, IReadOnlyList<ForgeMachineRecipe> Recipes,
     ForgeMachinePowerRule Power, Action<GameItem>? ConfigureItem = null,
-    NativeItemOptions? ItemOptions = null, int ProductionMarkupPercent = 0);
+    NativeItemOptions? ItemOptions = null, int ProductionMarkupPercent = 0)
+{
+    /// <summary>Read-only nightly batch limit; null means one batch. Evaluated
+    /// before processing and again before each extra batch. A lower live limit
+    /// stops the cycle; increases take effect next night. Must return at least one.</summary>
+    public Func<GameItem, int>? ResolveNightlyBatchCount { get; init; }
+}
 public sealed record ForgeMachineItemTake(GameItem Item, int Count)
 {
     /// <summary>Selected units times the native intrinsic per-unit value,

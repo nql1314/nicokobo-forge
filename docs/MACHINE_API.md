@@ -103,7 +103,9 @@ var recipe = new ForgeMachineRecipe(ownerId + ".recipe.liquid", [],
 
 `ForgeMachinePowerRule` 是机器级规则，所有配方共用。`Cost` 默认按批扣一次；`PerOutput = true` 则乘本批物品产量。`ResolveCost` 先收到已选材料、液体容器和已解析的 `OutputCount`，适合读取机器当前电耗以保留效率模组效果。负值和溢出拒绝；零耗电不调用原生扣电。`ForgeMachinePowerMath.CalculateCost` 可在内容方的预览中复用同一计算。
 
-机器在 `PlayerStore.EndNight` 的 Prefix 中结算，每台每夜最多尝试一批。同一会话内按存档槽、周目、日期和机器实例去重；失败也不会在同一夜重复尝试。使用 `PlayerStore.FindAllItem()` 发现机器，保留实时存档袋与网格的有界补充扫描，无逐帧轮询。
+机器在 `PlayerStore.EndNight` 的 Prefix 中结算，默认每台每夜最多尝试一批。Forge 0.6.18 新增 `ForgeMachineDefinition.ResolveNightlyBatchCount(GameItem)` 只读委托，由机器拥有者声明正整数批次上限，省略时为一批；追加配方沿用机器拥有者的上限。夜晚开始先确定本夜上限，额外批次前重读委托；上限下降会提前停止，上升留到下一夜生效。
+
+每批重新读取实时槽位、选择配方并核对材料条件、液体、电量、输出容量及物主，独立提交资源事务；仅当前批次成功时继续下一批。条件不足或事务失败即结束本机当夜加工，不重试，已完成的批次保留，当前失败批次仍按原有事务恢复及隔离规则处理。同一会话内按存档槽、周目、日期和机器实例对整个夜间周期去重。显式 `ForgeMachineBatchProcessor.Process` 仍只尝试一批，不读取夜间上限。使用 `PlayerStore.FindAllItem()` 发现机器，保留实时存档袋与网格的有界补充扫描，无逐帧轮询。
 
 先解析和预检本批材料、液体、容量与电量，再创建及预处理产物、落到输出仓／灌入输出容器，随后扣液体、电量和物品。每次写入都有读回，提交前再次核对所有资源；被消费的整件只在提交后销毁。原生调用若写入后失败，仍会撤回该步骤；撤回失败不会阻止其他恢复步骤，并为机器记录故障标签、停用后续加工。原版保存仍由游戏的过夜流程执行。
 

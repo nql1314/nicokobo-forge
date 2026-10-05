@@ -32,8 +32,9 @@ internal static class MachineCatalogChecks
             { LiquidInputs = liquidInputs, AuxiliaryItemIds = auxiliary };
         var template = new ForgeMachineTemplate(new(6, 4), new(ForgeMachineOutputKind.Items, new(6, 4)))
             { LiquidInputs = slots, Modules = new(new(4, 4), modules) };
+        Func<GameItem, int> nightlyCount = _ => 3;
         var definition = new ForgeMachineDefinition(id, template, [recipe], new(8))
-            { ProductionMarkupPercent = 25 };
+            { ProductionMarkupPercent = 25, ResolveNightlyBatchCount = nightlyCount };
         Expect(!catalog.HasMachines, "empty catalog");
         Expect(catalog.Register(owner, definition, Stage).Status == SubmitStatus.Accepted && staged == 1,
             "mixed input registration rejected");
@@ -57,6 +58,9 @@ internal static class MachineCatalogChecks
         var extra = new ForgeMachineRecipe("test.other.recipe", [new("iron", 1)], new ForgeMachineItemOutput("part"));
         Expect(catalog.RegisterAdditional("test.other", id, [extra]).Status == SubmitStatus.Accepted, "contributor rejected");
         Expect(catalog.TryGet(id, out var second) && second!.Recipes.Count == 2 && second.IsFeedstock("iron"), "new profile missing");
+        Expect(first!.Definition.ResolveNightlyBatchCount == nightlyCount &&
+            second!.Definition.ResolveNightlyBatchCount == nightlyCount,
+            "freezing or adding recipes lost the machine owner's nightly limit");
         Expect(MachineAdmission.InputIds(second!.Recipes.Select(entry => entry.Value))
             .SequenceEqual(new[] { "auxiliary_material", "iron", "raw_material" }, StringComparer.Ordinal) &&
             MachineAdmission.InputIds(second.Recipes.Select(entry => entry.Value)).All(second.Accepts),
@@ -215,6 +219,69 @@ internal static class MachineBatchChecks
         released!.Dispose(); released.Dispose();
         using (var reused = gate.TryEnter(firstMachine))
             Expect(reused != null, "repeated disposal prevented the next batch");
+
+        // Independent nightly transactions must use the resources left by the
+        // previous batch. Rejecting an extra batch preserves earlier production.
+        foreach (var (start, expected, stop) in new[]
+        {
+            (new[] { 6, 300, 24, 3, 0 }, 3, "produced:test"),
+            (new[] { 3, 300, 24, 3, 0 }, 1, "input-short-or-condition"),
+            (new[] { 6, 150, 24, 3, 0 }, 1, "liquid-source-or-condition:water"),
+            (new[] { 6, 300, 12, 3, 0 }, 1, "power-unavailable"),
+            (new[] { 6, 300, 24, 1, 0 }, 1, "warehouse-full"),
+            (new[] { 1, 300, 24, 3, 0 }, 0, "input-short-or-condition")
+        })
+        {
+            var remaining = start.ToArray();
+            int calls = 0;
+            var cycle = MachineNightCycle.Run(() => 3, () =>
+            {
+                calls++;
+                if (remaining[0] < 2) return "input-short-or-condition";
+                if (remaining[1] < 100) return "liquid-source-or-condition:water";
+                if (remaining[2] < 8) return "power-unavailable";
+                if (remaining[3] < 1) return "warehouse-full";
+                var before = remaining.ToArray();
+                var result = MachineTransaction.Run([new("resources", () =>
+                { remaining[0] -= 2; remaining[1] -= 100; remaining[2] -= 8; remaining[3]--; remaining[4]++; },
+                    () => { remaining = before; return true; })]);
+                return result.Committed ? "produced:test" : result.Status;
+            });
+            Expect(cycle.Completed == expected && cycle.Status == stop &&
+                calls == (expected == 3 ? 3 : expected + 1) &&
+                remaining.SequenceEqual(new[] { start[0] - 2 * expected, start[1] - 100 * expected,
+                    start[2] - 8 * expected, start[3] - expected, expected }),
+                "extra batch ignored live resources, retried rejection or lost earlier production");
+        }
+        int produced = 0, attempted = 0;
+        var failedExtra = MachineNightCycle.Run(() => 3, () =>
+        {
+            attempted++;
+            int before = produced;
+            var result = MachineTransaction.Run([new("output", () =>
+            { produced++; if (attempted == 2) throw new Exception("readback failed"); },
+                () => { produced = before; return true; })]);
+            return result.Committed ? "produced:test" : result.Status;
+        });
+        Expect(failedExtra.Completed == 1 && produced == 1 && attempted == 2 &&
+            failedExtra.Status == "output:readback failed", "failed extra batch retried or undid an earlier committed batch");
+        int liveLimit = 3, liveProduced = 0;
+        var lowered = MachineNightCycle.Run(() => liveLimit, () =>
+        { liveProduced++; liveLimit = 1; return "produced:test"; });
+        Expect(lowered.Completed == 1 && liveProduced == 1 && lowered.Status == "nightly-limit-reached",
+            "extra batch used stale performance after a module action");
+        liveLimit = 1; liveProduced = 0;
+        var increased = MachineNightCycle.Run(() => liveLimit, () =>
+        { liveProduced++; liveLimit = 3; return "produced:test"; });
+        Expect(increased.Completed == 1 && liveProduced == 1, "nightly work exceeded the initial limit");
+        foreach (int invalid in new[] { 0, -1 })
+        {
+            int calls = 0;
+            var rejected = MachineNightCycle.Run(() => invalid, () => { calls++; return "produced:test"; });
+            Expect(rejected.Completed == 0 && rejected.Status == "nightly-count-invalid" && calls == 0,
+                "invalid nightly limit started processing");
+        }
+
         Expect(ForgeMachinePowerMath.CalculateCost(8, 3) == 8 && ForgeMachinePowerMath.CalculateCost(8, 3, true) == 24,
             "batch/per-output billing");
         Expect(ForgeMachinePowerMath.CalculateCost(0, 256, true) == 0, "zero cost rejected");

@@ -72,8 +72,11 @@ internal static partial class ForgeMachineRuntime
 
     private static string Process(GameItem machine, MachineProfile profile)
     {
-        if (!ForgeMachineUi.TryGet(machine, out var inventory) || inventory == null) return "slots-unavailable";
-        return ProcessBatch(machine, profile, inventory);
+        var cycle = MachineNightCycle.Run(
+            () => profile.Definition.ResolveNightlyBatchCount?.Invoke(machine) ?? 1,
+            () => ForgeMachineUi.TryGet(machine, out var inventory) && inventory != null
+                ? ProcessBatch(machine, profile, inventory) : "slots-unavailable");
+        return $"batches={cycle.Completed}; {cycle.Status}";
     }
 
     internal static string ProcessBatch(GameItem machine, MachineProfile profile, ForgeMachineInventory inventory)
