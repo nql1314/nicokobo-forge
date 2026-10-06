@@ -54,8 +54,8 @@ internal static class NativeWorkshop
         if (!NativeHookSet.Install(hookId, hooks, log)) return;
         try
         {
-            Leases.Add(ForgeLifecycleApi.Subscribe(OwnerId, OwnerId + ".workshop.before_load", ForgeLifecyclePhase.BeforeLoad, _ => Reset()));
-            Leases.Add(ForgeLifecycleApi.Subscribe(OwnerId, OwnerId + ".workshop.after_load", ForgeLifecyclePhase.AfterLoad, _ => _bindRequested = true));
+            Leases.Add(ForgeLifecycleApi.Subscribe(OwnerId, OwnerId + ".workshop.after_load", ForgeLifecyclePhase.AfterLoad,
+                _ => { Reset(); _bindRequested = true; }));
             Leases.Add(ForgeLifecycleApi.Subscribe(OwnerId, OwnerId + ".workshop.after_night", ForgeLifecyclePhase.AfterNight, _ => _dirty = true));
             Leases.Add(ForgeLifecycleApi.Subscribe(OwnerId, OwnerId + ".workshop.after_day", ForgeLifecyclePhase.AfterEndDay, _ => _dirty = true));
             ForgePresentationApi.RegisterOwnerDisplayName(OwnerId, "Nico工坊", "Nico Workshop");

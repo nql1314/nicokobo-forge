@@ -28,7 +28,8 @@ public sealed class ForgeLifecycleContext
 }
 
 /// <summary>Shared synchronous game boundaries. Order is ascending then owned
-/// callback ID. Hooks observe native calls; they never suppress a game method.</summary>
+/// callback ID. Before phases observe intent; After phases require the native
+/// body to have run. Hooks never suppress a game method.</summary>
 public static class ForgeLifecycleApi
 {
     private static readonly OwnedCallbacks<ForgeLifecyclePhase, ForgeLifecycleContext> Callbacks = new();
@@ -91,11 +92,16 @@ public static class ForgeLifecycleApi
         catch (Exception ex) { try { _log?.Invoke($"[WARN] [NicokoboForge/Lifecycle] phase={phase}; {ex.Message}"); } catch { } }
     }
     private static void BeforeLoad(PlayerStore __instance) => Dispatch(ForgeLifecyclePhase.BeforeLoad, __instance);
-    private static void AfterLoad(PlayerStore __instance) => Dispatch(ForgeLifecyclePhase.AfterLoad, __instance);
+    private static void AfterLoad(PlayerStore __instance, bool __runOriginal)
+    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterLoad, __instance); }
     private static void BeforeNight(PlayerStore __instance) => Dispatch(ForgeLifecyclePhase.BeforeNight, __instance);
-    private static void AfterNight(PlayerStore __instance) => Dispatch(ForgeLifecyclePhase.AfterNight, __instance);
+    private static void AfterNight(PlayerStore __instance, bool __runOriginal)
+    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterNight, __instance); }
     private static void BeforeServices() => Dispatch(ForgeLifecyclePhase.BeforeNightServices, PlayerStore.Instance);
-    private static void AfterServices() => Dispatch(ForgeLifecyclePhase.AfterNightServices, PlayerStore.Instance);
-    private static void AfterSleep() => Dispatch(ForgeLifecyclePhase.AfterSleep, PlayerStore.Instance);
-    private static void AfterEndDay(PlayerStore __instance) => Dispatch(ForgeLifecyclePhase.AfterEndDay, __instance);
+    private static void AfterServices(bool __runOriginal)
+    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterNightServices, PlayerStore.Instance); }
+    private static void AfterSleep(bool __runOriginal)
+    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterSleep, PlayerStore.Instance); }
+    private static void AfterEndDay(PlayerStore __instance, bool __runOriginal)
+    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterEndDay, __instance); }
 }

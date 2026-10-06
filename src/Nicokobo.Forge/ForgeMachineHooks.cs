@@ -43,10 +43,9 @@ internal static class ForgeMachineHooks
                     [typeof(GameItem), typeof(GameItem)], typeof(void), typeof(ForgeMachineHooks), nameof(ActivateMachine))
             ], log))
                 throw new InvalidOperationException("Native accelerator routing unavailable");
-            Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".reset", ForgeLifecyclePhase.BeforeLoad,
-                _ => ForgeMachineRuntime.BeforeLoadGame(), ForgeNumbers.Machines.LifecyclePriority));
             Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".rebind", ForgeLifecyclePhase.AfterLoad,
-                ForgeMachineRuntime.AfterLoadGame, ForgeNumbers.Machines.LifecyclePriority));
+                context => { ForgeMachineRuntime.BeforeLoadGame(); ForgeMachineRuntime.AfterLoadGame(context); },
+                ForgeNumbers.Machines.LifecyclePriority));
             Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".process", ForgeLifecyclePhase.BeforeNight,
                 ForgeMachineRuntime.BeforeEndNight));
             Installed = true;

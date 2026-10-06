@@ -25,6 +25,9 @@ if (-not (Test-Path -LiteralPath (Join-Path $resolvedGameDir 'GameAssembly.dll')
 & dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.Domain.Check\Nicokobo.Forge.Domain.Check.csproj') -c Release -p:NuGetAudit=false
 if ($LASTEXITCODE -ne 0) { throw 'Domain checks failed' }
 
+& dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.Lifecycle.Check\Nicokobo.Forge.Lifecycle.Check.csproj') -c Release -p:NuGetAudit=false
+if ($LASTEXITCODE -ne 0) { throw 'Lifecycle checks failed' }
+
 & dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.HookGuard.Check\Nicokobo.Forge.HookGuard.Check.csproj') `
     -c Release "-p:GameDir=$resolvedGameDir" -p:NuGetAudit=false
 if ($LASTEXITCODE -ne 0) { throw 'Native hook entry-point guard checks failed' }
