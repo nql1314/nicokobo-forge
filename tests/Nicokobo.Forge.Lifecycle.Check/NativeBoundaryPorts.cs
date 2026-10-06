@@ -52,6 +52,7 @@ namespace Il2Cpp
     public sealed class PlayerStore
     {
         public static PlayerStore Instance { get; set; } = new();
+        public static PlayerStore instance => Instance;
         public IntPtr Pointer { get; } = (IntPtr)41;
         public string runID = "lifecycle-run";
         public int saveSlotId = 2;
@@ -68,6 +69,7 @@ namespace Il2Cpp
         public static void FireOnHandlingNightlyServicesEarly() => BodyCalls++;
         public static void FireOnHandlingNightlyServicesLate() => BodyCalls++;
         public static void FireOnGoingSleepLate() => BodyCalls++;
+        public static void FireOnGameLoadedLate() => BodyCalls++;
     }
 }
 
