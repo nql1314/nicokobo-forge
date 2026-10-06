@@ -21,7 +21,9 @@ public static class ForgeItemTransferApi
         int requested = Math.Min(maximum, before);
         if (requested <= 0) return new(0, false, "empty");
         var slot = destination.TryFindOneValidInventorySlot(item, false);
-        if (slot == null || !slot.IsValid() || slot.numTransfer <= 0) return new(0, false, "no-slot");
+        if (slot == null || slot.Pointer == IntPtr.Zero || slot.item?.Pointer != item.Pointer ||
+            slot.inventory?.Pointer != destination.Pointer || !slot.IsValid() || slot.numTransfer <= 0)
+            return new(0, false, "no-slot");
         if (item.parentInventory?.Pointer != source.Pointer || item.unitCount != before)
             return new(0, false, "source-changed");
         requested = Math.Min(requested, slot.numTransfer);

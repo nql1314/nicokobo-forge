@@ -14,6 +14,11 @@ namespace Nicokobo.Forge.Runtime
         internal static IReadOnlyList<NativeHook> Installed = [];
         internal static readonly List<string> Installations = [], Removals = [];
         internal static bool InstallResult = true;
+        internal static bool ContractsMatch = true;
+        internal static void Require(Type type, string method, Type[] arguments, Type returns)
+        {
+            if (!ContractsMatch) throw new MissingMethodException(type.FullName, method);
+        }
         internal static bool Install(string id, IReadOnlyList<NativeHook> hooks, Action<string>? log)
         { Installations.Add(id); if (!InstallResult) return false; Installed = hooks; return true; }
         internal static void Remove(string id, Action<string>? log)

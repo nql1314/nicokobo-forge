@@ -67,6 +67,8 @@ internal static class ForgeBootstrap
             nativeEffectInstalled, false, machineInstalled)
             { NpcTradeStock = NativeNpcStockAdapter.Installed,
               DossierExpansion = ForgeDossierExpansion.Installed });
+        ForgeInventoryPlacementApi.Configure(report.KnownBuild && report.InventoryPreviewSignaturesMatch,
+            log.Callback);
         Workshop.NativeWorkshop.Install(report.KnownBuild && nativeNodeInstalled &&
             report.RunDataSignaturesMatch && report.InventoryReadSignaturesMatch && report.InventoryPreviewSignaturesMatch,
             log.Callback);

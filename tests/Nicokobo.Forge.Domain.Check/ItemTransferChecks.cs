@@ -30,6 +30,35 @@ internal static class ItemTransferChecks
                 target.childItems.Sum(i => i.unitCount) == requested,
                 $"Normal {requested}-unit transfer did not conserve quantity");
         }
+        {
+            var (source, target, item) = Setup();
+            item.MaximumRemoval = 2;
+            var result = ForgeItemTransferApi.Move(item, target, 9);
+            Expect(result.Moved == 2 && !result.Indeterminate && item.unitCount == 7,
+                "Native MaxNumRemove cap was bypassed or mistaken for the requested quantity");
+            item.MaximumRemoval = 0;
+            Expect(ForgeItemTransferApi.Move(item, target, 9).Status == "locked-or-source",
+                "A source with no removable units was detached");
+        }
+        {
+            var (source, target, item) = Setup();
+            var other = new GameItem { Pointer = new(104), identifier = "ore", unitCount = 1,
+                Owned = true, parentInventory = source, modifiedShape = new(8) };
+            source.childItems.Add(other);
+            target.TransferItemOverride = other;
+            var result = ForgeItemTransferApi.Move(item, target, 9);
+            Expect(result.Moved == 0 && !result.Indeterminate && source.childItems.Count == 2 &&
+                other.parentInventory == source && item.parentInventory == source && target.childItems.Count == 0,
+                "A stale slot for another same-ID item moved that item instead of the requested instance");
+        }
+        {
+            var (source, target, item) = Setup();
+            var third = new GameGridInventory { Pointer = new(105) };
+            target.TransferDestinationOverride = third;
+            var result = ForgeItemTransferApi.Move(item, target, 9);
+            Expect(result.Moved == 0 && !result.Indeterminate && item.parentInventory == source && third.childItems.Count == 0,
+                "A stale slot for another destination detached the source");
+        }
         foreach (int requested in new[] { 9, 4 })
         foreach (bool throws in new[] { false, true })
         {
@@ -61,6 +90,20 @@ internal static class ItemTransferChecks
             Expect(result.Moved == requested && !result.Indeterminate &&
                 source.childItems.Sum(i => i.unitCount) + target.childItems.Sum(i => i.unitCount) == 9,
                 "An attached move was refunded after a callback exception");
+        }
+        {
+            var (source, target, item) = Setup();
+            var blocker = new GameItem { Pointer = new(106), identifier = "other", unitCount = 1,
+                Owned = true, parentInventory = source, modifiedShape = item.modifiedShape };
+            target.onSlotAddItemFunc = _ =>
+            {
+                source.childItems.Add(blocker);
+                throw new InvalidOperationException("Source position was occupied during destination acceptance");
+            };
+            var result = ForgeItemTransferApi.Move(item, target, 9);
+            Expect(result.Moved == 0 && result.Indeterminate && item.parentInventory == null &&
+                source.childItems.Single().Pointer == blocker.Pointer && target.childItems.Count == 0,
+                "Recovery overwrote the newly occupied source position or hid a detached item");
         }
         foreach (int requested in new[] { 9, 4 })
         {

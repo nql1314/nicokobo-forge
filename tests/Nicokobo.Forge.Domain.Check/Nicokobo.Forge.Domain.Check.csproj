@@ -5,6 +5,7 @@
     <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementRules.cs" Link="Workshop/AchievementRules.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementSaveReadback.cs" Link="Workshop/AchievementSaveReadback.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/WorkshopGridPlanner.cs" Link="Workshop/WorkshopGridPlanner.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Workshop/WorkshopRewardDelivery.cs" Link="Workshop/WorkshopRewardDelivery.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeWindowInputCapture.cs" Link="ForgeWindowInputCapture.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/DragIdleGate.cs" Link="Workshop/DragIdleGate.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/InventoryReadCache.cs" Link="Runtime/InventoryReadCache.cs" />
@@ -24,6 +25,8 @@
     <Compile Include="../../src/Nicokobo.Forge/Registration/ModuleAdmissionCatalog.cs" Link="ModuleAdmissionCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeMachineModels.cs" Link="ForgeMachineModels.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeItemTransferApi.cs" Link="ForgeItemTransferApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeInventoryPlacementApi.cs" Link="ForgeInventoryPlacementApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeLiquidTransferApi.cs" Link="ForgeLiquidTransferApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeRecipeGuideModels.cs" Link="ForgeRecipeGuideModels.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/RecipeGuidePresentation.cs" Link="RecipeGuidePresentation.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/MachineCatalog.cs" Link="MachineCatalog.cs" />

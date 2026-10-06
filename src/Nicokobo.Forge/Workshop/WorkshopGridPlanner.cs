@@ -17,6 +17,8 @@ internal sealed class WorkshopGridPlanner
 
     internal bool TryReserve(IReadOnlyList<WorkshopGridCell> footprint, out WorkshopGridCell position)
     {
+        position = default;
+        if (footprint.Count == 0) return false;
         // Native placement scans rows from the top left. Only occupied footprint
         // cells must fit; empty borders can extend beyond the inventory.
         for (int y = 0; y < _height; y++)

@@ -3,6 +3,19 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+if (args is ["transfer-review"])
+{
+    try
+    {
+        ItemTransferChecks.Run();
+        InventoryPlacementChecks.Run();
+        LiquidTransferChecks.Run();
+        WorkshopDeliveryChecks.Run();
+    }
+    catch (Exception ex) { Console.Error.WriteLine(ex.Message); Environment.ExitCode = 1; }
+    return;
+}
+
 MachineCatalogChecks.Run();
 ManufacturingTerminalChecks.Run();
 ProductionValueChecks.Run();
@@ -18,6 +31,9 @@ NpcStockChecks.Run();
 ModuleActionChecks.Run();
 SaveReadbackChecks.Run();
 ItemTransferChecks.Run();
+InventoryPlacementChecks.Run();
+LiquidTransferChecks.Run();
+WorkshopDeliveryChecks.Run();
 
 static void Expect(bool condition, string message)
 {

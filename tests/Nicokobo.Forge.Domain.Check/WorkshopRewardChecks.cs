@@ -56,6 +56,7 @@ internal static class WorkshopRewardChecks
         var batch = new WorkshopGridPlanner(2, 1, [false, false]);
         Expect(batch.TryReserve(card, out _) && !batch.TryReserve(single, out _),
             "Partial batch capacity was reported as sufficient for every reward");
+        Expect(!batch.TryReserve([], out _), "An empty footprint reserved an invisible reward");
 
         foreach (var invalid in new[] { (0, 1, 0), (65, 1, 65), (2, 2, 3) })
         {
