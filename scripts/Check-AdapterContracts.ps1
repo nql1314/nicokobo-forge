@@ -24,12 +24,18 @@ try {
     Assert-AdapterMethod 'Il2Cpp.MiscItemDirectory' 'Dossier' 'Il2Cpp.GameItem' @()
     Assert-AdapterMethod 'Il2Cpp.EmporiumEntry' 'get_Instance' 'Il2Cpp.EmporiumEntry' @()
     Assert-AdapterMethod 'Il2Cpp.EmporiumEntry' 'get_dossier' 'Il2Cpp.GameItem' @()
+    Assert-AdapterMethod 'Il2Cpp.EmporiumEntry' 'SetupAfterhourInv' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.EmporiumEntry' 'get_afterhourInventory' 'Il2Cpp.GameGridInventory' @()
+    Assert-AdapterMethod 'Il2Cpp.EmporiumEntry' 'get_afterhourWindow' 'Il2Cpp.PixelWindow' @()
+    Assert-AdapterMethod 'Il2Cpp.ToolDirectory/__c__DisplayClass23_0' '_CreateTurboBooster_b__4' 'System.Void' @('Il2Cpp.GameItem', 'Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.ToolDirectory/__c__DisplayClass24_0' '_CreateTurboBoosterAdv_b__7' 'System.Void' @('Il2Cpp.GameItem', 'Il2Cpp.GameItem')
     Assert-AdapterMethod 'Il2Cpp.GameGridInventory' 'SetShape' 'Il2Cpp.GameGridInventory' @('System.Int32', 'System.Int32')
     Assert-AdapterMethod 'Il2Cpp.GameGridInventory' 'get_inventoryShape' 'Il2Cpp.GridShape' @()
     Assert-AdapterMethod 'Il2Cpp.PixelWindow' 'Validate' 'System.Void' @()
     foreach ($adapterMethod in @('LoadGame', 'EndNight', 'EndDay')) {
         Assert-AdapterMethod 'Il2Cpp.PlayerStore' $adapterMethod 'System.Void' @()
     }
+    Assert-AdapterMethod 'Il2Cpp.SaveManager' 'DecodeNodes' 'Il2Cpp.GameItem' @('Il2CppSystem.Collections.Generic.List`1<Il2Cpp.SaveItemNode>')
     foreach ($adapterMethod in @('FireOnHandlingNightlyServicesEarly', 'FireOnHandlingNightlyServicesLate', 'FireOnGoingSleepLate')) {
         Assert-AdapterMethod 'Il2Cpp.ModHook' $adapterMethod 'System.Void' @()
     }
@@ -46,10 +52,13 @@ try {
     Assert-AdapterMethod 'Il2Cpp.MachineHelper' 'GetModuleInv' 'Il2Cpp.GameGridInventory' @('Il2Cpp.GameItem')
     Assert-AdapterMethod 'Il2Cpp.GameItem' 'get_contentWindow' 'Il2Cpp.PixelWindow' @()
     Assert-AdapterMethod 'Il2Cpp.PixelWindow' 'get_childElement' 'Il2Cpp.PixelElement' @()
+    Assert-AdapterMethod 'Il2Cpp.PixelWindow' 'Detach' 'System.Boolean' @()
+    Assert-AdapterMethod 'Il2Cpp.PixelWindow' 'Attach' 'System.Boolean' @('Il2Cpp.PixelElement')
     Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'get_gridWidth' 'System.Int32' @()
     Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'get_gridHeight' 'System.Int32' @()
     Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'AttachPos' 'System.Boolean' @('Il2Cpp.PixelElement', 'System.Int32', 'System.Int32')
     Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'GetElement' 'Il2Cpp.PixelElement' @('System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.GridPixelElement' 'Detach' 'System.Boolean' @('Il2Cpp.PixelElement')
     Assert-AdapterMethod 'Il2Cpp.TagElement' 'SetText' 'Il2Cpp.TagElement' @('System.String', 'System.Int32', 'Il2Cpp.RenderHandler/ColorPalette')
     Assert-AdapterMethod 'Il2Cpp.LocHelper' 'GetLocalizedMechanic' 'System.String' @('System.String', 'Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray`1<Il2CppSystem.Object>')
     Assert-AdapterMethod 'Il2Cpp.GameSlotInventory' 'SetBackgroundFadeSprite' 'Il2Cpp.GameSlotInventory' @('System.String', 'System.String', 'System.Single', 'System.Single')
@@ -58,6 +67,11 @@ try {
     Assert-AdapterMethod 'Il2Cpp.ContainerHelper' 'InitContainerItem' 'System.Void' @('Il2Cpp.GameInventory', 'Il2Cpp.GameItem', $adapterStringList, $adapterStringList)
     Assert-AdapterMethod 'Il2Cpp.StoreClientList' 'PlaceInventorInventory' 'System.Void' @('System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.StoreClientList' 'PlaceSupplierInventory' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.LootRegistry' 'RollInternal' 'System.String' @('System.String', 'System.String')
+    Assert-AdapterMethod 'Il2Cpp.LootRegistry' 'Pick' 'System.String' @('Il2CppSystem.Collections.Generic.List`1<Il2Cpp.LootEntry>')
+    foreach ($adapterMethod in @('Spawn', 'SpawnFromTable', 'SpawnFromTableGroup')) {
+        Assert-AdapterMethod 'Il2Cpp.ItemSpawner' $adapterMethod 'Il2Cpp.GameItem' @('System.String')
+    }
     foreach ($adapterMethod in @('_CreateMiner_b__38_0', '_CreateJunker_b__21_0',
         '_CreateScrapper_b__35_0', '_CreateLowerLevelRareMerchant_b__64_0', '_CreateInventorStorage_b__31_0',
         '_CreateThief_b__47_0', '_CreatePettyThief_b__48_0', '_CreateBrokeUpperLevel_b__69_0',
@@ -113,6 +127,7 @@ try {
     }
     Assert-AdapterMethod 'Il2Cpp.PowerHelper' 'SetPowerSourceAt' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
     Assert-AdapterMethod 'Il2Cpp.PowerHelper' 'TryRemoveEnergy' 'System.Int32' @('Il2Cpp.GameItem', 'System.Int32', 'System.Boolean')
+    Assert-AdapterMethod 'Il2Cpp.PowerHelper' 'UpdateEnergyCreditSprite' 'System.Void' @('Il2Cpp.GameItem')
     Assert-AdapterMethod 'Il2Cpp.PowerHelper' 'GetAvailableEnergyFromItem' 'System.Int32' @('Il2Cpp.GameItem', 'System.Boolean')
     # Built-in achievement provider and bounded, no-stacking native reward placement.
     foreach ($adapterMethod in @('StartNewGame', 'InitialSave', 'SaveGame')) {
@@ -153,6 +168,15 @@ try {
     Assert-AdapterMethod 'Il2Cpp.SlotMarker' 'TryAcceptOnce' 'System.Int32' @('System.Int32')
     Assert-AdapterMethod 'Il2Cpp.GridShape' 'Clone' 'Il2Cpp.GridShape' @()
     Assert-AdapterMethod 'Il2Cpp.GridShape' 'Get' 'System.Byte' @('System.Int32', 'System.Int32')
+    foreach ($adapterMethod in @('get_minX', 'get_minY', 'get_maxX', 'get_maxY', 'get_globalWidth', 'get_globalHeight')) {
+        Assert-AdapterMethod 'Il2Cpp.GridShape' $adapterMethod 'System.Int32' @()
+    }
+    Assert-AdapterMethod 'Il2Cpp.GridShape' 'GetOutsideBounds' 'System.Byte' @()
+    Assert-AdapterMethod 'Il2Cpp.GridShapeBuilder' '.ctor' 'System.Void' @('Il2Cpp.GridShape')
+    Assert-AdapterMethod 'Il2Cpp.GridShapeBuilder' 'SetTransform' 'Il2Cpp.GridShapeBuilder' @('System.Int32', 'System.Int32', 'System.Boolean', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.GridShapeBuilder' 'SetPosition' 'Il2Cpp.GridShapeBuilder' @('System.Int32', 'System.Int32')
+    Assert-AdapterMethod 'Il2Cpp.GridShapeBuilder' 'get_shape' 'Il2Cpp.GridShape' @()
+    Assert-AdapterMethod 'Il2Cpp.GridShapeBuilder' 'Clone' 'Il2Cpp.GridShape' @()
     Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'IsFull' 'System.Boolean' @('Il2Cpp.GameItem')
     Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'GetWaterPurity' 'System.Int32' @('Il2Cpp.GameItem')
     Assert-AdapterMethod 'Il2Cpp.WaterHelper' 'GetTotalVolume' 'System.Int32' @('Il2Cpp.GameItem')

@@ -25,7 +25,13 @@ public static class ForgePowerApi
         var parent = source.parentInventory?.Pointer ?? IntPtr.Zero;
         return EnergyDebit.Execute(cost,
             () => (source.parentInventory?.Pointer ?? IntPtr.Zero) == parent ? GetEnergy(source) : -1,
-            desired => PowerHelper.TryRemoveEnergy(source, desired, false),
+            desired =>
+            {
+                int removed = PowerHelper.TryRemoveEnergy(source, desired, false);
+                // Unlike DrawPowerSource, TryRemoveEnergy leaves the battery sprite unchanged.
+                PowerHelper.UpdateEnergyCreditSprite(source);
+                return removed;
+            },
             before =>
             {
                 if ((source.parentInventory?.Pointer ?? IntPtr.Zero) != parent) return false;

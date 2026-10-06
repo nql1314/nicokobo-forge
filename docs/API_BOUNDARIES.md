@@ -1,6 +1,6 @@
 # Forge API 职责与游戏接入边界
 
-Forge 持有通用注册、事件分派、构建门控和资源事务；内容 Mod 持有物品字段、配方、成本、成长和奖励。调用者使用下表中的公共入口，并针对同一份 Forge DLL 重新编译。框架数值见 [BuildConfig](../BuildConfig/README.md)，内容数值由所属 Mod 维护。
+Forge 持有通用注册、事件分派、构建门控和资源事务，以及内置全域制造终端本体与旧 ID 读档迁移；内容 Mod 持有成品字段、制造配方、成本、成长和奖励。调用者使用下表中的公共入口，并针对同一份 Forge DLL 重新编译。框架数值见 [BuildConfig](../BuildConfig/README.md)，内容数值由所属 Mod 维护。
 
 ## 按功能调用
 
@@ -14,6 +14,7 @@ Forge 持有通用注册、事件分派、构建门控和资源事务；内容 M
 | `ForgeLifecycleApi` | 读档前后、过夜前后、夜间服务、睡眠结束与日结结束事件 |
 | `ForgeModuleApi` | 机器模组类型准入、已安装模组观察、属性计算与成长事件 |
 | `ForgeMachineRegistrationApi` | 自定义机器模板与配方注册 |
+| `ForgeManufacturingTerminal` | Forge 内置共享终端的 owner、稳定 ID、参数与旧 ID 归一化；内容 Mod 使用追加配方入口 |
 | `ForgeMachineRuntimeApi` / `ForgeMachineBatchProcessor` | 模板运行状态、已注册机器的实时槽位读取及调用方显式执行的通用批次事务 |
 | `ForgePowerApi` / `ForgeMachinePowerMath` | 原生当前机器电耗、电源操作／独立批次计费 |
 | `ForgeLiquidApi` / `ForgeLiquidCompositionMath` | 容器快照、水质、组分取出与替换的纯计算及内部组分写入适配；具体转换和纯度规则由内容 Mod 持有 |
@@ -63,6 +64,8 @@ subscription.Dispose();
 同一生命周期事件中的 `Items` 延迟读取一次，订阅者共享列表；列表内句柄的字段仍会随游戏状态变化，执行资源写入前必须重新校验。事件结束后不缓存该上下文。模块计算事件提供托管只读列表；原版学习事件的前后状态按订阅者、按调用分别保存，嵌套调用不会共享一份临时状态。
 
 公共生命周期和模组计算 Hook 按需安装，最后一个订阅注销时撤销对应补丁。必需补丁先统一解析签名，安装失败时撤销本组补丁并停用能力；每组使用独立 Harmony ID。底层撤销失败会记录日志，已注销回调保持不活动。公共观察事件均继续原版方法。
+
+`ForgeModuleApi.SubscribeAction` 可在 Mod 初始化时调用，立即保留拥有者回调；动作 Hook 等待游戏已有的本地化初始化句柄有效、完成且成功后安装，不主动启动加载或同步等待。等待期间注销会取消该回调，最后一个回调注销后撤销已安装的动作 Hook。本地化或钩子安装失败时记录诊断并停用动作适配，不逐帧重试；已返回的订阅仍可注销，后续动作订阅会明确报错。订阅返回不代表原生动作 Hook 已安装；成功日志为 `actionHook=installed`。
 
 模组准入合并已有类型，不覆盖其他 Mod 的列表。原生 ID 冲突时不替换已有工厂／效果。文本写入仅针对已成功应用的所属物品／效果。
 

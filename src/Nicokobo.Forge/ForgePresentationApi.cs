@@ -25,6 +25,9 @@ public static class ForgePresentationApi
         if (Owners.TryGetValue(ownerId, out var old) && old != text) throw new InvalidOperationException("Owner name already registered");
         Owners[ownerId] = text;
     }
+    /// <summary>Read registered presentation without invoking an item factory.</summary>
+    public static string? GetRegisteredItemName(string itemId, bool english = false) =>
+        NativeItemRegistry.TryGetAppliedPresentation(itemId, out var options, out _) ? options?.Name?.For(english) : null;
     public static void RegisterModuleText(string ownerId, string itemId, Func<GameItem, bool, ForgeModuleText> text)
     {
         if (!OwnedCallbacks<bool, bool>.ValidId(ownerId, itemId) || text == null) throw new ArgumentException("Owned item ID and text callback required");

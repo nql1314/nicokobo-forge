@@ -12,8 +12,12 @@ namespace Nicokobo.Forge.Runtime
     internal static class NativeHookSet
     {
         internal static IReadOnlyList<NativeHook> Installed = [];
+        internal static readonly List<string> Installations = [], Removals = [];
+        internal static bool InstallResult = true;
         internal static bool Install(string id, IReadOnlyList<NativeHook> hooks, Action<string>? log)
-        { Installed = hooks; return true; }
+        { Installations.Add(id); if (!InstallResult) return false; Installed = hooks; return true; }
+        internal static void Remove(string id, Action<string>? log)
+        { Removals.Add(id); Installed = []; }
         internal static void Postfix(Type type, string method, params object[] arguments)
         {
             foreach (var hook in Installed.Where(h => h.TargetType == type && h.Method == method))
@@ -33,6 +37,8 @@ namespace Nicokobo.Forge
         internal static IReadOnlyList<NativeItemDeclaration> Declarations() => Offers.ToArray();
         internal static NativeApplicationStatus Outcome(string id) =>
             Outcomes.GetValueOrDefault(id, NativeApplicationStatus.Applied);
+        internal static bool IsAppliedItem(string id) =>
+            Offers.Any(offer => offer.ItemId == id) && Outcome(id) == NativeApplicationStatus.Applied;
     }
 }
 
@@ -43,7 +49,7 @@ namespace Il2Cpp
         public string identifier = "";
         public int unitCount = 1, ShelfSpace = 1, DestroyCalls;
         public bool Owned;
-        public PixelElement? parentInventory;
+        public GameInventory? parentInventory;
         public void Destroy()
         {
             if (++DestroyCalls > 1) throw new InvalidOperationException("Item destroyed twice");
@@ -54,18 +60,18 @@ namespace Il2Cpp
 
     public sealed partial class GameGridInventory
     {
-        public List<GameItem> childItems = [];
         public int Capacity = 100, SlotUnits = int.MaxValue;
         public bool ThrowOnPreflight;
         public SlotMarker? TryFindOneValidInventorySlot(GameItem item, bool keepOrientation = false)
         {
+            if (TransferFixture) return FindTransferSlot(item);
             if (ThrowOnPreflight) throw new InvalidOperationException("Slot lookup failed");
             if (item.Owned || item.ShelfSpace > Capacity - childItems.Sum(x => x.ShelfSpace)) return null;
             return new() { numTransfer = Math.Min(SlotUnits, item.unitCount) };
         }
     }
 
-    public sealed class SlotMarker
+    public sealed partial class SlotMarker
     {
         public IntPtr Pointer = new(1);
         public int numTransfer;
@@ -123,7 +129,7 @@ namespace Il2Cpp
             ((Func<GameItem>)Nicokobo.Forge.NativeItemRegistry.Offers.Single(x => x.ItemId == id).Factory)();
     }
 
-    public static class StoreClientList
+    public static partial class StoreClientList
     {
         public static void PlaceInventorInventory(bool isVisitingPlayerStore = false) =>
             Nicokobo.Forge.Runtime.NativeHookSet.Postfix(typeof(StoreClientList),

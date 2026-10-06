@@ -43,6 +43,7 @@ public sealed record ForgeMachinePowerRule(int Cost = 0,
 public sealed record ForgeMachineIngredient(string ItemId, int Count,
     Func<GameItem, bool>? Condition = null)
 {
+    public ForgeRecipeGuideDisplay? Guide { get; init; }
     /// <summary>An alternative to ItemId: accept any item carrying this native
     /// tag. A read-only Condition can narrow the category at batch selection.</summary>
     public string? ItemTag { get; init; }
@@ -55,7 +56,10 @@ public sealed record ForgeMachineIngredient(string ItemId, int Count,
 /// only; null consumes the mixture proportionally.</summary>
 public sealed record ForgeMachineLiquidIngredient(string SlotId,
     int Millilitres, string? LiquidId = null, Func<GameItem, bool>? Condition = null,
-    Func<ForgeMachineBatchContext, int>? ResolveMillilitres = null);
+    Func<ForgeMachineBatchContext, int>? ResolveMillilitres = null)
+{
+    public ForgeRecipeGuideDisplay? Guide { get; init; }
+}
 public sealed record ForgeMachineLiquidAmount(string LiquidId, int Millilitres,
     Func<ForgeMachineBatchContext, int>? ResolveMillilitres = null,
     Func<ForgeMachineBatchContext, decimal>? ResolveValue = null)
@@ -68,10 +72,14 @@ public abstract record ForgeMachineOutput;
 public sealed record ForgeMachineItemOutput(string ItemId, int Count = ForgeNumbers.Machines.DefaultOutputCount,
     Func<ForgeMachineBatchContext, int>? ResolveCount = null,
     Action<ForgeMachineBatchContext, GameItem>? PrepareItem = null,
-    IReadOnlyList<ForgeMachineLiquidAmount>? Contents = null) : ForgeMachineOutput;
+    IReadOnlyList<ForgeMachineLiquidAmount>? Contents = null) : ForgeMachineOutput
+{
+    public ForgeRecipeGuideDisplay? Guide { get; init; }
+}
 public sealed record ForgeMachineContainerOutput(
     IReadOnlyList<ForgeMachineLiquidAmount> Contents) : ForgeMachineOutput
 {
+    public ForgeRecipeGuideDisplay? Guide { get; init; }
     /// <summary>Optional read-only composition resolver, evaluated after input
     /// draws are planned. Native parts and component values are preserved.
     /// Use an empty Contents list with this resolver; Forge validates the
@@ -82,6 +90,12 @@ public sealed record ForgeMachineContainerOutput(
 public sealed record ForgeMachineRecipe(string RecipeId,
     IReadOnlyList<ForgeMachineIngredient> ItemInputs, ForgeMachineOutput Output)
 {
+    /// <summary>Stable semantic revision supplied by the recipe owner. Include
+    /// configured predicate thresholds and dynamic quantity/output rules; update
+    /// it when those rules change. Delegate assembly identity cannot describe
+    /// captured configuration. Presentation-only changes need not change it.</summary>
+    public string RuleRevision { get; init; } = "";
+    public ForgeRecipeGuideOptions? Guide { get; init; }
     public IReadOnlyList<ForgeMachineLiquidIngredient> LiquidInputs { get; init; } = [];
     public IReadOnlyList<string> AuxiliaryItemIds { get; init; } = [];
 }
@@ -90,6 +104,7 @@ public sealed record ForgeMachineDefinition(string MachineId,
     ForgeMachinePowerRule Power, Action<GameItem>? ConfigureItem = null,
     NativeItemOptions? ItemOptions = null, int ProductionMarkupPercent = 0)
 {
+    public ForgeRecipeGuideOptions Guide { get; init; } = new();
     /// <summary>Read-only nightly batch limit; null means one batch. Evaluated
     /// before processing and again before each extra batch. A lower live limit
     /// stops the cycle; increases take effect next night. Must return at least one.</summary>

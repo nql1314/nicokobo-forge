@@ -7,7 +7,7 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 namespace Nicokobo.Forge;
 
 // Supply runs on dialogue callbacks as well as arrival. Scope the reviewed
-// callbacks. General suppliers get one extra offer; miners replace their ore batch.
+// callbacks. Custom candidates share the native stock draws; miners select one ore batch.
 internal static class NativeNpcStockAdapter
 {
     private sealed class SupplyScope(NpcTradeStockCategory categories, bool replaceOreBatch = false)
@@ -16,9 +16,12 @@ internal static class NativeNpcStockAdapter
         internal bool ReplaceOreBatch { get; } = replaceOreBatch;
         internal bool Attempted { get; set; }
         internal string? SelectedOreId { get; set; }
+        internal HashSet<IntPtr> PoolItems { get; } = [];
+        internal Dictionary<string, int> PoolDraws { get; } = new(StringComparer.Ordinal);
     }
-    private sealed record StockPlacement(IntPtr Pointer, string ItemId);
+    private sealed record StockPlacement(IntPtr Pointer, string ItemId, string Mode);
     [ThreadStatic] private static SupplyScope? _supply;
+    [ThreadStatic] private static string? _poolTableId;
     private static bool _allowed;
     private static bool _installationPending;
     private static bool _installationAttempted;
@@ -72,6 +75,18 @@ internal static class NativeNpcStockAdapter
     private static void Install()
     {
         var hooks = new List<NativeHook> {
+            new(typeof(LootRegistry), nameof(LootRegistry.RollInternal),
+                [typeof(string), typeof(string)], typeof(string), typeof(NativeNpcStockAdapter),
+                Prefix: nameof(PoolRollPrefix), Postfix: nameof(PoolRollPostfix), Finalizer: nameof(EndPoolRoll)),
+            new(typeof(LootRegistry), nameof(LootRegistry.Pick),
+                [typeof(Il2CppSystem.Collections.Generic.List<LootEntry>)], typeof(string),
+                typeof(NativeNpcStockAdapter), Prefix: nameof(PoolPickPrefix)),
+            new(typeof(ItemSpawner), nameof(ItemSpawner.Spawn), [typeof(string)], typeof(GameItem),
+                typeof(NativeNpcStockAdapter), Postfix: nameof(PoolItemPostfix)),
+            new(typeof(ItemSpawner), nameof(ItemSpawner.SpawnFromTable), [typeof(string)], typeof(GameItem),
+                typeof(NativeNpcStockAdapter), Postfix: nameof(PoolItemPostfix)),
+            new(typeof(ItemSpawner), nameof(ItemSpawner.SpawnFromTableGroup), [typeof(string)], typeof(GameItem),
+                typeof(NativeNpcStockAdapter), Postfix: nameof(PoolItemPostfix)),
             new(typeof(StoreClientList), nameof(StoreClientList.PlaceInventorInventory),
                 [typeof(bool)], typeof(void), typeof(NativeNpcStockAdapter),
                 Prefix: nameof(InventorStockPrefix), Finalizer: nameof(EndSupply)),
@@ -108,7 +123,7 @@ internal static class NativeNpcStockAdapter
         Suppliers(hooks, typeof(StoreClientListEvent.__c), nameof(HouseholdStockPrefix), "_CreateScavengerHouseholdClient_b__8_0");
         Installed = NativeHookSet.Install("nicokobo.forge.npc_stock", hooks, _log);
         ForgeCapabilities.Publish(ForgeCapabilities.Current with { NpcTradeStock = Installed });
-        SafeLog($"[NicokoboForge/NpcStock] installed={Installed}; supplyHooks={hooks.Count - 1}");
+        SafeLog($"[NicokoboForge/NpcStock] installed={Installed}; supplyHooks={hooks.Count - 6}; mode=native-pools");
     }
 
     private static NativeHook Supply(Type type, string method, string callback) =>
@@ -141,19 +156,69 @@ internal static class NativeNpcStockAdapter
         if (isVisitingPlayerStore) TechnicalStockPrefix(out _);
     }
 
+    private static void PoolRollPrefix(string __0, out string? __state)
+    {
+        __state = _poolTableId;
+        _poolTableId = Installed && _supply is { ReplaceOreBatch: false } ? __0 : null;
+    }
+    private static void EndPoolRoll(string? __state) => _poolTableId = __state;
+    private static void PoolRollPostfix(string __result)
+    {
+        if (_supply is not { } supply || string.IsNullOrWhiteSpace(__result) ||
+            (NativeNpcStockPolicy.TableCategories(_poolTableId) & supply.Categories) == 0) return;
+        supply.PoolDraws[__result] = supply.PoolDraws.GetValueOrDefault(__result) + 1;
+    }
+
+    private static void PoolPickPrefix(ref Il2CppSystem.Collections.Generic.List<LootEntry> __0)
+    {
+        if (_supply is not { ReplaceOreBatch: false } supply || __0 == null) return;
+        var categories = NativeNpcStockPolicy.TableCategories(_poolTableId) & supply.Categories;
+        if (categories == NpcTradeStockCategory.None) return;
+        try
+        {
+            var store = PlayerStore.instance;
+            if (store == null || store.Pointer == IntPtr.Zero) return;
+            // Use a draw-local list. Removing Forge declarations before merging
+            // prevents duplicate loot weights, owned cards and unapplied factories.
+            // Neither the global loot table nor scavenging is changed here.
+            var registered = NativeItemRegistry.Declarations().Select(item => item.ItemId)
+                .ToHashSet(StringComparer.Ordinal);
+            var merged = new Il2CppSystem.Collections.Generic.List<LootEntry>();
+            for (int index = 0; index < __0.Count; index++)
+            {
+                var entry = __0[index];
+                if (entry != null && !registered.Contains(entry.id)) merged.Add(entry);
+            }
+            foreach (var offer in StockOffers(categories, store))
+                merged.Add(new LootEntry(offer.ItemId, offer.Options.NpcTrade!.Weight, offer.OwnerId));
+            __0 = merged;
+        }
+        catch (Exception ex)
+        { SafeLog($"[WARN] [NicokoboForge/NpcStock] pool={_poolTableId}; merge failed: {ex.Message}"); }
+    }
+
+    private static void PoolItemPostfix(GameItem __result)
+    {
+        if (_supply is not { } supply || __result == null || __result.Pointer == IntPtr.Zero ||
+            string.IsNullOrWhiteSpace(__result.identifier) ||
+            !supply.PoolDraws.TryGetValue(__result.identifier, out int pending)) return;
+        if (pending == 1) supply.PoolDraws.Remove(__result.identifier);
+        else supply.PoolDraws[__result.identifier] = pending - 1;
+        supply.PoolItems.Add(__result.Pointer);
+    }
+
     private static bool PlaceStockPrefix(ref GameItem __0, bool __1, out StockPlacement? __state)
     {
         __state = null;
         if (!Installed || _supply is not { } supply ||
-            __1 || __0 == null || __0.Pointer == IntPtr.Zero) return true;
+            __1 || __0 == null || __0.Pointer == IntPtr.Zero ||
+            string.IsNullOrWhiteSpace(__0.identifier)) return true;
         if (supply.ReplaceOreBatch)
             return ReplaceMinerOre(supply, ref __0, out __state);
-        if (supply.Attempted) return true;
-        // Set this before recursive native placement of the custom item. The
-        // scope ends on normal return or exception, so refreshes draw again.
-        supply.Attempted = true;
-        AddStock(supply.Categories);
-        return true;
+        // A table result has already drawn from the merged pool. Existing custom
+        // results must not be drawn a second time either.
+        if (supply.PoolItems.Remove(__0.Pointer) || NativeItemRegistry.IsAppliedItem(__0.identifier)) return true;
+        return ReplacePoolStock(supply.Categories, ref __0, out __state);
     }
 
     private static bool ReplaceMinerOre(SupplyScope supply, ref GameItem original,
@@ -202,7 +267,7 @@ internal static class NativeNpcStockAdapter
         }
         var previous = original;
         original = replacement!;
-        placement = new(original.Pointer, supply.SelectedOreId!);
+        placement = new(original.Pointer, supply.SelectedOreId!, "OreBatch");
         DestroyUnusedStock(previous);
         return true;
     }
@@ -223,10 +288,10 @@ internal static class NativeNpcStockAdapter
             if (items != null)
                 for (int index = 0; index < items.Count; index++)
                     if (items[index]?.Pointer == __state.Pointer) { accepted = true; break; }
-            SafeLog($"{(accepted ? "" : "[WARN] ")}[NicokoboForge/NpcStock] client=miner; mode=OreBatch; " +
+            SafeLog($"{(accepted ? "" : "[WARN] ")}[NicokoboForge/NpcStock] mode={__state.Mode}; " +
                 $"id={__state.ItemId}; status={(accepted ? "Applied" : "RejectedByNativePlacement")}");
         }
-        catch (Exception ex) { SafeLog($"[WARN] [NicokoboForge/NpcStock] miner placement readback failed: {ex.Message}"); }
+        catch (Exception ex) { SafeLog($"[WARN] [NicokoboForge/NpcStock] stock placement readback failed: {ex.Message}"); }
     }
 
     private static NativeItemDeclaration[] StockOffers(NpcTradeStockCategory categories, PlayerStore store)
@@ -234,6 +299,12 @@ internal static class NativeNpcStockAdapter
         var offers = NativeItemRegistry.Declarations().Where(candidate =>
             candidate.Options.NpcTrade is { } stock && (stock.Category & categories) != 0 &&
             NativeItemRegistry.IsAppliedItem(candidate.ItemId)).ToArray();
+        if (offers.Any(candidate => candidate.Options.NpcTrade!.MinimumDay > 0))
+        {
+            int day = StoreStation.GetDayCounter();
+            offers = offers.Where(candidate => candidate.Options.NpcTrade!.MinimumDay == 0 ||
+                day >= candidate.Options.NpcTrade.MinimumDay).ToArray();
+        }
         var uniqueIds = offers.Where(candidate => candidate.Options.NpcTrade!.SkipWhenOwned)
             .Select(candidate => candidate.ItemId).ToHashSet(StringComparer.Ordinal);
         if (uniqueIds.Count == 0) return offers;
@@ -246,51 +317,40 @@ internal static class NativeNpcStockAdapter
         return offers.Where(candidate => !ownedIds.Contains(candidate.ItemId)).ToArray();
     }
 
-    private static void AddStock(NpcTradeStockCategory categories)
+    private static bool ReplacePoolStock(NpcTradeStockCategory categories, ref GameItem original,
+        out StockPlacement? placement)
     {
-        if (!Installed) return;
+        placement = null;
         GameItem? item = null;
-        bool submitted = false;
         string? itemId = null;
         try
         {
             var store = PlayerStore.instance;
-            var client = store?.currentClientInstance?.storeClient;
-            var inventory = EmporiumEntry.Instance?.frontInvinvElement;
-            if (store == null || store.Pointer == IntPtr.Zero || client == null ||
-                client.Pointer == IntPtr.Zero || inventory == null ||
-                inventory.Pointer == IntPtr.Zero || inventory.childItems == null)
-                throw new InvalidOperationException("NPC stock inventory or current supplier is unavailable");
-            // A staged declaration cannot create native stock. Each supplier
-            // draws one offer only from successfully applied factories.
-            var offer = NativeNpcStockPolicy.Select(StockOffers(categories, store), categories, RNG.GetRandomDouble(0, 1));
-            if (offer == null)
-            {
-                SafeLog($"[NicokoboForge/NpcStock] client={client.identifier}; categories={categories}; status=NoEligibleStock");
-                return;
-            }
+            if (store == null || store.Pointer == IntPtr.Zero || original.parentInventory != null ||
+                original.unitCount <= 0) return true;
+            var offers = StockOffers(categories, store);
+            if (offers.Length == 0) return true;
+            var offer = NativeNpcStockPolicy.SelectFromPool(offers, categories, RNG.GetRandomDouble(0, 1));
+            if (offer == null) return true;
             itemId = offer.ItemId;
             item = DirectoryMaster.Item(offer.ItemId, true);
-            if (item == null || item.Pointer == IntPtr.Zero || item.identifier != offer.ItemId)
+            if (item == null || item.Pointer == IntPtr.Zero || item.Pointer == original.Pointer ||
+                item.identifier != offer.ItemId || item.parentInventory != null || item.unitCount <= 0)
                 throw new InvalidOperationException("Registered NPC stock could not be created");
-            // Supply callbacks can clear or replace commissary stock. Wait for
-            // their first placement, then reserve room ahead of vanilla goods.
-            submitted = true;
-            store.AddDirectSellingItemToTable(item, false, false, false, 0);
-            bool accepted = false;
-            for (int index = 0; index < inventory.childItems.Count; index++)
-                if (inventory.childItems[index]?.Pointer == item.Pointer)
-                { accepted = true; break; }
-            SafeLog($"{(accepted ? "" : "[WARN] ")}[NicokoboForge/NpcStock] " +
-                $"client={client.identifier}; categories={categories}; id={offer.ItemId}; " +
-                $"status={(accepted ? "Applied" : "RejectedByNativePlacement")}");
         }
         catch (Exception ex)
         {
-            if (!submitted && item != null && item.Pointer != IntPtr.Zero && item.parentInventory == null)
-                try { item.Destroy(); } catch { }
-            SafeLog($"[WARN] [NicokoboForge/NpcStock] categories={categories}; id={itemId}; failed={ex.GetType().Name}: {ex.Message}");
+            if (item != null && item.Pointer != IntPtr.Zero && item.Pointer != original.Pointer &&
+                item.parentInventory == null) DestroyUnusedStock(item);
+            SafeLog($"[WARN] [NicokoboForge/NpcStock] categories={categories}; id={itemId}; " +
+                $"native stock retained; failed={ex.GetType().Name}: {ex.Message}");
+            return true;
         }
+        var previous = original;
+        original = item!;
+        placement = new(original.Pointer, itemId!, "SupplyPool");
+        DestroyUnusedStock(previous);
+        return true;
     }
     private static void SafeLog(string message) { try { _log?.Invoke(message); } catch { } }
 }

@@ -4,15 +4,20 @@ using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
 MachineCatalogChecks.Run();
+ManufacturingTerminalChecks.Run();
 ProductionValueChecks.Run();
 RuntimeBoundaryChecks.Run();
 ModuleInventoryChecks.Run();
 AchievementChecks.Run();
+WorkshopRewardChecks.Run();
 WorkshopInputChecks.Run();
 InventoryReadChecks.Run();
 SpriteAtlasChecks.Run();
 NightShopChecks.Run();
+NpcStockChecks.Run();
+ModuleActionChecks.Run();
 SaveReadbackChecks.Run();
+ItemTransferChecks.Run();
 
 static void Expect(bool condition, string message)
 {
@@ -141,21 +146,24 @@ foreach (var (id, category, weight) in new[]
 Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.final_cybernetic", NativeItemKind.Item,
     neuralFactory).Status == SubmitStatus.Accepted, "Manufacturing-only item registration failed");
 var npcOffers = npcStock.Snapshot();
-Expect(NativeNpcStockPolicy.Select(npcOffers, NpcTradeStockCategory.Ore, 0)?.ItemId.EndsWith("a_quartz") == true,
-    "Miner stock did not reach quartz at the lower roll boundary");
-Expect(NativeNpcStockPolicy.Select(npcOffers, NpcTradeStockCategory.Ore, 0.5)?.ItemId.EndsWith("b_titanium") == true,
-    "Miner stock did not reach titanium at the next weighted interval");
-Expect(NativeNpcStockPolicy.Select(npcOffers, NpcTradeStockCategory.Ore, 0.999999)?.ItemId.EndsWith("b_titanium") == true,
+Expect(NativeNpcStockPolicy.SelectFromPool(npcOffers, NpcTradeStockCategory.Ore, 0) == null &&
+    NativeNpcStockPolicy.SelectFromPool(npcOffers, NpcTradeStockCategory.Ore, 0.499999) == null,
+    "Native stock lost its interval in the mixed supply pool");
+Expect(NativeNpcStockPolicy.SelectFromPool(npcOffers, NpcTradeStockCategory.Ore, 0.5)?.ItemId.EndsWith("a_quartz") == true,
+    "Supply pool did not reach quartz after the native interval");
+Expect(NativeNpcStockPolicy.SelectFromPool(npcOffers, NpcTradeStockCategory.Ore, 0.75)?.ItemId.EndsWith("b_titanium") == true,
+    "Supply pool did not reach titanium at the next weighted interval");
+Expect(NativeNpcStockPolicy.SelectFromPool(npcOffers, NpcTradeStockCategory.Ore, 0.999999)?.ItemId.EndsWith("b_titanium") == true,
     "Miner stock leaked a module or manufacturing-only item into the ore pool");
-Expect(NativeNpcStockPolicy.Select(npcOffers, NativeNpcStockPolicy.All, 0.75)?.ItemId.EndsWith("c_module") == true,
+Expect(NativeNpcStockPolicy.SelectFromPool(npcOffers, NativeNpcStockPolicy.All, 0.75)?.ItemId.EndsWith("c_module") == true,
     "General supply did not include eligible modules");
-Expect(NativeNpcStockPolicy.Select(npcOffers, NpcTradeStockCategory.Machine, 0.5) == null,
+Expect(NativeNpcStockPolicy.SelectFromPool(npcOffers, NpcTradeStockCategory.Machine, 0.5) == null,
     "Empty supplier category produced stock");
 foreach (var (sample, expectedId) in new[]
 {
-    (0d, "common_ore"), (0.499999, "common_ore"),
-    (0.5, "nicokobo.stock.a_quartz"), (0.749999, "nicokobo.stock.a_quartz"),
-    (0.75, "nicokobo.stock.b_titanium"), (0.999999, "nicokobo.stock.b_titanium")
+    (0d, "common_ore"), (0.699999, "common_ore"),
+    (0.7, "nicokobo.stock.a_quartz"), (0.849999, "nicokobo.stock.a_quartz"),
+    (0.85, "nicokobo.stock.b_titanium"), (0.999999, "nicokobo.stock.b_titanium")
 })
     Expect(NativeNpcStockPolicy.SelectMinerOre(npcOffers, sample) == expectedId,
         "Miner batch draw omitted native ore, selected a non-ore item, or used the wrong weighted boundary");
@@ -169,9 +177,9 @@ foreach (var (id, category) in new[] { ("drink", NpcTradeStockCategory.Food), ("
         neuralFactory, new() { NpcTrade = new(category) }).Status == SubmitStatus.Accepted,
         "Food or medical NPC stock was rejected");
     var foodOffers = foodStock.Snapshot();
-    Expect(NativeNpcStockPolicy.Select(foodOffers, category, 0.5)?.ItemId == "nicokobo.food." + id &&
-        NativeNpcStockPolicy.Select(foodOffers, NativeNpcStockPolicy.All, 0.5)?.ItemId == "nicokobo.food." + id &&
-        NativeNpcStockPolicy.Select(foodOffers, NpcTradeStockCategory.Ore, 0.5) == null,
+    Expect(NativeNpcStockPolicy.SelectFromPool(foodOffers, category, 0.5)?.ItemId == "nicokobo.food." + id &&
+        NativeNpcStockPolicy.SelectFromPool(foodOffers, NativeNpcStockPolicy.All, 0.5)?.ItemId == "nicokobo.food." + id &&
+        NativeNpcStockPolicy.SelectFromPool(foodOffers, NpcTradeStockCategory.Ore, 0.5) == null,
         "General supply omitted consumables or mineral supply selected them");
 }
 var cardStock = new NativeItemCatalog();
@@ -184,17 +192,17 @@ Expect(cardStock.Submit("nicokobo.forge", uniqueCardId, NativeItemKind.Item, neu
     "Owned-stock policy registration failed");
 var cardOffers = cardStock.Snapshot();
 var ownedStockIds = new HashSet<string>(StringComparer.Ordinal) { uniqueCardId, repeatableHouseholdId };
-foreach (double sample in new[] { 0, 0.5, 0.999999 })
-    Expect(NativeNpcStockPolicy.Select(cardOffers, NpcTradeStockCategory.Household, sample, ownedStockIds)?.ItemId == repeatableHouseholdId,
+foreach (double sample in new[] { 0.5, 0.999999 })
+    Expect(NativeNpcStockPolicy.SelectFromPool(cardOffers, NpcTradeStockCategory.Household, sample, ownedStockIds)?.ItemId == repeatableHouseholdId,
         "Owned card occupied a weighted interval or owned repeatable stock was suppressed");
-Expect(NativeNpcStockPolicy.Select(cardOffers.Where(offer => offer.ItemId == uniqueCardId).ToArray(),
+Expect(NativeNpcStockPolicy.SelectFromPool(cardOffers.Where(offer => offer.ItemId == uniqueCardId).ToArray(),
     NpcTradeStockCategory.Household, 0.5, ownedStockIds) == null,
     "An owned card remained eligible when it was the only offer");
 ownedStockIds.Remove(uniqueCardId);
-Expect(NativeNpcStockPolicy.Select(cardOffers, NpcTradeStockCategory.Household, 0, ownedStockIds)?.ItemId == uniqueCardId,
+Expect(NativeNpcStockPolicy.SelectFromPool(cardOffers, NpcTradeStockCategory.Household, 0.5, ownedStockIds)?.ItemId == uniqueCardId,
     "Card stock did not become eligible after ownership ended");
 foreach (double sample in new[] { -0.1, 1, double.NaN, double.PositiveInfinity })
-    Expect(NativeNpcStockPolicy.Select(npcOffers, NativeNpcStockPolicy.All, sample) == null &&
+    Expect(NativeNpcStockPolicy.SelectFromPool(npcOffers, NativeNpcStockPolicy.All, sample) == null &&
         NativeNpcStockPolicy.SelectMinerOre(npcOffers, sample) == null,
         "Invalid random sample selected NPC stock");
 foreach (float weight in new[] { 0, -1, float.NaN, float.PositiveInfinity })
@@ -204,6 +212,16 @@ foreach (float weight in new[] { 0, -1, float.NaN, float.PositiveInfinity })
 Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.invalid", NativeItemKind.Item,
     neuralFactory, new() { NpcTrade = new(NpcTradeStockCategory.Ore | NpcTradeStockCategory.Module) }).Status == SubmitStatus.Invalid,
     "One NPC item was allowed to claim multiple supply categories");
+Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.invalid", NativeItemKind.Item,
+    neuralFactory, new() { NpcTrade = new(NpcTradeStockCategory.Material) { MinimumDay = -1 } }).Status == SubmitStatus.Invalid,
+    "A negative minimum supply day was staged");
+foreach (float weight in new[] { 0, -1, float.NaN, float.PositiveInfinity })
+    Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.invalid", NativeItemKind.Item,
+        neuralFactory, new() { NpcTrade = new(NpcTradeStockCategory.Ore) { MinerWeight = weight } }).Status == SubmitStatus.Invalid,
+        "Invalid miner weight was staged");
+Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.invalid", NativeItemKind.Item,
+    neuralFactory, new() { NpcTrade = new(NpcTradeStockCategory.Food) { MinerWeight = 0.5f } }).Status == SubmitStatus.Invalid,
+    "A non-ore item claimed a miner batch weight");
 Expect(npcStock.Submit("nicokobo.stock", "nicokobo.stock.a_quartz", NativeItemKind.Item,
     neuralFactory, new() { NpcTrade = new(NpcTradeStockCategory.Ore, 1f) }).Status == SubmitStatus.Conflict,
     "NPC weight changed under a previously staged item ID");

@@ -15,6 +15,7 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 | `Plugin.cs` | MelonLoader 生命周期与日志适配 |
 | `ForgeBootstrap.cs` | 安装各功能并发布能力门控 |
 | `ForgeMachineRegistrationApi.cs` / `ForgeMachineModels.cs` | 公共声明入口和数据模型 |
+| `ForgeManufacturingTerminal.cs` / `ForgeManufacturingTerminalRuntime.cs` / `ManufacturingTerminalSaveMigration.cs` | 内置共享终端参数、本体注册及旧原生存档节点迁移；配方由内容 Mod 追加 |
 | `Registration/MachineCatalog.cs` | 校验、整批冲突检查、不可变配置和投料索引 |
 | `ForgeMachineHooks.cs` | 自定义机器订阅公共读档／过夜事件 |
 | `ForgeMachineBatchProcessor.cs` | 内容方显式调用的通用批次事务；不注册机器、不安装玩法 Hook |

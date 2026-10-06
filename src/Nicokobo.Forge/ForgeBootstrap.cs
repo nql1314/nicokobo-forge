@@ -30,6 +30,7 @@ internal static class ForgeBootstrap
         ForgeStartSelection.Install(report.KnownBuild, log.Callback);
         Runtime.InventoryReadRuntime.Install(report.KnownBuild && report.InventoryReadSignaturesMatch, log.Callback);
         ForgeDossierExpansion.Install(report.KnownBuild, log.Callback);
+        ForgeScavengingExpansion.Install(report.KnownBuild, log.Callback);
 
         var installed = log.IsDebugEnabled && report.CanInstallReadOnlyProbes &&
             LifecycleProbe.Install(harmony, log.Callback);
@@ -52,6 +53,8 @@ internal static class ForgeBootstrap
         var nativeEffectInstalled = NativeEffectRegistry.HooksInstalled;
         var machineInstalled = ForgeMachineRegistrationApi.Install(report.KnownBuild,
             log.Callback);
+        ForgeManufacturingTerminalRuntime.Install(report.KnownBuild && machineInstalled &&
+            NativeItemRegistry.AmenityHookInstalled, log.Callback);
         var inventoryDragProbeInstalled = log.IsDebugEnabled && InventoryDragFaultProbe.Install(
             report.KnownBuild, log.Callback);
         ForgeCapabilities.Publish(new(report.KnownBuild, nativeNodeInstalled,
@@ -77,6 +80,7 @@ internal static class ForgeBootstrap
             $"machineHooksInstalled={machineInstalled}; " +
             $"startSelectionHookInstalled={ForgeStartSelection.Installed}; " +
             $"dossierExpansionInstalled={ForgeDossierExpansion.Installed}; " +
+            $"scavengingExpansionInstalled={ForgeScavengingExpansion.Installed}; " +
             $"inventoryDragProbeInstalled={inventoryDragProbeInstalled}; " +
             $"stagedEffects={NativeEffectRegistry.StagedCount}; " +
             $"declarations={ForgeApi.Snapshot().Count}");

@@ -70,6 +70,10 @@ internal static partial class ForgeMachineRuntime
         return found;
     }
 
+    internal static string ProcessActivated(GameItem machine, MachineProfile profile) =>
+        ForgeMachineUi.TryGet(machine, out var inventory) && inventory != null
+            ? ProcessBatch(machine, profile, inventory) : "slots-unavailable";
+
     private static string Process(GameItem machine, MachineProfile profile)
     {
         var cycle = MachineNightCycle.Run(
@@ -90,11 +94,18 @@ internal static partial class ForgeMachineRuntime
         if (Quarantined.Contains(machine.GetUniqueID()) || !string.IsNullOrEmpty(machine.GetTagReadonly(FaultTag)?.valueString))
             return "quarantined";
         if (!SlotsMatch(profile.Template, inventory)) return "slots-invalid";
+        var automation = new ForgeMachineAutomationContext(machine, inventory);
+        ForgeMachineAutomationApi.Dispatch(ForgeMachineAutomationPhase.BeforeBatch, automation);
+        if (automation.Blocked) return "automation-blocked";
         string last = "input-short-or-condition";
         foreach (var entry in profile.Recipes)
         {
+            if (automation.RecipeId != null && entry.Value.RecipeId != automation.RecipeId) continue;
             if (!TryPlan(machine, profile, inventory, entry.Value, out var plan, out last)) continue;
-            return Execute(plan!);
+            var result = Execute(plan!);
+            automation.Result = result;
+            ForgeMachineAutomationApi.Dispatch(ForgeMachineAutomationPhase.AfterBatch, automation);
+            return result;
         }
         return last;
     }

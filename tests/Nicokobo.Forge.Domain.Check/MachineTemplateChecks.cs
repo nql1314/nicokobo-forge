@@ -7,7 +7,7 @@ using Nicokobo.Forge.Registration;
 namespace Il2Cpp
 {
     public sealed partial class GameItem;
-    public class GameInventory;
+    public partial class GameInventory : PixelElement;
     public sealed class GameSlotInventory : GameInventory;
 }
 
@@ -185,6 +185,59 @@ internal static class MachineCatalogChecks
         Expect(!matchesTag && enumerations == 1, "profile enumerated its source more than once");
         Expect(tagReads == 1, "drop routing repeated the same native tag read for every recipe");
         Expect(indexed.IsFeedstockTag(tag => tag == "MUSIC_CATEGORY"), "tag index changed admission");
+        var guides = new MachineCatalog();
+        int guideCallbacks = 0;
+        var guideInputs = new List<ForgeMachineIngredient>
+        {
+            new("ore", 3, _ => { guideCallbacks++; return true; })
+                { Guide = new(Requirement: new("高纯度", "High purity")) },
+            new("", 1) { ItemTag = "TEST_TAG", WholeStack = true,
+                Guide = new("tag_illustration", new("整叠原料", "Stacked input")) }
+        };
+        var guideRecipe = new ForgeMachineRecipe(owner + ".guide_recipe", guideInputs,
+            new ForgeMachineItemOutput("product", 2, _ => { guideCallbacks++; return 7; }))
+        {
+            LiquidInputs = [new("water", 50, Condition: _ => { guideCallbacks++; return true; })
+                { Guide = new("water_illustration", new("水", "Water")) }]
+        };
+        var guideMachine = new ForgeMachineDefinition(owner + ".guide_machine", first.Template, [guideRecipe], new())
+        { Guide = new("custom_category", new("机器备注", "Machine note")),
+            ItemOptions = new(Name: new("扩展机器", "Extension machine")) };
+        Expect(guides.GuideSnapshot().Revision == 0 && guides.GuideSnapshot().Recipes.Count == 0,
+            "empty handbook has fabricated entries");
+        Expect(guides.Register(owner, guideMachine, _ => new(SubmitStatus.Accepted, "test")).Status == SubmitStatus.Accepted,
+            "guide metadata registration failed");
+        var guideBefore = guides.GuideSnapshot();
+        var guideEntry = guideBefore.Recipes.Single();
+        guideInputs.Clear();
+        Expect(guideCallbacks == 0 && guideEntry.Inputs.Count == 3 && guideEntry.Inputs[0].Amount == 3 &&
+            guideEntry.Output.Amount == 2, "handbook evaluated callbacks or lost frozen input quantities");
+        Expect(guideEntry.OwnerId == owner && guideEntry.CategoryId == "custom_category" &&
+            guideEntry.MachineName!.Chinese == "扩展机器" && guideEntry.Note!.English == "Machine note",
+            "handbook did not inherit its machine presentation");
+        Expect(guideEntry.Inputs[0].Requirement!.Chinese == "高纯度" &&
+            guideEntry.Inputs[1].ItemId == "tag_illustration" && guideEntry.Inputs[1].Quantity!.Chinese == "整叠" &&
+            guideEntry.Inputs[2].Quantity!.English == "50 ml" && guideEntry.Output.Quantity!.English == "By recipe",
+            "handbook claimed fixed quantities or discarded provider requirements");
+        var contributed = extra with { Guide = new("synthesis", new("追加备注", "Contributor note")) };
+        Expect(guides.RegisterAdditional("test.other", guideMachine.MachineId, [contributed]).Status == SubmitStatus.Accepted,
+            "external handbook contribution rejected");
+        var guideAfter = guides.GuideSnapshot();
+        Expect(guideAfter.Revision > guideBefore.Revision && guideBefore.Recipes.Count == 1 && guideAfter.Recipes.Count == 2,
+            "new recipes did not invalidate handbook cache or mutated an earlier snapshot");
+        Expect(guideAfter.Recipes.Last().OwnerId == "test.other" && guideAfter.Recipes.Last().CategoryId == "synthesis" &&
+            guideAfter.Recipes.Last().Note!.Chinese == "追加备注", "recipe presentation did not override machine defaults");
+        var badGuide = contributed with { RecipeId = "test.other.bad_guide", Guide = new(" ") };
+        Expect(guides.RegisterAdditional("test.other", guideMachine.MachineId,
+            [contributed with { RecipeId = "test.other.valid_guide" }, badGuide]).Status == SubmitStatus.Invalid &&
+            guides.GuideSnapshot().Revision == guideAfter.Revision && guides.GuideSnapshot().Recipes.Count == 2,
+            "invalid metadata partially published recipes or invalidated cache");
+        Expect(guides.RegisterAdditional("test.other", guideMachine.MachineId, [contributed]).Status == SubmitStatus.Conflict &&
+            guides.GuideSnapshot().Revision == guideAfter.Revision, "duplicate submission invalidated handbook cache");
+        var containerEntry = catalog.GuideSnapshot().Recipes.Single(entry => entry.RecipeId == owner + ".composition");
+        Expect(containerEntry.Output.Amount == 0 && containerEntry.Output.Quantity!.Chinese == "依配方",
+            "dynamic liquid composition was falsely displayed as fixed zero output");
+        Expect(guideCallbacks == 0, "reading updated handbook executed gameplay rules");
         Console.WriteLine($"Machine template catalog checks passed: {checks} assertions.");
         MachineBatchChecks.Run();
     }

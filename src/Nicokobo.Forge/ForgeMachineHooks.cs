@@ -8,6 +8,7 @@ internal static class ForgeMachineHooks
 {
     private static readonly List<IDisposable> Lifecycle = [];
     private const string RoutingOwner = "nicokobo.forge.machines.routing";
+    private const string AcceleratorOwner = "nicokobo.forge.machines.accelerators";
     internal static bool Installed { get; private set; }
 
     internal static bool Install(bool knownBuild, Action<string> log)
@@ -34,6 +35,14 @@ internal static class ForgeMachineHooks
                 [new(typeof(GameItem), nameof(GameItem.TryFindOneValidInventorySlot),
                     [typeof(GameItem)], typeof(SlotMarker), typeof(ForgeMachineHooks), nameof(FindDropSlot))], log))
                 throw new InvalidOperationException("Native machine drop routing unavailable");
+            if (!NativeHookSet.Install(AcceleratorOwner,
+            [
+                new(typeof(ToolDirectory.__c__DisplayClass23_0), "_CreateTurboBooster_b__4",
+                    [typeof(GameItem), typeof(GameItem)], typeof(void), typeof(ForgeMachineHooks), nameof(ActivateMachine)),
+                new(typeof(ToolDirectory.__c__DisplayClass24_0), "_CreateTurboBoosterAdv_b__7",
+                    [typeof(GameItem), typeof(GameItem)], typeof(void), typeof(ForgeMachineHooks), nameof(ActivateMachine))
+            ], log))
+                throw new InvalidOperationException("Native accelerator routing unavailable");
             Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".reset", ForgeLifecyclePhase.BeforeLoad,
                 _ => ForgeMachineRuntime.BeforeLoadGame(), ForgeNumbers.Machines.LifecyclePriority));
             Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".rebind", ForgeLifecyclePhase.AfterLoad,
@@ -41,7 +50,7 @@ internal static class ForgeMachineHooks
             Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".process", ForgeLifecyclePhase.BeforeNight,
                 ForgeMachineRuntime.BeforeEndNight));
             Installed = true;
-            log("[INFO] [NicokoboForge/Machine] templates installed; shared lifecycle; machineDropRouting=1; globalWindowHooks=0");
+            log("[INFO] [NicokoboForge/Machine] templates installed; shared lifecycle; machineDropRouting=1; acceleratorRouting=2; globalWindowHooks=0");
             return true;
         }
         catch (Exception ex)
@@ -49,6 +58,7 @@ internal static class ForgeMachineHooks
             foreach (var lease in Lifecycle) lease.Dispose();
             Lifecycle.Clear(); Installed = false;
             NativeHookSet.Remove(RoutingOwner, log);
+            NativeHookSet.Remove(AcceleratorOwner, log);
             ForgeLiquidValueRuntime.Uninstall();
             log($"[WARN] [NicokoboForge/Machine] template runtime disabled: {ex.Message}");
             return false;
@@ -67,6 +77,26 @@ internal static class ForgeMachineHooks
             return true;
         }
         return false;
+    }
+
+    private static bool ActivateMachine(GameItem __1)
+    {
+        if (!Installed || __1 == null || __1.Pointer == IntPtr.Zero ||
+            !ForgeMachineRegistrationApi.TryGet(__1.identifier, out var profile) || profile == null) return true;
+        try
+        {
+            // The native tool calls the cleared furnace cycle delegates. Run one
+            // real Forge batch, then let it consume the booster/play its sound.
+            // A rejected batch leaves the disposable tool or advanced charge intact.
+            string status = ForgeMachineRuntime.ProcessActivated(__1, profile);
+            ForgeMachineRegistrationApi.Log($"[INFO] [NicokoboForge/Machine] accelerator={__1.identifier}; status={status}");
+            return status.StartsWith("produced:", StringComparison.Ordinal);
+        }
+        catch (Exception ex)
+        {
+            ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] accelerator rejected: {ex.Message}");
+            return false;
+        }
     }
 
     private static System.Reflection.MethodInfo Require(Type type, string name, Type[] args, Type result)

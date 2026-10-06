@@ -4,6 +4,7 @@
     <Compile Include="..\..\BuildConfig\ForgeNumbers.cs" Link="BuildConfig\ForgeNumbers.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementRules.cs" Link="Workshop/AchievementRules.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementSaveReadback.cs" Link="Workshop/AchievementSaveReadback.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Workshop/WorkshopGridPlanner.cs" Link="Workshop/WorkshopGridPlanner.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeWindowInputCapture.cs" Link="ForgeWindowInputCapture.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/DragIdleGate.cs" Link="Workshop/DragIdleGate.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/InventoryReadCache.cs" Link="Runtime/InventoryReadCache.cs" />
@@ -11,16 +12,23 @@
     <Compile Include="../../src/Nicokobo.Forge/ForgeSpriteModels.cs" Link="ForgeSpriteModels.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeAssetsApi.cs" Link="ForgeAssetsApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/NativeShopAdapter.cs" Link="NativeShopAdapter.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/NativeNpcStockAdapter.cs" Link="NativeNpcStockAdapter.cs" />
     <Compile Include="../../src/Nicokobo.Forge/NativeApplicationView.cs" Link="NativeApplicationView.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeCapabilities.cs" Link="ForgeCapabilities.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/SpriteAtlasInstaller.cs" Link="Runtime/SpriteAtlasInstaller.cs" />
 
     <Compile Include="../../src/Nicokobo.Forge/Runtime/OwnedCallbacks.cs" Link="OwnedCallbacks.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/NativeModuleInventory.cs" Link="NativeModuleInventory.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeModuleApi.cs" Link="ForgeModuleApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/EnergyDebit.cs" Link="EnergyDebit.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/ModuleAdmissionCatalog.cs" Link="ModuleAdmissionCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeMachineModels.cs" Link="ForgeMachineModels.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeItemTransferApi.cs" Link="ForgeItemTransferApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeRecipeGuideModels.cs" Link="ForgeRecipeGuideModels.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Registration/RecipeGuidePresentation.cs" Link="RecipeGuidePresentation.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/MachineCatalog.cs" Link="MachineCatalog.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeManufacturingTerminal.cs" Link="ForgeManufacturingTerminal.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ManufacturingTerminalSaveMigration.cs" Link="ManufacturingTerminalSaveMigration.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Logging/ModLogLevel.cs" Link="ModLogLevel.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineLiquidMath.cs" Link="MachineLiquidMath.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineBatchMath.cs" Link="MachineBatchMath.cs" />

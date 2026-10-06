@@ -10,6 +10,49 @@ Forge 负责原版机器 UI 模板、设施物品注册、槽位回调、过夜�
 
 ## 注册机器
 
+### 手册动态配方目录
+
+`ForgeMachineRegistrationApi.GuideSnapshot()` 从同一个机器注册目录自动生成只读手册数据，包含每条已接受配方的 owner、机器名、直接原料、单批数量、输出和双语展示信息。新建机器和 `RegisterAdditionalRecipes` 追加配方都自动加入；无需另注册一份手册配方，也无需手册引用提供者的程序集。返回值的 `Revision` 在成功注册机器或追加配方时增加，阅读界面可据此在重新打开时更新缓存。该快照不调用物品工厂、条件或动态数量委托；接受声明不代表已应用到原生目录。
+
+`ForgeMachineDefinition.Guide` 声明默认分类和备注，默认分类为 `synthesis`。配方省略 `ForgeMachineRecipe.Guide` 时沿用机器分类；显式设置则覆盖分类，备注为空时沿用机器备注。分类 ID 是开放字符串；目前合成扩展的三个配方手册分别读取 `synthesis`、`refining` 和 `food_processing`，其他阅读界面可增加自己的分类。
+
+```csharp
+var recipe = new ForgeMachineRecipe(ownerId + ".recipe.example",
+    [new ForgeMachineIngredient("metal_ingot", 2, IsAllowedIngot)
+        { Guide = new(Requirement: new("高纯度及以上", "High purity or better")) }],
+    new ForgeMachineItemOutput(ownerId + ".product", Count: 1))
+{
+    Guide = new("synthesis"),
+    RuleRevision = "ingot-minimum-high:v1"
+};
+// IsAllowedIngot 由内容 Mod 提供，只读取候选材料。
+ForgeMachineRegistrationApi.RegisterAdditionalRecipes(ownerId, targetMachineId, [recipe]);
+```
+
+物品原料、液体原料、物品输出和容器输出均可通过 `.Guide` 的 `ForgeRecipeGuideDisplay` 提供双语 `Name / Requirement / Quantity` 与 `IllustrationItemId`。件数和毫升数直接来自真实配方；类别原料可另指定代表性图示，图示不会限制实际材料。条件委托不能自动转成文字，内容方应提供实际要求；省略条件说明时显示“需满足配方条件”。动态产量或体积省略数量说明时显示“依配方”，整叠输入显示“整叠”。这些展示字段不改变实际准入、扣料或生产规则。
+
+### 自动化读取与批次边界（0.6.20）
+
+内容 Mod 仍以 `RegisterMachine / RegisterAdditionalRecipes` 提供真实配方。物流等调用方使用 `ForgeMachineAutomationApi.Recipes(machineId)` 或 `RegisteredRecipes(machineId)` 读取冻结声明，后者附带提供者 owner；不依赖提供者程序集。条件委托只读，不能借目录读取执行生产。
+
+`ForgeMachineRecipe.RuleRevision`（0.6.26）由配方提供者声明规则版本。条件或动态数量回调捕获配置时，必须包含配置的实际阈值、产量规则等语义；更改这些配置也要更改该值。委托所在程序集的版本不能表达闭包中的数值。读取方将它与声明中的原料、液体、产物和辅助物品一起校验，过期的保存配方需重新登记；纯展示说明修改无需改变规则版本。
+
+`Subscribe(owner, callbackId, BeforeBatch, callback)` 在每次原有批次机会、事务规划之前执行；上下文含机器与真实槽位。内容方可独立搬运／供电，再 `SelectRecipe(recipeId)` 限定本次机会。多个调用方选择冲突或回调抛出异常时本次批次停止。无选择时保持原生声明顺序；接口不新增批次，不改变其他机器或全局配方排序。`AfterBatch` 在执行尝试返回结果后分派，调用方检查 `Result`，不能将失败当作已生产。
+
+单次正常搬运使用 `ForgeItemTransferApi.Move`；倒液使用 `ForgeLiquidTransferApi.Pour`。二者返回实际数量和 `Indeterminate`，不跨搬运与加工执行退料。拒绝条件、真实锁定及写后读回与本机加工事务分开。`Pour` 依赖已安装的机器／液体价值适配；内容方负责液体与混合品质准入。两接口尚未原生验收，不能以编译结果声明保存重载安全或完整网络支持；既有 `InventoryTransfer` 总能力仍为 false。
+
+物品搬运在目标拒收或附着前抛错时，只恢复该次操作：整叠物品恢复原位置并重新检查空位，拆分物品合回原叠；不会重建替代物品或撤销此前成功的搬运。数量读回确认已经送达时，即使回调抛错也按已完成返回。无法确认守恒或恢复结果时仍返回 `Indeterminate`，调用方须暂停相应搬运。
+
+### Forge 内置全域制造终端
+
+Forge 0.6.19 自行注册 `ForgeManufacturingTerminal.ItemId`，owner 为 `ForgeManufacturingTerminal.OwnerId`。物品、图标、售价、基础电耗、槽位与供货归 Forge，内容 Mod 只调用 `RegisterAdditionalRecipes(ownerId, ForgeManufacturingTerminal.ItemId, recipes)` 追加自己的配方。无内容 Mod 时也有机器，配方为空，不加工。默认 3×3 外部占格、9×6 输入／输出、7×5 原生环形模组舱，基础价值 400、电耗 25，每晚一批。
+
+`ConfigureManufacturingTerminalMarkup(ownerId, percent)` 在追加配方前设置这台共享机器的生产增值率，默认 15%，范围 0–1000%。首个设置者认领该配置，其他提供者修改返回 `Conflict`；所有追加配方读取同一批次倍率。合成扩展用此入口沿用现有 schema 21 的 K05 自定义倍率。
+
+Forge 在原生 `SaveManager.DecodeNodes` 创建物品前，将两个已知旧 ID `nicokobo.mechcore.synthesis.universal_manufacturing_terminal` 和 `nicokobo.mechcore.synthesis.mechanical_manufacturer` 映射到当前 ID，并更新图集路径及机器分类。原 UUID、状态、价值、占格、子物品及槽位索引继续由原生解码器恢复；恢复后重设当前基础电耗和文本、重新绑定槽位。新 ID 由游戏下次正常保存写入，Forge 不直接重写 ES3 文件。这些离线检查不代表实际旧档重载已验收。
+
+### 内容 Mod 自定义机器
+
 ```csharp
 var template = new ForgeMachineTemplate(
     ItemInput: new(9, 6),
@@ -42,6 +85,8 @@ ForgeMachineRegistrationApi.RegisterMachine(ownerId,
 
 注册会先校验整个声明，再暂存设施工厂。模板、模组类型、配方及其嵌套列表在注册时冻结。重复机器 ID 返回 `Conflict`；不匹配模板的配方返回 `Invalid`，不会部分发布。`Accepted` 只表示声明被接受；设施目录是否 `Applied` 仍需检查 `ForgeItemApi.Snapshot()`。
 
+机器声明允许空配方列表，供共享机器先注册、内容 Mod 后续追加；`RegisterAdditionalRecipes` 仍要求至少一条配方。
+
 ## 输入与输出模板
 
 | 配置 | 行为 |
@@ -68,7 +113,7 @@ ForgeMachineRegistrationApi.RegisterMachine(ownerId,
 
 接纳只是界面层过滤：形状、堆叠、是否真的是本批材料仍由原生槽位与本批事务校验，可接纳不等于加工需要。
 
-拖到机器物品上的自动投放先询问原生电池与模组槽，再把已注册配方原料投向物品输入；水瓶等其余容器依次询问储水输入、物品输入、输出容器与手册槽。每个槽仍使用原生接纳、形状和堆叠判断；物品输出仓保留原版禁止玩家插入的规则。框架只为已注册机器接入一个 `GameItem.TryFindOneValidInventorySlot` Hook，避免原生网格从右往左搜索时先选中输出容器。合成扩展 K01–K05 的物品输入均为 `9×6`，物品输出仓同为 `9×6`（K04 为容器输出）。
+拖到机器物品上的自动投放先询问原生电池与模组槽，再把已注册配方原料投向物品输入；水瓶等其余容器依次询问储水输入、物品输入、输出容器与手册槽。每个槽仍使用原生接纳、形状和堆叠判断；物品输出仓保留原版禁止玩家插入的规则。框架只为已注册机器接入一个 `GameItem.TryFindOneValidInventorySlot` Hook，避免原生网格从右往左搜索时先选中输出容器。合成扩展 K01–K04 与 Forge K05 的物品输入均为 `9×6`，物品输出仓同为 `9×6`（K04 为容器输出）。
 
 物品白名单使用当前注册配置中的全部配方，包含其他 Mod 的追加配方。配置改变后刷新对应机器的白名单；刷新前撤下旧判断，避免新旧名单取交集或重复叠加原生回调。
 

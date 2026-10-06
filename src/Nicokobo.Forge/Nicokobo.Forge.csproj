@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>Nicokobo.Forge</AssemblyName>
     <RootNamespace>Nicokobo.Forge</RootNamespace>
-    <Version>0.6.18</Version>
+    <Version>0.6.26</Version>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -16,6 +16,7 @@
   <ItemGroup>
     <Compile Include="..\..\BuildConfig\ForgeNumbers.cs" Link="BuildConfig\ForgeNumbers.cs" />
     <EmbeddedResource Include="Assets\Icons\nico_card.png" />
+    <EmbeddedResource Include="Assets\Icons\universal_manufacturing_terminal.png" />
     <EmbeddedResource Include="Assets\Brand\nicokobo_logo.png" />
 
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">

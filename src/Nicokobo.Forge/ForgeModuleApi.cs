@@ -2,6 +2,8 @@ using Il2Cpp;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Nicokobo.Forge.Registration;
 using Nicokobo.Forge.Runtime;
+using UnityEngine.Localization.Settings;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace Nicokobo.Forge;
 
@@ -14,6 +16,7 @@ public static partial class ForgeModuleApi
     private static readonly ModuleAdmissionCatalog Admission = new();
     private static readonly OwnedCallbacks<string, ForgeModuleActionContext> Actions = new();
     private static bool _allowed, _admissionInstalled, _actionInstalled;
+    private static bool _actionLocalizationReady, _actionFailed;
     private static Action<string>? _log;
     internal static void Configure(bool allowed, Action<string> log) { _allowed = allowed; _log = log; }
     public static SubmitResult RegisterAdmission(string ownerId, IReadOnlyList<ForgeModuleAdmission> rules)
@@ -30,22 +33,62 @@ public static partial class ForgeModuleApi
             NativeHookSet.Remove("nicokobo.forge.module_admission", _log);
         }
     }
+    /// <summary>Retains the callback immediately. The native action hook waits
+    /// for the game's existing localization initialization to finish.</summary>
     public static IDisposable SubscribeAction(string ownerId, string callbackId, string moduleId,
         Action<ForgeModuleActionContext> callback)
     {
         if (!OwnedCallbacks<string, ForgeModuleActionContext>.ValidId(ownerId, moduleId))
             throw new ArgumentException("Module ID must belong to its owner");
+        if (!_allowed || _actionFailed)
+            throw new InvalidOperationException("Module action adapter is unavailable");
         var lease = Actions.Add(ownerId, callbackId, moduleId, callback);
-        if (_allowed && EnsureActions()) return new CallbackLease(() =>
+        if (_actionLocalizationReady && !EnsureActions())
+        {
+            _actionFailed = true;
+            lease.Dispose();
+            throw new InvalidOperationException("Module action adapter is unavailable");
+        }
+        return new CallbackLease(() =>
         {
             lease.Dispose();
-            if (Actions.Count != 0) return;
+            if (Actions.Count != 0 || !_actionInstalled) return;
             _actionInstalled = false;
             NativeHookSet.Remove("nicokobo.forge.module_actions", _log);
         });
-        lease.Dispose();
-        throw new InvalidOperationException("Module action adapter is unavailable");
     }
+    internal static void UpdateActions()
+    {
+        if (!_allowed || _actionFailed || _actionInstalled || Actions.Count == 0) return;
+        try
+        {
+            if (!_actionLocalizationReady)
+            {
+                if (!LocalizationSettings.HasSettings) return;
+                // Resolving ModuleEffectHelper's generated metadata also runs
+                // its native static constructor, which reads localized text.
+                // Inspect the existing handle without starting or blocking it.
+                var operation = LocalizationSettings.Instance.m_InitializingOperationHandle;
+                if (operation == null || !operation.IsValid() || !operation.IsDone) return;
+                if (operation.Status != AsyncOperationStatus.Succeeded)
+                {
+                    _actionFailed = true;
+                    LogAction("[WARN] [NicokoboForge/Modules] actions disabled: native localization initialization failed");
+                    return;
+                }
+                _actionLocalizationReady = true;
+            }
+            _actionFailed = !EnsureActions();
+            if (_actionInstalled)
+                LogAction($"[NicokoboForge/Modules] actionHook=installed; subscribers={Actions.Count}");
+        }
+        catch (Exception ex)
+        {
+            _actionFailed = true;
+            LogAction($"[WARN] [NicokoboForge/Modules] actions disabled: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+    private static void LogAction(string message) { try { _log?.Invoke(message); } catch { } }
     public static GameGridInventory? GetInventory(GameItem machine)
     {
         if (!_allowed || machine == null || machine.Pointer == IntPtr.Zero) return null;

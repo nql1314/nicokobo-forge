@@ -36,6 +36,12 @@ internal static class NativeWorkshop
     {
         _log = log;
         if (!allowed) { log("[WARN] [NicokoboForge/Workshop] built-in achievements disabled by native capability gates"); return; }
+        try { WorkshopRewardDelivery.RequireContracts(); }
+        catch (Exception ex)
+        {
+            log("[WARN] [NicokoboForge/Workshop] built-in achievements disabled by reward shape contracts: " + ex.Message);
+            return;
+        }
         const string hookId = "nicokobo.forge.native_workshop";
         var hooks = new NativeHook[]
         {

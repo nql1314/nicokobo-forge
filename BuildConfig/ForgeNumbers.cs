@@ -14,6 +14,14 @@ internal static class ForgeNumbers
         internal const int MaxDepth = 256;
     }
 
+    internal static class NpcStock
+    {
+        // 写死供货商品的入口，每个原版生成结果与声明的 Mod 候选共同抽签。
+        internal const double NativeSupplyWeight = 1d;
+        // 两种扩展原矿的矿工权重各为 0.5 时，每批为原版 70%、各扩展 15%。
+        internal const double NativeMinerOreWeight = 7d / 3d;
+    }
+
     // Forge 内置原版成就；只改本页条件和奖励，不改变原生物品能力。
     internal static class Achievements
     {
@@ -34,6 +42,24 @@ internal static class ForgeNumbers
         internal const int SaveRetrySeconds = 5;
         internal const int MaxSaveBytes = 64 * 1024 * 1024;
         internal const int MaxRewardItems = 10;
+    }
+
+    // Forge 内置共享制造终端；具体配方由内容 Mod 追加。
+    internal static class ManufacturingTerminal
+    {
+        internal const int Width = 3;
+        internal const int Height = 3;
+        internal const int BaseValue = 400;
+        internal const int InputWidth = 9;
+        internal const int InputHeight = 6;
+        internal const int OutputWidth = 9;
+        internal const int OutputHeight = 6;
+        internal const int ModuleWidth = 7;
+        internal const int ModuleHeight = 5;
+        internal const int BasePowerCost = 25;
+        internal const int ProductionMarkupPercent = 15;
+        internal const int NightShopChancePercent = 40;
+        internal const float LootWeight = 0.05f;
     }
 
     // 通用机器模板的默认值与注册校验上限；内容方可按 API 契约声明自己的参数。
@@ -68,6 +94,8 @@ internal static class ForgeNumbers
     {
         // 原版档案箱内部网格的宽度和高度（格）。
         internal const int DossierGridSide = 16;
+        // 拾荒左侧垃圾场暂存区；背包与口袋容量仍由原版决定。
+        internal const int ScavengingGridSide = 16;
         // 一次直接库存快照允许读取的物品数量上限。
         internal const int MaxDirectItems = 4096;
         // 遍历整个周目的原生物品时允许处理的物品数量上限。

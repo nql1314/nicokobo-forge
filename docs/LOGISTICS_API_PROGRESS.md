@@ -1,6 +1,6 @@
 # 物流所需通用 API：实现边界
 
-更新：2026-10-02。物流玩法由[物流脉络](../../probably-stolen/mods-melonloader/mechcore-protocol-logistics-nexus/README.md)维护，完整目标见[网络设计](../../probably-stolen/docs/MECHCORE_PROTOCOL_LOGISTICS_NEXUS.md)。该设计包含未实现内容，不能作为 Forge 已支持网络搬运的证据。
+更新：2026-10-06。物流玩法由[独立物流脉络](../../probably-stolen/mods-melonloader/logistics-nexus/README.md)维护，完整目标见[玩法设计](../../probably-stolen/mods-melonloader/logistics-nexus/DESIGN.md)。实现边界与验收状态以物流 README 为准，玩法设计不能作为 Forge 已支持网络搬运的证据。
 
 | 物流需求 | Forge 提供 | 内容 Mod 当前状态 |
 | --- | --- | --- |
