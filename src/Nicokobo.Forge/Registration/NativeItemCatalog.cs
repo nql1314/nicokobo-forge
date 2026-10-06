@@ -27,15 +27,28 @@ public enum NpcTradeStockCategory
     Medical = 64
 }
 
-/// <summary>Relative weight in native NPC supply pools. Hard-coded supply results
-/// have weight 1; table-based supplies retain the other entries' native weights.</summary>
+[Flags]
+public enum NpcTradeStockSupplier
+{
+    Any = 0,
+    Thief = 1,
+    Inventor = 2
+}
+
+/// <summary>Eligibility in native NPC supply pools. Ordinary Mod candidates share
+/// a fixed total weight equally; Weight is the fallback ore weight for miner batches.</summary>
 public sealed record NpcTradeStockOptions(NpcTradeStockCategory Category, float Weight = 1f)
 {
+    /// <summary>Restrict supply to these NPCs; Any retains ordinary daytime eligibility.</summary>
+    public NpcTradeStockSupplier Suppliers { get; init; }
+    /// <summary>Also join the inventor's native night-shop module/node draws.
+    /// Only the Module category supports this opt-in.</summary>
+    public bool IncludeInNightShop { get; init; }
     /// <summary>Exclude this offer while the player owns a positive quantity.</summary>
     public bool SkipWhenOwned { get; init; }
     /// <summary>First native game day eligible for supply; 0 has no day restriction.</summary>
     public int MinimumDay { get; init; }
-    /// <summary>Optional ore weight for the miner's batch draw; other suppliers use Weight.</summary>
+    /// <summary>Optional ore weight for the miner's batch draw; defaults to Weight.</summary>
     public float? MinerWeight { get; init; }
 }
 
@@ -125,10 +138,12 @@ internal sealed class NativeItemCatalog
             return new(SubmitStatus.Invalid, "Night-shop stock policy is invalid");
         if (options.NpcTrade is { } npc &&
             (!Enum.IsDefined(npc.Category) || npc.Category == NpcTradeStockCategory.None ||
+             (npc.Suppliers & ~(NpcTradeStockSupplier.Thief | NpcTradeStockSupplier.Inventor)) != 0 ||
+             (npc.IncludeInNightShop && npc.Category != NpcTradeStockCategory.Module) ||
              !float.IsFinite(npc.Weight) || npc.Weight <= 0 || npc.MinimumDay < 0 ||
              (npc.MinerWeight is { } minerWeight &&
                  (npc.Category != NpcTradeStockCategory.Ore || !float.IsFinite(minerWeight) || minerWeight <= 0))))
-            return new(SubmitStatus.Invalid, "NPC stock needs one category, a positive finite weight, a nonnegative minimum day and an ore-only positive finite miner weight");
+            return new(SubmitStatus.Invalid, "NPC stock needs one category, valid suppliers, module-only night-shop eligibility, a positive finite weight, a nonnegative minimum day and an ore-only positive finite miner weight");
         if (_items.TryGetValue(itemId, out var old))
             return old.OwnerId == ownerId && old.Kind == kind && old.Factory.Equals(factory) &&
                    old.Options == options

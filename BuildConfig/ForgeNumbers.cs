@@ -18,6 +18,8 @@ internal static class ForgeNumbers
     {
         // 写死供货商品的入口，每个原版生成结果与声明的 Mod 候选共同抽签。
         internal const double NativeSupplyWeight = 1d;
+        // 普通供货池中所有合格 Mod 商品共享此总权重，按候选种类数均分。
+        internal const double ModSupplyWeight = 0.25d;
         // 两种扩展原矿的矿工权重各为 0.5 时，每批为原版 70%、各扩展 15%。
         internal const double NativeMinerOreWeight = 7d / 3d;
     }
@@ -94,8 +96,6 @@ internal static class ForgeNumbers
     {
         // 原版档案箱内部网格的宽度和高度（格）。
         internal const int DossierGridSide = 16;
-        // 拾荒左侧垃圾场暂存区；背包与口袋容量仍由原版决定。
-        internal const int ScavengingGridSide = 16;
         // 一次直接库存快照允许读取的物品数量上限。
         internal const int MaxDirectItems = 4096;
         // 遍历整个周目的原生物品时允许处理的物品数量上限。

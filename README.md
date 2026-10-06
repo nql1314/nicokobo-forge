@@ -1,8 +1,12 @@
 # Nicokobo Forge / 模组前置框架
 
-Author: Nicokobo · Source Version: **0.6.26** · Target: **Probably Stolen Demo，Steam Build `25382790`**
+Author: Nicokobo · Source Version: **0.6.27** · Target: **Probably Stolen Demo，Steam Build `25382790`**
+
+
+## 中文
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，并内置全域制造终端、Nico工坊的全开局名片与原版成就页。各内容 Mod 维护自己的物品、配方、价格、成长和独立解锁页。
+
 
 ## 安装
 
@@ -12,11 +16,13 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 
 源码版本和本地包不代表游戏当前已安装版本。内容组件使用同一次构建的 Forge；构建、安装与实机验证范围见[当前进度](docs/FORGE_PROGRESS.md)，旧配套版本保留在对应日期的记录中。
 
+
 ## 全域制造终端
 
 终端物品、图标、售价、槽位、基础电耗和供货由 Forge 持有，稳定 ID 为 `nicokobo.forge.machines.universal_manufacturing_terminal`。默认外部占格 3×3，输入／输出仓 9×6，基础价值 400，耗电 25，每晚一批；不安装内容 Mod 时没有制造配方。合成扩展和机械飞升各自向同一终端追加配方，不再注册终端物品。
 
 读档时，Forge 将旧合成扩展的 `universal_manufacturing_terminal` 与更早的 `mechanical_manufacturer` ID 转到当前终端，保留原物品身份、状态、占格和子物品槽位关系；下次正常保存写入新 ID。没有直接改写存档文件。迁移逻辑已通过离线检查，实际游戏读档、过夜及保存重载仍待验收。接入方法见[机器 API](docs/MACHINE_API.md)。
+
 
 ## Nico工坊
 
@@ -30,12 +36,12 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 
 名片在正常初始化时加入原生日用品掉落表，保留所有开局的赠送入口。每次白天 NPC 供货／刷货前检查玩家实际持有，已有名片时不再刷新名片；检查包含柜台、背包及嵌套容器，只计算玩家自己的物品。内容 Mod 各自声明物品掉落；十二种最终义体仅由所属 Mod 制造，合成扩展的五台机器与 Forge 的全域制造终端可在夜间商店生成库存时上架，持有后仍可购买。购买后不自动补货，货架放不下的新增商品跳过。
 
-`NativeItemOptions.NpcTrade` 声明白天供货类别、权重与最早天数；`NpcTradeStock` 表示供货钩子已安装。36 条供货入口将合格 Mod 商品与原版候选共同抽取，不保底追加商品，也不改写全局拾荒表。矿工保留单批一种矿物的规则。完整筛选与权重契约见[能力范围](docs/SCOPE.md)。
+`NativeItemOptions.NpcTrade` 声明白天供货类别与最早天数；`Suppliers` 可限制为小偷／杰克逊，默认不限制白天供货人，`IncludeInNightShop` 让模组候选也加入杰克逊夜间模组／节点名额。`NpcTradeStock` 表示供货钩子已安装。36 条供货入口将合格 Mod 商品与原版候选共同抽取，不保底追加商品，也不改写全局拾荒表。普通供货及夜间模组池中 Mod 总权重固定为 `0.25`，按筛选后的候选种类数平均分配；直接供货的原版结果权重为 `1`，Mod 总概率约为 `20%`，原生表抽取则保留原版条目的权重。独立的 `NativeItemOptions.NightShop` 上架条件与矿工单批选矿规则继续生效。完整契约见[能力范围](docs/SCOPE.md)。
+
 
 ## 通用能力
 
 - 原版档案箱内部容量扩为 16×16（256 格），新游戏和已有存档共用；原有物品、位置及可收纳物品种类沿用原版。
-- 左侧拾荒垃圾场从 12×9 扩为 16×16，新建与读档时原位调整网格；口袋和背包槽改排在地面下方，避免右侧大块空白，已有更大的扩展尺寸保留。
 - 物品、设施、节点、机器模组及效果注册，稳定 ID、所有者与冲突诊断。
 - 公共生命周期、模组观察与文本接入，开局 ID 和周目数据承载。
 - 新游戏选择栏自动使用紧凑行高，选项超出时支持滚轮和细滚动条；原版与内容 Mod 卡片共用。
@@ -48,6 +54,7 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 - 库存只读快照、完整单件搬运预检，以及独立的单次物品搬运／倒液接口；`InventoryTransfer` 总能力仍为 `false`，资源／电力网络由内容方实现。
 
 动作前查看 `ForgeCapabilities.Current`；注册 `Accepted` 与目录 `Applied` 是不同状态。具体契约见 [API 职责](docs/API_BOUNDARIES.md)和[能力范围](docs/SCOPE.md)。
+
 
 ## 开发与数值
 
@@ -67,6 +74,7 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 
 此示例检查并打包本地产物。`Build-ForgeMods.ps1` 不带 `-NoInstall` 时会安装配套 DLL 到游戏 `Mods/` 并清理同程序集旧文件；`Build-P0.ps1` 仅检查和编译。开发环境、输出位置、日志与依赖选择见[开发说明](docs/DEVELOPMENT.md)。框架默认日志为 `INFO`，用户 `MelonPreferences.cfg` 设置优先。
 
+
 ## 文档
 
 - [文档索引](docs/README.md)：当前 API、示例和历史证据入口。
@@ -76,10 +84,61 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 - [物流接入边界](docs/LOGISTICS_API_PROGRESS.md)：已开放的读取／预检与待实现项。
 - [当前进度](docs/FORGE_PROGRESS.md)：本地验证、未验收项与日期明确的探针记录。
 
+
+---
+
+
 ## English
 
-A shared dependency for Probably Stolen Demo content mods, targeting Steam Build `25382790`. Forge provides registration, lifecycle events, native machine templates, liquid and power transactions, production value support, and the Nico Workshop. It includes a shared Universal Manufacturing Terminal, an all-start workshop card and ten native achievements with per-run rewards. Content mods own their gameplay definitions and separate progression pages.
+Author: Nicokobo · Matching version: **0.6.27** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
-Copy the matching Forge and content DLLs into `Mods/`, keeping one copy per assembly. `scripts/Build-P0.ps1` checks and compiles Forge; `Build-ForgeMods.ps1 -NoInstall` in the companion repository builds local packages for all four content mods. Omitting `-NoInstall` installs the matching DLLs and removes older copies. Numeric defaults are compiled from [BuildConfig](BuildConfig/README.md). Single item and liquid transfer APIs exist, while the aggregate `InventoryTransfer` capability remains false and full networks remain pending. Build results and dated native probes have separate validation scopes.
+Nicokobo Forge is a shared content-mod dependency providing item/effect registration, machine templates, material/liquid/power transactions and the Nico Workshop. Forge owns the shared manufacturing terminal, an all-start card and ten native-game achievements. Content mods provide recipes, items and gameplay.
 
-Released under the [MIT License](LICENSE).
+
+### Installation and updates
+
+1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
+2. Copy `Nicokobo.Forge-0.6.27.dll` and required content mod DLLs into `Mods/`.
+3. Remove older copies of each assembly. Keep one matching Forge DLL when both Mechcore Protocol and Logistics Nexus include it; versioned filenames can stay unchanged.
+
+Forge can be installed alone for its workshop and native achievements. Source, package and actually loaded versions must be checked separately.
+
+
+### Universal Manufacturing Terminal
+
+Forge owns shared K05: a 3×3 footprint, separate 9×6 input/output grids, the native 7×5 ring-shaped module bay, base value 400 and base power 25. It processes one batch per night. Synthesis, Aug and Logistics Nexus contribute recipes; Forge alone supplies none.
+
+The terminal has a 40% listing chance when night-shop stock is generated, including while owned. Purchases do not restock immediately; full shelves skip the item. It is excluded from daytime NPC supply.
+
+Loading supports two known legacy Synthesis terminal IDs while preserving identity, state, shape and internal item relationships. Subsequent normal saves use the current ID. Real legacy-save migration still needs validation for the matching build.
+
+
+### Nico Workshop
+
+Every start receives a card. Press `N` or double-click it. The native page tracks ten achievements with separate progress, completion and one-time rewards per run. Insufficient backpack space retains eligibility; the final badge uses no inventory slot. Aug supplies a separate page restricted to its start.
+
+After claiming and confirming the native final achievement reward, NPC purchase budgets double for the current run, including current and future customers. This stacks with the existing Aug ×2 budget for a total ×4. Confirmed reward records apply after loading; new runs must qualify again.
+
+
+### Shared features
+
+- The native Dossier expands to 16×16 (256 cells), preserving contents and admission rules.
+- Compact new-game rows support wheel scrolling and a scrollbar.
+- Disposable/advanced accelerators process one immediate Forge batch and consume the tool or charge only after success.
+- Handbooks read current machines and additional recipes, including inputs, counts, categories and bilingual conditions, and refresh after changes.
+- Daytime supply and opted-in Jackson night-module slots divide a fixed total Mod weight of 0.25 equally among eligible candidates after supplier, category, day and ownership filtering. `NpcTrade.Suppliers` can restrict daytime suppliers; `IncludeInNightShop` explicitly opts modules into native night module/node draws. Direct native results have weight 1, giving a combined Mod chance of about 20%; native tables retain their other entries' weights. Separate night-shop listings retain their availability rules. Matching Mechcore miner batches retain separate odds: native ore 70%, Quartz 15%, Titanium Ore 15%.
+- Single-item transfers and pours verify changes at both ends; reward batches use a managed placement preflight. Content mods remain responsible for complete resource/power networks.
+
+
+### Configuration and validation
+
+Default logging is `INFO`; existing `UserData/MelonPreferences.cfg` settings take precedence. Set `DEBUG` explicitly and restart for detailed diagnostics. Framework defaults are compiled into the DLL; see each content mod for runtime configuration.
+
+The dated 2026-10-06 candidate records machine processing, selected local logistics and save readback across processes. Mouse/keyboard UI, stock weights, built-in workshop rewards, two complete nightly settlements and real legacy-terminal migration remain unvalidated. Later source does not inherit earlier binary results. See source `docs/FORGE_PROGRESS.md` for scope and [CHANGELOG](docs/RELEASE_CHANGELOG.md) for changes.
+
+Released under the MIT License.
+
+
+### Development
+
+Run scripts/Build-P0.ps1 with GameDir to check and compile Forge and four examples; -IncludeProbes adds workshop/effect probes. In the companion repository, Build-ForgeMods.ps1 -NoInstall checks and builds local packages. Omitting that switch installs Forge and all four content mods. See [API responsibilities](docs/API_BOUNDARIES.md), [scope](docs/SCOPE.md), [machine API](docs/MACHINE_API.md), [shared services](docs/SHARED_SERVICES.md), [workshop graph](docs/WORKSHOP_GRAPH.md), [development](docs/DEVELOPMENT.md) and [progress](docs/FORGE_PROGRESS.md).

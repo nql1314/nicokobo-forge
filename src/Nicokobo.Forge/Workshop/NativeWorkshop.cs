@@ -65,8 +65,7 @@ internal static class NativeWorkshop
                 ShortDescription: CardDescription,
                 FlavorText: CardFlavor)
             {
-                NpcTrade = new(NpcTradeStockCategory.Household,
-                    ForgeNumbers.Achievements.CardLootWeight) { SkipWhenOwned = true }
+                NpcTrade = new(NpcTradeStockCategory.Household) { SkipWhenOwned = true }
             });
             if (card.Status is not (SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)) throw new InvalidOperationException(card.Reason);
             if (card.Status == SubmitStatus.Accepted)

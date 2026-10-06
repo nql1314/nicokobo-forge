@@ -42,6 +42,8 @@ namespace Il2Cpp
     }
     public sealed partial class GameItem
     {
+        public string GameItemType = "ITEM";
+        public bool IsGameItemType(string type) => GameItemType == type;
         public void SetUnitCount(int count) => unitCount = count;
     }
     public sealed class LootEntry(string itemId, float value, string source)

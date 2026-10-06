@@ -9,7 +9,7 @@ Forge 持有通用注册、事件分派、构建门控和资源事务，以及�
 | `ForgeApi` | 内容声明与依赖关系 |
 | `ForgeItemApi` | 物品、节点、设施、模组 ID 和工厂；目录应用快照；创建模板实例 |
 | `ForgeEffectApi` | 效果 ID、工厂、随机资格与应用快照 |
-| `ForgePresentationApi` | 所属 Mod 名称、已注册物品本地化、模组与效果文本 |
+| `ForgePresentationApi` | 所属 Mod 名称、已注册物品本地化、模组与效果文本；`GetRegisteredItemName / GetRegisteredItemDescription` 只读取已应用物品的双语名称／简短说明，不调用工厂，未应用或未提供文字时返回 null |
 | `ForgeContentApi` | 注册对象的应用／冲突／失败通知 |
 | `ForgeLifecycleApi` | 同步读档／日夜事件、夜间 attempt 清理与原生 GameLoadedLate 通知；Before 表示意图，业务 After 要求原方法主体执行过 |
 | `ForgeModuleApi` | 机器模组类型准入、已安装模组观察、属性计算与成长事件 |
@@ -78,7 +78,7 @@ subscription.Dispose();
 
 - 模组矩阵：成长、节点转换／隔离／学习、市场追踪、模组仓准入和文本使用 Forge API；净水、供水、解码完成与进度速度保留内容专用接入。
 - 合成扩展：新机器使用模板 API；机器倍率由批次上下文提供给本机和追加配方。原版熔炉的配方、投料、优先级和夜间调度由 `NativeFurnaceRuntime` 持有，复用通用事务。成品品质、制造效果和销售保护由内容方实现。
-- 物流脉络：物品、实际配方目录、逐批边界、单次搬运／倒液与周目配置使用公共 API。本地填料、附近产物弹出、终端配方卡和配置暂存已接入；资源／电力网络、网络货物持久化仍待实现，游戏内操作和保存重载待验收。见[物流接入边界](LOGISTICS_API_PROGRESS.md)。
+- 物流网络：物品、实际配方目录、逐批边界、单次搬运／倒液与周目配置使用公共 API。本地填料、附近产物弹出、终端配方卡和配置暂存已接入；资源／电力网络、网络货物持久化仍待实现，游戏内操作和保存重载待验收。见[物流接入边界](LOGISTICS_API_PROGRESS.md)。
 - 机械飞升：注册成品、向 K05 追加六条义体配方、向 K04 追加仿生修补胶；沿用目标机器的配置倍率与当前电耗。工坊由 Forge 展示，解锁交易与保存由机械飞升持有。
 
 机械飞升、矩阵、合成扩展的图集现通过 `ForgeAssetsApi` 加载；Forge 与机械飞升的存档读取复用 `ForgeSaveReadbackApi`。示例及其他候选见[公共服务](SHARED_SERVICES.md)。

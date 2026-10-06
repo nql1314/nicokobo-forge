@@ -10,9 +10,12 @@ namespace Nicokobo.Forge;
 // callbacks. Custom candidates share the native stock draws; miners select one ore batch.
 internal static class NativeNpcStockAdapter
 {
-    private sealed class SupplyScope(NpcTradeStockCategory categories, bool replaceOreBatch = false)
+    private sealed class SupplyScope(NpcTradeStockCategory categories, bool replaceOreBatch = false,
+        NpcTradeStockSupplier supplier = NpcTradeStockSupplier.Any, bool nightShopModules = false)
     {
         internal NpcTradeStockCategory Categories { get; } = categories;
+        internal NpcTradeStockSupplier Supplier { get; } = supplier;
+        internal bool NightShopModules { get; } = nightShopModules;
         internal bool ReplaceOreBatch { get; } = replaceOreBatch;
         internal bool Attempted { get; set; }
         internal string? SelectedOreId { get; set; }
@@ -99,9 +102,11 @@ internal static class NativeNpcStockAdapter
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(MinerStockPrefix), "_CreateMiner_b__38_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(MaterialStockPrefix), "_CreateJunker_b__21_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(TechnicalStockPrefix),
-            "_CreateScrapper_b__35_0", "_CreateLowerLevelRareMerchant_b__64_0", "_CreateInventorStorage_b__31_0");
+            "_CreateScrapper_b__35_0", "_CreateLowerLevelRareMerchant_b__64_0");
+        Suppliers(hooks, typeof(StoreClientList.__c), nameof(InventorSupplyStockPrefix), "_CreateInventorStorage_b__31_0");
+        Suppliers(hooks, typeof(StoreClientList.__c), nameof(ThiefStockPrefix), "_CreateThief_b__47_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(GeneralStockPrefix),
-            "_CreateThief_b__47_0", "_CreatePettyThief_b__48_0", "_CreateBrokeUpperLevel_b__69_0");
+            "_CreatePettyThief_b__48_0", "_CreateBrokeUpperLevel_b__69_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(FoodStockPrefix), "_CreateFoodThief_b__49_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(MedicalStockPrefix),
             "_CreateShadyPharmacist_b__34_0", "_CreateScavBlood_b__58_0", "_CreateRareLowerLevelChemist_b__65_0");
@@ -133,10 +138,11 @@ internal static class NativeNpcStockAdapter
         hooks.AddRange(methods.Select(method => Supply(type, method, callback)));
 
     private static void BeginSupply(NpcTradeStockCategory categories, out SupplyScope? previous,
-        bool replaceOreBatch = false)
+        bool replaceOreBatch = false, NpcTradeStockSupplier supplier = NpcTradeStockSupplier.Any,
+        bool nightShopModules = false)
     {
         previous = _supply;
-        if (Installed) _supply = new(categories, replaceOreBatch);
+        if (Installed) _supply = new(categories, replaceOreBatch, supplier, nightShopModules);
     }
     private static void EndSupply(SupplyScope? __state) => _supply = __state;
     private static void MinerStockPrefix(out SupplyScope? __state) => BeginSupply(NpcTradeStockCategory.Ore, out __state, true);
@@ -146,6 +152,12 @@ internal static class NativeNpcStockAdapter
         NpcTradeStockCategory.Material | NpcTradeStockCategory.Module |
         NpcTradeStockCategory.Machine | NpcTradeStockCategory.Household, out __state);
     private static void GeneralStockPrefix(out SupplyScope? __state) => BeginSupply(NativeNpcStockPolicy.All, out __state);
+    private static void ThiefStockPrefix(out SupplyScope? __state) => BeginSupply(
+        NativeNpcStockPolicy.All, out __state, supplier: NpcTradeStockSupplier.Thief);
+    private static void InventorSupplyStockPrefix(out SupplyScope? __state) => BeginSupply(
+        NpcTradeStockCategory.Material | NpcTradeStockCategory.Module |
+        NpcTradeStockCategory.Machine | NpcTradeStockCategory.Household, out __state,
+        supplier: NpcTradeStockSupplier.Inventor);
     private static void FoodStockPrefix(out SupplyScope? __state) => BeginSupply(NpcTradeStockCategory.Food, out __state);
     private static void MedicalStockPrefix(out SupplyScope? __state) => BeginSupply(NpcTradeStockCategory.Medical, out __state);
     private static void HouseholdStockPrefix(out SupplyScope? __state) => BeginSupply(NpcTradeStockCategory.Household, out __state);
@@ -153,7 +165,9 @@ internal static class NativeNpcStockAdapter
     {
         __state = _supply;
         _supply = null;
-        if (isVisitingPlayerStore) TechnicalStockPrefix(out _);
+        if (isVisitingPlayerStore) InventorSupplyStockPrefix(out _);
+        else BeginSupply(NpcTradeStockCategory.Module, out _,
+            supplier: NpcTradeStockSupplier.Inventor, nightShopModules: true);
     }
 
     private static void PoolRollPrefix(string __0, out string? __state)
@@ -178,10 +192,13 @@ internal static class NativeNpcStockAdapter
         {
             var store = PlayerStore.instance;
             if (store == null || store.Pointer == IntPtr.Zero) return;
-            // Use a draw-local list. Removing Forge declarations before merging
-            // prevents duplicate loot weights, owned cards and unapplied factories.
+            // Use a draw-local list. Remove Forge declarations before merging,
+            // except IDs whose native factory belongs to another Mod. A failed
+            // Forge claim must not remove the actual owner's loot entries.
             // Neither the global loot table nor scavenging is changed here.
-            var registered = NativeItemRegistry.Declarations().Select(item => item.ItemId)
+            var registered = NativeItemRegistry.Declarations()
+                .Where(item => NativeItemRegistry.Outcome(item.ItemId) != NativeApplicationStatus.Conflict)
+                .Select(item => item.ItemId)
                 .ToHashSet(StringComparer.Ordinal);
             var merged = new Il2CppSystem.Collections.Generic.List<LootEntry>();
             for (int index = 0; index < __0.Count; index++)
@@ -189,8 +206,10 @@ internal static class NativeNpcStockAdapter
                 var entry = __0[index];
                 if (entry != null && !registered.Contains(entry.id)) merged.Add(entry);
             }
-            foreach (var offer in StockOffers(categories, store))
-                merged.Add(new LootEntry(offer.ItemId, offer.Options.NpcTrade!.Weight, offer.OwnerId));
+            var offers = StockOffers(categories, store, supply);
+            float weight = (float)NativeNpcStockPolicy.ModSupplyItemWeight(offers.Length);
+            foreach (var offer in offers)
+                merged.Add(new LootEntry(offer.ItemId, weight, offer.OwnerId));
             __0 = merged;
         }
         catch (Exception ex)
@@ -216,9 +235,11 @@ internal static class NativeNpcStockAdapter
         if (supply.ReplaceOreBatch)
             return ReplaceMinerOre(supply, ref __0, out __state);
         // A table result has already drawn from the merged pool. Existing custom
-        // results must not be drawn a second time either.
-        if (supply.PoolItems.Remove(__0.Pointer) || NativeItemRegistry.IsAppliedItem(__0.identifier)) return true;
-        return ReplacePoolStock(supply.Categories, ref __0, out __state);
+        // results must not be drawn a second time either. A conflicting ID is
+        // owned by another native factory, so preserve its direct stock too.
+        if (supply.PoolItems.Remove(__0.Pointer) || NativeItemRegistry.IsAppliedItem(__0.identifier) ||
+            NativeItemRegistry.Outcome(__0.identifier) == NativeApplicationStatus.Conflict) return true;
+        return ReplacePoolStock(supply, ref __0, out __state);
     }
 
     private static bool ReplaceMinerOre(SupplyScope supply, ref GameItem original,
@@ -236,7 +257,7 @@ internal static class NativeNpcStockAdapter
             {
                 supply.Attempted = true;
                 supply.SelectedOreId = NativeNpcStockPolicy.SelectMinerOre(
-                    StockOffers(NpcTradeStockCategory.Ore, store), RNG.GetRandomDouble(0, 1))
+                    StockOffers(NpcTradeStockCategory.Ore, store, supply), RNG.GetRandomDouble(0, 1))
                     ?? throw new InvalidOperationException("Miner ore draw failed");
                 SafeLog($"[NicokoboForge/NpcStock] client=miner; mode=OreBatch; id={supply.SelectedOreId}");
             }
@@ -294,10 +315,13 @@ internal static class NativeNpcStockAdapter
         catch (Exception ex) { SafeLog($"[WARN] [NicokoboForge/NpcStock] stock placement readback failed: {ex.Message}"); }
     }
 
-    private static NativeItemDeclaration[] StockOffers(NpcTradeStockCategory categories, PlayerStore store)
+    private static NativeItemDeclaration[] StockOffers(NpcTradeStockCategory categories,
+        PlayerStore store, SupplyScope supply)
     {
         var offers = NativeItemRegistry.Declarations().Where(candidate =>
             candidate.Options.NpcTrade is { } stock && (stock.Category & categories) != 0 &&
+            (stock.Suppliers == NpcTradeStockSupplier.Any || (stock.Suppliers & supply.Supplier) != 0) &&
+            (!supply.NightShopModules || stock.IncludeInNightShop) &&
             NativeItemRegistry.IsAppliedItem(candidate.ItemId)).ToArray();
         if (offers.Any(candidate => candidate.Options.NpcTrade!.MinimumDay > 0))
         {
@@ -317,7 +341,7 @@ internal static class NativeNpcStockAdapter
         return offers.Where(candidate => !ownedIds.Contains(candidate.ItemId)).ToArray();
     }
 
-    private static bool ReplacePoolStock(NpcTradeStockCategory categories, ref GameItem original,
+    private static bool ReplacePoolStock(SupplyScope supply, ref GameItem original,
         out StockPlacement? placement)
     {
         placement = null;
@@ -328,9 +352,13 @@ internal static class NativeNpcStockAdapter
             var store = PlayerStore.instance;
             if (store == null || store.Pointer == IntPtr.Zero || original.parentInventory != null ||
                 original.unitCount <= 0) return true;
-            var offers = StockOffers(categories, store);
+            // The inventor also generates guaranteed keycards, guides and machines.
+            // Only his native module/node stock slots participate at night.
+            if (supply.NightShopModules && !original.IsGameItemType("MODULE") &&
+                !original.IsGameItemType("NODE")) return true;
+            var offers = StockOffers(supply.Categories, store, supply);
             if (offers.Length == 0) return true;
-            var offer = NativeNpcStockPolicy.SelectFromPool(offers, categories, RNG.GetRandomDouble(0, 1));
+            var offer = NativeNpcStockPolicy.SelectFromPool(offers, supply.Categories, RNG.GetRandomDouble(0, 1));
             if (offer == null) return true;
             itemId = offer.ItemId;
             item = DirectoryMaster.Item(offer.ItemId, true);
@@ -342,7 +370,7 @@ internal static class NativeNpcStockAdapter
         {
             if (item != null && item.Pointer != IntPtr.Zero && item.Pointer != original.Pointer &&
                 item.parentInventory == null) DestroyUnusedStock(item);
-            SafeLog($"[WARN] [NicokoboForge/NpcStock] categories={categories}; id={itemId}; " +
+            SafeLog($"[WARN] [NicokoboForge/NpcStock] categories={supply.Categories}; id={itemId}; " +
                 $"native stock retained; failed={ex.GetType().Name}: {ex.Message}");
             return true;
         }

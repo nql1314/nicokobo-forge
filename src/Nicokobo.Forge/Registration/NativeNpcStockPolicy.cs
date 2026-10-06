@@ -28,27 +28,27 @@ internal static class NativeNpcStockPolicy
     }
 
     // A hard-coded native supply result participates as one weighted candidate.
-    // A null selection preserves that result instead of adding another item.
+    // Eligible Mod offers share one fixed budget equally, regardless of count.
+    // A null selection preserves the native result instead of adding another item.
     internal static NativeItemDeclaration? SelectFromPool(
         IReadOnlyList<NativeItemDeclaration> offers,
         NpcTradeStockCategory categories, double sample,
         IReadOnlySet<string>? ownedItemIds = null)
     {
         if (!double.IsFinite(sample) || sample < 0 || sample >= 1) return null;
+        var candidates = offers.Where(offer => Matches(offer, categories, ownedItemIds)).ToArray();
+        if (candidates.Length == 0) return null;
         double nativeWeight = ForgeNumbers.NpcStock.NativeSupplyWeight;
-        double total = nativeWeight + offers.Where(offer => Matches(offer, categories, ownedItemIds))
-            .Sum(offer => (double)offer.Options.NpcTrade!.Weight);
+        double total = nativeWeight + ForgeNumbers.NpcStock.ModSupplyWeight;
         double remaining = sample * total;
         if (remaining < nativeWeight) return null;
         remaining -= nativeWeight;
-        foreach (var offer in offers)
-        {
-            if (!Matches(offer, categories, ownedItemIds)) continue;
-            remaining -= offer.Options.NpcTrade!.Weight;
-            if (remaining < 0) return offer;
-        }
-        return null;
+        int index = Math.Min((int)(remaining / ModSupplyItemWeight(candidates.Length)), candidates.Length - 1);
+        return candidates[index];
     }
+
+    internal static double ModSupplyItemWeight(int candidateCount) =>
+        candidateCount > 0 ? ForgeNumbers.NpcStock.ModSupplyWeight / candidateCount : 0d;
 
     internal static NpcTradeStockCategory TableCategories(string? tableId) => tableId switch
     {

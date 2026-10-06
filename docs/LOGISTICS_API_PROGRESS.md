@@ -1,6 +1,6 @@
 # 物流所需通用 API：实现边界
 
-更新：2026-10-06。当前独立[物流脉络](../../probably-stolen/mods-melonloader/logistics-nexus/README.md)为 0.1.13，配套 Forge 0.6.26。物流 README 记录已实现行为与待验收项，[玩法设计](../../probably-stolen/mods-melonloader/logistics-nexus/DESIGN.md)记录完整目标。
+更新：2026-10-06。当前独立[物流网络](../../probably-stolen/mods-melonloader/logistics-nexus/README.md)为 0.1.13，配套 Forge 0.6.26。物流 README 记录已实现行为与待验收项，[玩法设计](../../probably-stolen/mods-melonloader/logistics-nexus/DESIGN.md)记录完整目标。
 
 | 需求 | Forge 提供 | 物流当前状态 |
 | --- | --- | --- |

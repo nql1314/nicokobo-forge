@@ -41,7 +41,7 @@ $readmeTemplate = Join-Path $projectRoot 'docs\RELEASE_README.md'
 if (-not (Test-Path -LiteralPath $readmeTemplate -PathType Leaf)) {
     throw "Document missing: $readmeTemplate"
 }
-$readmeText = [IO.File]::ReadAllText($readmeTemplate).Replace('@FORGE_VERSION@', $version)
+$readmeText = [IO.File]::ReadAllText($readmeTemplate).Replace('@FORGE_VERSION@', $version).Replace('(RELEASE_CHANGELOG.md)', '(CHANGELOG.md)')
 New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
 $packageDirectory = Get-Item -LiteralPath $packageRoot
 if ($packageDirectory.Parent.FullName -ne $expectedDistRoot -or
@@ -50,6 +50,8 @@ if ($packageDirectory.Parent.FullName -ne $expectedDistRoot -or
 }
 [IO.File]::WriteAllText((Join-Path $packageRoot 'README.md'), $readmeText,
     [Text.UTF8Encoding]::new($false))
+Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\RELEASE_CHANGELOG.md') `
+    -Destination (Join-Path $packageRoot 'CHANGELOG.md') -Force
 $destinationDll = Join-Path $packageRoot $distDllName
 if ($sourceDll -ne $destinationDll) {
     Copy-Item -LiteralPath $sourceDll -Destination $destinationDll -Force

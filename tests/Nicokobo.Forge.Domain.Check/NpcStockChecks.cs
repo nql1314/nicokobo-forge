@@ -13,15 +13,17 @@ internal static class NpcStockChecks
         object? Call(string name, params object?[] arguments) =>
             typeof(NativeNpcStockAdapter).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!
                 .Invoke(null, arguments);
-        GameItem Item(string id, int units = 1) => new()
-        { Pointer = new(nextPointer++), identifier = id, unitCount = units };
+        GameItem Item(string id, int units = 1, string type = "ITEM") => new()
+        { Pointer = new(nextPointer++), identifier = id, unitCount = units, GameItemType = type };
         void Offer(string id, NpcTradeStockCategory category, float weight = 1,
             bool skipOwned = false, Func<GameItem>? factory = null, int minimumDay = 0,
-            float? minerWeight = null)
+            float? minerWeight = null, NpcTradeStockSupplier suppliers = NpcTradeStockSupplier.Any,
+            bool nightShop = false)
         {
             NativeItemRegistry.Offers.Add(new("test.pool", id, NativeItemKind.Item,
                 factory ?? (() => Item(id)), new() { NpcTrade = new(category, weight)
-                    { SkipWhenOwned = skipOwned, MinimumDay = minimumDay, MinerWeight = minerWeight } }));
+                    { SkipWhenOwned = skipOwned, MinimumDay = minimumDay, MinerWeight = minerWeight,
+                        Suppliers = suppliers, IncludeInNightShop = nightShop } }));
         }
         void Reset()
         {
@@ -36,6 +38,12 @@ internal static class NpcStockChecks
             Call(callback, arguments);
             try { body(); }
             finally { Call("EndSupply", arguments); }
+        }
+        void Inventor(bool visiting, Action body)
+        {
+            object?[] arguments = [visiting, null]; Call("InventorStockPrefix", arguments);
+            try { body(); }
+            finally { Call("EndSupply", arguments[1]); }
         }
         GameItem Place(GameItem item, bool owned = false)
         {
@@ -137,9 +145,9 @@ internal static class NpcStockChecks
             var merged = Merge("medicalTable", entries);
             Expect(!ReferenceEquals(merged, entries) && entries.Count == 2,
                 "Supply mutated the persistent loot list");
-            Expect(merged.Count == 2 && merged.Single(x => x.id == "test.pool.gel").weight == 0.125f &&
-                merged.Sum(x => x.weight) == 1.125f,
-                "A custom item already in loot was double-weighted");
+            Expect(merged.Count == 2 && merged.Single(x => x.id == "test.pool.gel").weight == 0.25f &&
+                merged.Sum(x => x.weight) == 1.25f,
+                "An existing custom item did not receive the shared supply budget exactly once");
             var original = Drawn("medicalTable", "native.medical");
             Expect(ReferenceEquals(Place(original), original) && RNG.Calls == 0,
                 "A native result from the merged table was drawn again during placement");
@@ -148,6 +156,31 @@ internal static class NpcStockChecks
                 "A custom table result was drawn again during placement");
         });
         Expect(ReferenceEquals(Merge("medicalTable", entries), entries), "Pool context survived supply completion");
+
+        Reset(); Offer("test.pool.conflict", NpcTradeStockCategory.Food,
+            factory: () => throw new InvalidOperationException("A conflicting factory must not be used"));
+        NativeItemRegistry.Outcomes["test.pool.conflict"] = NativeApplicationStatus.Conflict;
+        Offer("test.pool.food", NpcTradeStockCategory.Food);
+        var conflictingEntries = new Il2CppSystem.Collections.Generic.List<LootEntry>
+        { new("native.food", 1, ""), new("test.pool.conflict", 0.7f, "foreign.owner"),
+            new("foreign.food", 0.5f, "foreign.owner") };
+        Supply("FoodStockPrefix", () =>
+        {
+            var merged = Merge("packedFoodTable", conflictingEntries);
+            Expect(merged.Count == 4 &&
+                merged.Single(entry => entry.id == "test.pool.conflict").weight == 0.7f &&
+                merged.Single(entry => entry.id == "foreign.food").weight == 0.5f &&
+                merged.Single(entry => entry.id == "test.pool.food").weight == 0.25f,
+                "A foreign item with a conflicting Forge ID lost its own loot weight");
+            var foreign = Item("test.pool.conflict");
+            RNG.Samples.Enqueue(0.99);
+            Expect(ReferenceEquals(Place(foreign), foreign) && foreign.DestroyCalls == 0 && RNG.Calls == 0,
+                "A foreign item with a conflicting Forge ID was replaced during direct supply");
+            RNG.Samples.Clear();
+        });
+        Expect(conflictingEntries.Count == 3 && conflictingEntries[1].weight == 0.7f &&
+            ReferenceEquals(Merge("packedFoodTable", conflictingEntries), conflictingEntries),
+            "Conflict isolation mutated the global loot table or leaked its supply scope");
 
         Reset(); Offer("test.pool.component", NpcTradeStockCategory.Material, 0.125f);
         Supply("MaterialStockPrefix", () =>
@@ -192,11 +225,71 @@ internal static class NpcStockChecks
         Supply("MaterialStockPrefix", () =>
         {
             var merged = Merge("materialTable", materialEntries);
-            Expect(merged.Count == 2 && merged[1].weight == 0.075f,
-                "An unlocked material did not use its supply weight in the table pool");
+            Expect(merged.Count == 2 && merged[1].weight == 0.25f,
+                "An unlocked material did not receive the shared supply budget in the table pool");
         });
         Expect(materialEntries.Count == 2 && materialEntries[1].weight == 0.125f,
             "Supply-day filtering changed the global scavenging table");
+
+        Reset();
+        for (int index = 0; index < 12; index++)
+            Offer("test.pool.food." + index, NpcTradeStockCategory.Food, 0.06f);
+        Offer("test.pool.quartz", NpcTradeStockCategory.Ore, 0.3f);
+        Offer("test.pool.titanium", NpcTradeStockCategory.Ore, 0.3f);
+        Offer("test.pool.gel", NpcTradeStockCategory.Medical, 0.075f);
+        for (int index = 0; index < 7; index++)
+            Offer("test.pool.late." + index, NpcTradeStockCategory.Material, 0.075f, minimumDay: 22);
+        Offer("test.pool.unapplied", NpcTradeStockCategory.Food, 10f);
+        NativeItemRegistry.Outcomes["test.pool.unapplied"] = NativeApplicationStatus.Staged;
+        Offer("test.pool.card", NpcTradeStockCategory.Household, 0.05f, skipOwned: true);
+        ForgeInventoryApi.OwnedItems.Add(new() { identifier = "test.pool.card", Owned = true });
+        Supply("GeneralStockPrefix", () =>
+        {
+            var source = new Il2CppSystem.Collections.Generic.List<LootEntry>
+            {
+                new("native.food", 2f, ""), new("foreign.food", 0.5f, "foreign.owner"),
+                new("test.pool.food.0", 0.1f, "test.pool")
+            };
+            var merged = Merge("packedFoodTable", source);
+            var foods = merged.Where(x => x.id.StartsWith("test.pool.food.")).ToArray();
+            Expect(merged.Count == 14 && foods.Length == 12 &&
+                foods.All(x => Math.Abs(x.weight - 0.25 / 12) < 1e-6) &&
+                Math.Abs(foods.Sum(x => (double)x.weight) - 0.25) < 1e-6,
+                "Food-table budget grew with candidate count, used per-item weights, or included unapplied stock");
+            Expect(merged[0].weight == 2f && merged[1].weight == 0.5f &&
+                source.Count == 3 && source[2].weight == 0.1f,
+                "Shared supply weights changed native/foreign entries or the global loot list");
+            foreach (int day in new[] { 21, 22, 21 })
+            {
+                StoreStation.Day = day;
+                var materials = Merge("materialTable", new()
+                    { new("native.material", 1f, "") }).Where(x => x.id.StartsWith("test.pool.")).ToArray();
+                int count = day == 22 ? 9 : 2;
+                Expect(materials.Length == count &&
+                    materials.All(x => Math.Abs(x.weight - 0.25 / count) < 1e-6) &&
+                    Math.Abs(materials.Sum(x => (double)x.weight) - 0.25) < 1e-6,
+                    "Material unlock/relock did not redistribute the same table budget on day " + day);
+            }
+            foreach (int day in new[] { 1, 22 })
+            {
+                StoreStation.Day = day;
+                RNG.Samples.Enqueue(0.799999);
+                var original = Item("native.stock");
+                Expect(ReferenceEquals(Place(original), original),
+                    "More eligible goods increased the direct supply's Mod probability on day " + day);
+                int count = day == 22 ? 22 : 15;
+                var selected = new HashSet<string>(StringComparer.Ordinal);
+                for (int index = 0; index < count; index++)
+                {
+                    RNG.Samples.Enqueue((1 + 0.25 * (index + 0.5) / count) / 1.25);
+                    selected.Add(Place(Item("native.stock")).identifier);
+                }
+                Expect(selected.Count == count && selected.All(id => id.StartsWith("test.pool.")) &&
+                    !selected.Contains("test.pool.unapplied") && !selected.Contains("test.pool.card") &&
+                    (day == 22 || selected.All(id => !id.StartsWith("test.pool.late."))),
+                    "Direct supply did not divide the budget equally after eligibility filters on day " + day);
+            }
+        });
 
         Reset();
         NativeItemRegistry.Offers.Add(new("test.pool", "test.pool.machine", NativeItemKind.Item,
@@ -249,6 +342,98 @@ internal static class NpcStockChecks
         catch (InvalidOperationException) { }
         Place(Item("native.food"));
         Expect(RNG.Calls == 1, "Exception cleanup leaked the supply scope");
+
+        Reset();
+        const NpcTradeStockSupplier moduleSuppliers = NpcTradeStockSupplier.Thief | NpcTradeStockSupplier.Inventor;
+        Offer("test.pool.basic_module", NpcTradeStockCategory.Module,
+            suppliers: moduleSuppliers, nightShop: true);
+        Offer("test.pool.advanced_node", NpcTradeStockCategory.Module,
+            suppliers: moduleSuppliers, nightShop: true);
+        bool neuralAvailable = false;
+        NativeItemRegistry.Offers.Add(new("test.pool", "test.pool.neural_interface", NativeItemKind.Node,
+            (Func<GameItem>)(() => Item("test.pool.neural_interface", type: "NODE")),
+            new(NightShopStockPolicy.Repeatable, () => neuralAvailable)));
+        var moduleEntries = new Il2CppSystem.Collections.Generic.List<LootEntry>
+        { new("native.module", 1, ""), new("test.pool.basic_module", 0.08f, "test.pool"),
+            new("test.pool.neural_interface", 0.04f, "test.pool") };
+        Expect(Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == "_CreateThief_b__47_0").Prefix == "ThiefStockPrefix" &&
+            Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == "_CreatePettyThief_b__48_0").Prefix == "GeneralStockPrefix" &&
+            Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == "_CreateInventorStorage_b__31_0").Prefix == "InventorSupplyStockPrefix",
+            "The restricted suppliers were attached to the wrong native callbacks");
+        foreach (string callback in new[] { "GeneralStockPrefix", "TechnicalStockPrefix", "MaterialStockPrefix" })
+            Supply(callback, () =>
+            {
+                foreach (string table in new[] { "allModuleTable", "t1moduleTable", "t2moduleTable" })
+                {
+                    var merged = Merge(table, moduleEntries);
+                    Expect(merged.Count == 1 && merged[0].id == "native.module",
+                        "Restricted modules or neural interfaces leaked to " + callback + "/" + table);
+                }
+                var original = Item("native.stock");
+                Expect(ReferenceEquals(Place(original), original) && RNG.Calls == 0,
+                    "A supplier without eligible offers drew restricted direct stock");
+            });
+        void CheckModuleSupply()
+        {
+            var merged = Merge("t2moduleTable", moduleEntries);
+            Expect(merged.Count == 3 && merged.Any(entry => entry.id == "test.pool.advanced_node") &&
+                merged.Where(entry => entry.sourceModId == "test.pool").All(entry => Math.Abs(entry.weight - 0.125f) < 0.000001f) &&
+                merged.All(entry => entry.id != "test.pool.neural_interface"),
+                "Authorized module supply did not share the fixed budget or excluded the wrong items");
+            RNG.Samples.Enqueue(0.84); RNG.Samples.Enqueue(0.96);
+            Expect(Place(Item("native.stock")).identifier == "test.pool.basic_module" &&
+                Place(Item("native.stock")).identifier == "test.pool.advanced_node",
+                "Authorized direct supply failed to reach basic and advanced modules");
+        }
+        Supply("ThiefStockPrefix", CheckModuleSupply);
+        Supply("InventorSupplyStockPrefix", CheckModuleSupply);
+        Inventor(true, CheckModuleSupply);
+        Offer("test.pool.food", NpcTradeStockCategory.Food);
+        Supply("ThiefStockPrefix", () =>
+        {
+            RNG.Samples.Enqueue(0.84); RNG.Samples.Enqueue(0.90); RNG.Samples.Enqueue(0.97);
+            Expect(new[] { Place(Item("native.stock")).identifier, Place(Item("native.stock")).identifier,
+                    Place(Item("native.stock")).identifier }.SequenceEqual(new[] {
+                    "test.pool.basic_module", "test.pool.advanced_node", "test.pool.food" }),
+                "Modules took an extra budget instead of sharing the supplier's ordinary Mod candidates");
+        });
+        Offer("test.pool.day_module", NpcTradeStockCategory.Module);
+        Inventor(false, () =>
+        {
+            var merged = Merge("allModuleTable", moduleEntries);
+            Expect(merged.Count == 3 && merged.All(entry => entry.id != "test.pool.day_module" &&
+                    entry.id != "test.pool.neural_interface") &&
+                Math.Abs(merged.Where(entry => entry.sourceModId == "test.pool").Sum(entry => entry.weight) - 0.25f) < 0.000001f,
+                "Night module pools ignored explicit eligibility or changed the total budget");
+            int before = RNG.Calls;
+            foreach (string type in new[] { "ITEM", "MACHINE" })
+            {
+                var original = Item("native.guaranteed_stock", type: type);
+                Expect(ReferenceEquals(Place(original), original) && RNG.Calls == before,
+                    "Night module selection replaced guaranteed or non-module stock");
+            }
+            RNG.Samples.Enqueue(0); RNG.Samples.Enqueue(0.84); RNG.Samples.Enqueue(0.96);
+            var kept = Item("native.module", type: "MODULE");
+            Expect(ReferenceEquals(Place(kept), kept) && kept.DestroyCalls == 0 &&
+                Place(Item("native.module", type: "MODULE")).identifier == "test.pool.basic_module" &&
+                Place(Item("native.node", type: "NODE")).identifier == "test.pool.advanced_node",
+                "Night-shop native module/node slots did not share the mixed pool");
+            var drawn = Drawn("t2moduleTable", "native.module"); drawn.GameItemType = "MODULE";
+            Expect(ReferenceEquals(Place(drawn), drawn) && RNG.Calls == before + 3,
+                "A night module table result was drawn a second time at placement");
+            void GenerateExtras() => typeof(NativeShopAdapter)
+                .GetMethod("NightShopStockPostfix", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [false]);
+            GenerateExtras();
+            Expect(EmporiumEntry.Instance!.frontInvinvElement.childItems.All(item => item.identifier != "test.pool.neural_interface"),
+                "The neural interface bypassed its independent night-shop availability rule");
+            neuralAvailable = true; GenerateExtras();
+            var neural = EmporiumEntry.Instance!.frontInvinvElement.childItems.Single(item => item.identifier == "test.pool.neural_interface");
+            object?[] placement = [neural, false, null]; Call("PlaceStockPrefix", placement);
+            Expect(ReferenceEquals(placement[0], neural) && RNG.Calls == before + 3,
+                "The independent neural-interface night-shop offer was replaced by module supply");
+        });
+        Expect(ReferenceEquals(Merge("allModuleTable", moduleEntries), moduleEntries) && moduleEntries.Count == 3,
+            "Supplier eligibility mutated global scavenging or leaked beyond the supply scope");
 
         Reset(); Offer("test.pool.quartz", NpcTradeStockCategory.Ore, 0.3f, minerWeight: 0.5f);
         Offer("test.pool.titanium", NpcTradeStockCategory.Ore, 0.3f, minerWeight: 0.5f);
