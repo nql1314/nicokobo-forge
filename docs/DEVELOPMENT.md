@@ -29,15 +29,17 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 
 投料判定使用注册时建立的索引；夜间扫描直接检查目录是否为空，发现机器时保留同次配置。输出预处理没有回调时不构造投入展开列表。固体和液体共享原生步骤，各自保留完整回滚。扣料、耗电、耗水和保存所需的逐批重检与读回不能以性能优化为由删除。
 
-## 一个入口完成关联检查和本地打包
+## 关联检查、打包与安装
 
-在 `D:\workzone\probably-stolen` 执行：
+在关联 `probably-stolen` 仓库根目录执行，仅生成本地产物：
 
 ```powershell
-.\mods-melonloader\Build-ForgeMods.ps1
+.\mods-melonloader\Build-ForgeMods.ps1 -NoInstall
 ```
 
-入口先运行 Forge 签名与领域检查，再用一个 MSBuild 会话编译核心和六个示例，核心只构建一次。随后运行机械飞升、模组矩阵、物流脉络和合成扩展的领域检查，编译机械飞升，并调用 `Build-MechcoreProtocol.ps1` 编译和混淆三个机核项目。构建前后及四个内容包内的 Forge 哈希必须相同。默认只生成本地文件；显式 `-Install` 安装合集内的 Forge、合成扩展、机械飞升和模组矩阵四份 DLL。
+入口先运行 Forge 签名与领域检查，再用一个 MSBuild 会话编译核心和六个示例，核心只构建一次。随后执行四个内容 Mod 的领域检查，并调用 `Build-MechcoreProtocol.ps1` 完成 Release／Obfuscar 打包。统一机核包、独立物流包和 Forge 独立包使用同一份 Forge。
+
+`Build-ForgeMods.ps1` 默认安装 Forge 与四个内容 Mod 的 DLL 到 `<游戏目录>\Mods\`，随后删除同程序集旧版本文件；`-NoInstall` 跳过这一步。脚本没有 `-Install` 参数。`Build-MechcoreProtocol.ps1` 单独运行只生成本地包；安装不代表原生验收。
 
 `-GameDir` 指定目标游戏，`-DistRoot` 指定内容发布目录，`-DefaultLogLevel` 显式选择日志级别。未覆盖时 Forge、合成扩展和物流使用 `INFO`，机械飞升与矩阵使用 `WARN`。参数或环境变量 `ModDefaultLogLevel` 显式覆盖本轮各项目；`DEBUG` 必须显式启用，用户偏好仍优先。
 

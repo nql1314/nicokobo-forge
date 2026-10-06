@@ -39,15 +39,17 @@ ForgeMachineRegistrationApi.RegisterAdditionalRecipes(ownerId, targetMachineId, 
 
 `Subscribe(owner, callbackId, BeforeBatch, callback)` 在每次原有批次机会、事务规划之前执行；上下文含机器与真实槽位。内容方可独立搬运／供电，再 `SelectRecipe(recipeId)` 限定本次机会。多个调用方选择冲突或回调抛出异常时本次批次停止。无选择时保持原生声明顺序；接口不新增批次，不改变其他机器或全局配方排序。`AfterBatch` 在执行尝试返回结果后分派，调用方检查 `Result`，不能将失败当作已生产。
 
-单次正常搬运使用 `ForgeItemTransferApi.Move`；倒液使用 `ForgeLiquidTransferApi.Pour`。二者返回实际数量和 `Indeterminate`，不跨搬运与加工执行退料。拒绝条件、真实锁定及写后读回与本机加工事务分开。`Pour` 依赖已安装的机器／液体价值适配；内容方负责液体与混合品质准入。两接口尚未原生验收，不能以编译结果声明保存重载安全或完整网络支持；既有 `InventoryTransfer` 总能力仍为 false。
+单次正常搬运使用 `ForgeItemTransferApi.Move`；倒液使用 `ForgeLiquidTransferApi.Pour`。二者返回实际数量和 `Indeterminate`，不跨搬运与加工执行退料。拒绝条件、真实锁定及写后读回与本机加工事务分开。`Pour` 依赖已安装的机器／液体价值适配；内容方负责液体与混合品质准入。candidate003 已覆盖本地固体链、附着后异常守恒、多液源逐步重查及受测 24 台机器的跨 PID 完整存档快照，范围见[本次进度](FORGE_PROGRESS.md#2026-10-06-联合-review-候选)；其余转移分支、完整夜结和网络不据此计为通过。既有 `InventoryTransfer` 总能力仍为 false。
 
 物品搬运在目标拒收或附着前抛错时，只恢复该次操作：整叠物品恢复原位置并重新检查空位，拆分物品合回原叠；不会重建替代物品或撤销此前成功的搬运。数量读回确认已经送达时，即使回调抛错也按已完成返回。无法确认守恒或恢复结果时仍返回 `Indeterminate`，调用方须暂停相应搬运。
+
+倒液原生回调抛错后仍读取两端；各组分均须单向从来源减少并等量进入目标，同时核对每组分按比例转移的 `Value / QualityBasis`。读回确认已提交时返回实际 `PartsMoved` 与 `poured-readback`，明确拒绝且两端未变时返回 `rejected`；不匹配或无法读取时返回 `Indeterminate`，调用方停止后续搬运。
 
 ### Forge 内置全域制造终端
 
 Forge 0.6.19 自行注册 `ForgeManufacturingTerminal.ItemId`，owner 为 `ForgeManufacturingTerminal.OwnerId`。物品、图标、售价、基础电耗、槽位与供货归 Forge，内容 Mod 只调用 `RegisterAdditionalRecipes(ownerId, ForgeManufacturingTerminal.ItemId, recipes)` 追加自己的配方。无内容 Mod 时也有机器，配方为空，不加工。默认 3×3 外部占格、9×6 输入／输出、7×5 原生环形模组舱，基础价值 400、电耗 25，每晚一批。
 
-`ConfigureManufacturingTerminalMarkup(ownerId, percent)` 在追加配方前设置这台共享机器的生产增值率，默认 15%，范围 0–1000%。首个设置者认领该配置，其他提供者修改返回 `Conflict`；所有追加配方读取同一批次倍率。合成扩展用此入口沿用现有 schema 21 的 K05 自定义倍率。
+`ConfigureManufacturingTerminalMarkup(ownerId, percent)` 在追加配方前设置这台共享机器的生产增值率，默认 15%，范围 0–1000%。首个设置者认领该配置，其他提供者修改返回 `Conflict`；所有追加配方读取同一批次倍率。合成扩展用此入口传入已加载配方文件中的 K05 自定义倍率。
 
 Forge 在原生 `SaveManager.DecodeNodes` 创建物品前，将两个已知旧 ID `nicokobo.mechcore.synthesis.universal_manufacturing_terminal` 和 `nicokobo.mechcore.synthesis.mechanical_manufacturer` 映射到当前 ID，并更新图集路径及机器分类。原 UUID、状态、价值、占格、子物品及槽位索引继续由原生解码器恢复；恢复后重设当前基础电耗和文本、重新绑定槽位。新 ID 由游戏下次正常保存写入，Forge 不直接重写 ES3 文件。这些离线检查不代表实际旧档重载已验收。
 
@@ -113,7 +115,7 @@ ForgeMachineRegistrationApi.RegisterMachine(ownerId,
 
 接纳只是界面层过滤：形状、堆叠、是否真的是本批材料仍由原生槽位与本批事务校验，可接纳不等于加工需要。
 
-拖到机器物品上的自动投放先询问原生电池与模组槽，再把已注册配方原料投向物品输入；水瓶等其余容器依次询问储水输入、物品输入、输出容器与手册槽。每个槽仍使用原生接纳、形状和堆叠判断；物品输出仓保留原版禁止玩家插入的规则。框架只为已注册机器接入一个 `GameItem.TryFindOneValidInventorySlot` Hook，避免原生网格从右往左搜索时先选中输出容器。合成扩展 K01–K04 与 Forge K05 的物品输入均为 `9×6`，物品输出仓同为 `9×6`（K04 为容器输出）。
+拖到机器物品上的自动投放先询问原生电池与模组槽，再把已注册配方原料投向物品输入；水瓶等其余容器依次询问储水输入、物品输入、输出容器与手册槽。每个槽仍使用原生接纳、形状和堆叠判断；物品输出仓保留原版禁止玩家插入的规则。框架只为已注册机器接入一个 `GameItem.TryFindOneValidInventorySlot` Hook，避免原生网格从右往左搜索时先选中输出容器。当前合成扩展的五台机器与 Forge K05 均使用 `9×6` 物品输入／输出仓；K04 另有液体输入槽。
 
 物品白名单使用当前注册配置中的全部配方，包含其他 Mod 的追加配方。配置改变后刷新对应机器的白名单；刷新前撤下旧判断，避免新旧名单取交集或重复叠加原生回调。
 
@@ -156,7 +158,7 @@ var recipe = new ForgeMachineRecipe(ownerId + ".recipe.liquid", [],
 
 模板中声明液体输入槽不会使所有配方都需要容器。配方的 `LiquidInputs` 为空时，该槽是可选输入，物品配方可以在槽为空时加工，也不会扣其中的液体。
 
-容器输出示例：合成扩展 K04 一批向玩家放入的现有容器灌液；供水或输出容器缺失、水不足或输出剩余容量装不下整批时保持材料等待下一夜。
+容器输出模板向玩家放入的现有容器灌液；必需输入或输出容器缺失、液体不足或输出剩余容量装不下整批时，保持材料等待下一夜。当前合成扩展 K04 使用物品输出，不能作为这一模板的实机验收样本。
 
 ## 追加配方与显式批次事务
 

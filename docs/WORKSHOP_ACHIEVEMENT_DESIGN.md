@@ -121,4 +121,4 @@ Forge 提供全开局共用的 Nico工坊名片和原生成就页。本方案保
 
 本地构建、成就判定与存档格式检查结果见[原生成就本地验证](probes/2026-10-02-native-workshop-implementation-validation.md)。正式发布前验证目标可达性、两条通关路径、继续游玩后的领奖、满背包处理和保存重载。
 
-参考：[工坊星图契约](WORKSHOP_GRAPH.md)、[本地游戏指南](../../probably-stolen/docs/GAME_GUIDE.md)、[金属锭纯度判定](../../probably-stolen/output/cpp2il-continuous-isil/IsilDump/Assembly-CSharp/IngotPurityHelper.txt)、[牲畜血清定义](../../probably-stolen/output/cpp2il-continuous-isil/IsilDump/Assembly-CSharp/HusbandryDirectory.txt)、[原版通关与结算](../../probably-stolen/output/cpp2il-continuous-isil/IsilDump/Assembly-CSharp/PlayerStore.txt)。
+参考：[工坊星图契约](WORKSHOP_GRAPH.md)、[本地游戏指南](../../probably-stolen/docs/GAME_GUIDE.md)。原生静态依据为内容仓库本地生成的 `output/cpp2il-continuous-isil/IsilDump/Assembly-CSharp/IngotPurityHelper.txt`（金属锭纯度）、`HusbandryDirectory.txt`（牲畜血清）和 `PlayerStore.txt`（通关与结算）；这些生成文件不随源码仓库分发。

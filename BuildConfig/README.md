@@ -17,7 +17,7 @@
 | `Diagnostics` | 拖拽诊断槽位与错误日志的次数上限 |
 | `NativeUnits` | 原生液体组分与毫升／信用点的换算契约，须与原生表示一致 |
 
-核心工程和领域检查工程都直接编译这份源文件。框架不会引用内容 Mod 仓库；内置原版成就单独维护其阈值和奖励，全域制造终端维护本体参数，制造配方、成品价格、材料数量、效果和内容奖励由各内容方持有。四个内容 Mod 的集中入口见 [Mod 编译内置数值](../../probably-stolen/mods-melonloader/BuildConfig/README.md)。
+核心工程和领域检查工程都直接编译这份源文件。框架不会引用内容 Mod 仓库；内置原版成就单独维护其阈值和奖励，全域制造终端维护本体参数，制造配方、成品价格、材料数量、效果和内容奖励由各内容方持有。机核协议三个组件的集中入口见 [Mod 编译内置数值](../../probably-stolen/mods-melonloader/BuildConfig/README.md)，独立物流的制造成本在其 `Integration/Content.cs`。
 
 在 Forge 仓库执行：
 
@@ -25,4 +25,4 @@
 .\scripts\Build-P0.ps1 -GameDir 'F:\SteamLibrary\steamapps\common\Probably Stolen Demo' -IncludeProbes
 ```
 
-关联构建与本地打包使用 `probably-stolen/mods-melonloader/Build-ForgeMods.ps1`。本次数值提取不改变公开 API 的参数值和当前默认行为；编译和领域检查不代表安装、原生运行或存档重载已经验收。
+关联检查与本地打包使用 `probably-stolen/mods-melonloader/Build-ForgeMods.ps1 -NoInstall`；省略 `-NoInstall` 会安装游戏 DLL 并清理旧版本。入口和输出见[开发说明](../docs/DEVELOPMENT.md)。编译和领域检查不代表原生运行或存档重载已经验收。

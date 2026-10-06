@@ -10,7 +10,7 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 2. 将配套 `Nicokobo.Forge` DLL 与所需 Mod DLL 复制到游戏 `Mods/`；只使用原版成就时可单独安装 Forge。
 3. 更新时移出旧 DLL，Forge 和每个内容 Mod 各只保留一份。使用同一次配套构建的文件。
 
-此前配套：机械飞升 `0.1.39`、模组矩阵 `1.1.2`、物流脉络 `0.2.1`、合成扩展 `0.9.41`，机核协议合集版本 `0.0.3`。当前终端归属调整的源码配套为 Forge `0.6.19`、合成扩展 `0.9.53`、机械飞升 `0.1.45`，只完成源码检查与编译，未打包或安装。源码版本和本地包不代表游戏当前已安装版本；构建、安装与实机验证范围见[当前进度](docs/FORGE_PROGRESS.md)。
+源码版本和本地包不代表游戏当前已安装版本。内容组件使用同一次构建的 Forge；构建、安装与实机验证范围见[当前进度](docs/FORGE_PROGRESS.md)，旧配套版本保留在对应日期的记录中。
 
 ## 全域制造终端
 
@@ -30,11 +30,9 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 
 名片在正常初始化时加入原生日用品掉落表，保留所有开局的赠送入口。每次白天 NPC 供货／刷货前检查玩家实际持有，已有名片时不再刷新名片；检查包含柜台、背包及嵌套容器，只计算玩家自己的物品。内容 Mod 各自声明物品掉落；十二种最终义体仅由所属 Mod 制造，合成扩展的五台机器与 Forge 的全域制造终端可在夜间商店生成库存时上架，持有后仍可购买。购买后不自动补货，货架放不下的新增商品跳过。
 
-`NativeItemOptions.NpcTrade` 可声明白天供货的类别及相对权重，包括食品与医疗品；`ForgeCapabilities.Current.NpcTradeStock` 表示供货钩子已安装。当前接入矿工、废料商、拆解商、食品商、医药商、拾荒者、批发商、革命军和来访发明家等共 36 条供货入口。Mod 物品与原版商品共同参与供货抽取，一轮可出现零件、一件或多件 Mod 商品，不再额外保底追加一件。原版使用掉落表时，只在本次供货抽取中按表的类别合并候选，保留原版及其他扩展的权重，已有 Mod 掉落登记不重复加权；写死商品的入口则将每个原版生成结果作为权重 1 的候选，与该入口允许的 Mod 候选共同抽签，沿用原版商品名额。矿工仍每批只抽一种矿物，选中新增矿物时整批替换，件数与随天数增长的规则由原版生成。农夫、水商和供水的冰矿工沿用原版供货。每次实际供货和刷货重新抽取；购买、赠品和夜间商店不触发白天供货抽取。原生归属、阵营和柜台容量规则继续生效。未声明 `NpcTrade` 或尚未应用的物品不参加供货抽取；已有 Nico 名片从两类供货池中排除。供货池合并不改写全局拾荒掉落表。
+`NativeItemOptions.NpcTrade` 声明白天供货类别、权重与最早天数；`NpcTradeStock` 表示供货钩子已安装。36 条供货入口将合格 Mod 商品与原版候选共同抽取，不保底追加商品，也不改写全局拾荒表。矿工保留单批一种矿物的规则。完整筛选与权重契约见[能力范围](docs/SCOPE.md)。
 
 ## 通用能力
-
-白天供货可用 `NpcTradeStockOptions.MinimumDay` 声明最早出现的原生天数；默认 `0` 表示不限制。每次实际供货读取当前天数，掉落表和直接指定商品的入口使用同一筛选，读回较早存档后重新锁定。原矿可声明 `MinerWeight` 作为矿工单批的独立权重，未声明时使用普通 `Weight`。机核内容将加工材料门槛设为第 22 天，两种原矿普通供货权重为 `0.3`、矿工权重为 `0.5`，使矿工维持 70%／15%／15%。机器和模组不声明 NPC 供货，内置全域制造终端仅保留拾荒及夜间商店入口。
 
 - 原版档案箱内部容量扩为 16×16（256 格），新游戏和已有存档共用；原有物品、位置及可收纳物品种类沿用原版。
 - 左侧拾荒垃圾场从 12×9 扩为 16×16，新建与读档时原位调整网格；口袋和背包槽改排在地面下方，避免右侧大块空白，已有更大的扩展尺寸保留。
@@ -47,7 +45,7 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 - 液体组分与价值账本、生产材料价值计算，以及内容方声明的机器生产倍率透传。
 - Nico 工坊的独立标签、解锁星图、条件展示与回调分派。
 - 内容方嵌入式图集的发布与恢复、只读 ES3 文件解析、原生补丁入口检查。
-- 库存只读快照与完整单件搬运预检；`InventoryTransfer` 当前为 `false`。
+- 库存只读快照、完整单件搬运预检，以及独立的单次物品搬运／倒液接口；`InventoryTransfer` 总能力仍为 `false`，资源／电力网络由内容方实现。
 
 动作前查看 `ForgeCapabilities.Current`；注册 `Accepted` 与目录 `Applied` 是不同状态。具体契约见 [API 职责](docs/API_BOUNDARIES.md)和[能力范围](docs/SCOPE.md)。
 
@@ -64,10 +62,10 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 默认检查并编译核心与四个示例；`-IncludeProbes` 加入工坊和效果探针。要构建、检查并打包四个内容 Mod，在 `probably-stolen` 仓库执行：
 
 ```powershell
-.\mods-melonloader\Build-ForgeMods.ps1
+.\mods-melonloader\Build-ForgeMods.ps1 -NoInstall
 ```
 
-默认生成本地文件。开发环境、输出位置、日志与依赖选择见[开发说明](docs/DEVELOPMENT.md)。框架默认日志为 `INFO`，用户 `MelonPreferences.cfg` 设置优先。
+此示例检查并打包本地产物。`Build-ForgeMods.ps1` 不带 `-NoInstall` 时会安装配套 DLL 到游戏 `Mods/` 并清理同程序集旧文件；`Build-P0.ps1` 仅检查和编译。开发环境、输出位置、日志与依赖选择见[开发说明](docs/DEVELOPMENT.md)。框架默认日志为 `INFO`，用户 `MelonPreferences.cfg` 设置优先。
 
 ## 文档
 
@@ -82,6 +80,6 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，
 
 A shared dependency for Probably Stolen Demo content mods, targeting Steam Build `25382790`. Forge provides registration, lifecycle events, native machine templates, liquid and power transactions, production value support, and the Nico Workshop. It includes a shared Universal Manufacturing Terminal, an all-start workshop card and ten native achievements with per-run rewards. Content mods own their gameplay definitions and separate progression pages.
 
-Copy the matching Forge and content DLLs into `Mods/`, keeping one copy per assembly. Build with `scripts/Build-P0.ps1`; use `Build-ForgeMods.ps1` in the companion repository for all four content mods. Numeric defaults are compiled from [BuildConfig](BuildConfig/README.md). Inventory transfer remains unavailable. Build results and dated native probes have separate validation scopes.
+Copy the matching Forge and content DLLs into `Mods/`, keeping one copy per assembly. `scripts/Build-P0.ps1` checks and compiles Forge; `Build-ForgeMods.ps1 -NoInstall` in the companion repository builds local packages for all four content mods. Omitting `-NoInstall` installs the matching DLLs and removes older copies. Numeric defaults are compiled from [BuildConfig](BuildConfig/README.md). Single item and liquid transfer APIs exist, while the aggregate `InventoryTransfer` capability remains false and full networks remain pending. Build results and dated native probes have separate validation scopes.
 
 Released under the [MIT License](LICENSE).
