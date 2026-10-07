@@ -54,6 +54,7 @@ internal static class ForgeBootstrap
             log.Callback);
         ForgeManufacturingTerminalRuntime.Install(report.KnownBuild && machineInstalled &&
             NativeItemRegistry.AmenityHookInstalled, log.Callback);
+        MissingItemSaveRuntime.Install(report.KnownBuild && report.RunDataSignaturesMatch, log.Callback);
         var inventoryDragProbeInstalled = log.IsDebugEnabled && InventoryDragFaultProbe.Install(
             report.KnownBuild, log.Callback);
         ForgeCapabilities.Publish(new(report.KnownBuild, nativeNodeInstalled,
@@ -68,6 +69,7 @@ internal static class ForgeBootstrap
               DossierExpansion = ForgeDossierExpansion.Installed });
         ForgeInventoryPlacementApi.Configure(report.KnownBuild && report.InventoryPreviewSignaturesMatch,
             log.Callback);
+        RecipeGuideBrowser.Install(report.KnownBuild, log.Callback);
         Workshop.NativeWorkshop.Install(report.KnownBuild && nativeNodeInstalled &&
             report.RunDataSignaturesMatch && report.InventoryReadSignaturesMatch && report.InventoryPreviewSignaturesMatch,
             log.Callback);

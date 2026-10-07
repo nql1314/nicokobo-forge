@@ -32,6 +32,8 @@ try {
     foreach ($adapterMethod in @('LoadGame', 'EndNight', 'EndDay')) {
         Assert-AdapterMethod 'Il2Cpp.PlayerStore' $adapterMethod 'System.Void' @()
     }
+    Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'SaveGame' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.ModHook' 'FireOnGameLoadedNormal' 'System.Void' @()
     Assert-AdapterMethod 'Il2Cpp.SaveManager' 'DecodeNodes' 'Il2Cpp.GameItem' @('Il2CppSystem.Collections.Generic.List`1<Il2Cpp.SaveItemNode>')
     foreach ($adapterMethod in @('FireOnHandlingNightlyServicesEarly', 'FireOnHandlingNightlyServicesLate', 'FireOnGoingSleepLate')) {
         Assert-AdapterMethod 'Il2Cpp.ModHook' $adapterMethod 'System.Void' @()

@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Nicokobo.Forge.Registration;
 
 namespace Nicokobo.Forge;
@@ -14,10 +16,12 @@ public static class ForgeMachineRegistrationApi
     /// Consumers filter by the open CategoryId string.</summary>
     public static ForgeRecipeGuideSnapshot GuideSnapshot() => Catalog.GuideSnapshot();
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public static SubmitResult RegisterMachine(string ownerId, ForgeMachineDefinition definition)
     {
+        string? provider = Assembly.GetCallingAssembly().GetName().Name;
         var result = Catalog.Register(ownerId, definition, frozen => NativeItemRegistry.RegisterAmenity(
-            ownerId, frozen.MachineId, () => ForgeMachineUi.Create(frozen), frozen.ItemOptions));
+            ownerId, frozen.MachineId, () => ForgeMachineUi.Create(frozen), frozen.ItemOptions, provider));
         Log($"[INFO] [NicokoboForge/Machine] owner={ownerId}; machine={definition?.MachineId}; status={result.Status}");
         return result;
     }

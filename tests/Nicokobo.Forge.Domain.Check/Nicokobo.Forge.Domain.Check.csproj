@@ -28,10 +28,14 @@
     <Compile Include="../../src/Nicokobo.Forge/ForgeInventoryPlacementApi.cs" Link="ForgeInventoryPlacementApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeLiquidTransferApi.cs" Link="ForgeLiquidTransferApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeRecipeGuideModels.cs" Link="ForgeRecipeGuideModels.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/RecipeGuideQuery.cs" Link="RecipeGuideQuery.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Registration/RecipeGuideCatalog.cs" Link="RecipeGuideCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/RecipeGuidePresentation.cs" Link="RecipeGuidePresentation.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/MachineCatalog.cs" Link="MachineCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeManufacturingTerminal.cs" Link="ForgeManufacturingTerminal.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ManufacturingTerminalSaveMigration.cs" Link="ManufacturingTerminalSaveMigration.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/MissingItemSaveMigration.cs" Link="MissingItemSaveMigration.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/MissingItemSavePolicy.cs" Link="MissingItemSavePolicy.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Logging/ModLogLevel.cs" Link="ModLogLevel.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineLiquidMath.cs" Link="MachineLiquidMath.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineBatchMath.cs" Link="MachineBatchMath.cs" />

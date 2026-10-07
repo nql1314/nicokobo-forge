@@ -47,7 +47,9 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 
 构建需要能编译 `net6.0` 的 .NET SDK、.NET 6 运行时、本地游戏、MelonLoader 及游戏互操作程序集。脚本使用目标游戏目录的引用，签名核对不初始化游戏类。
 
-单独的玩家前置包使用 `scripts/Pack-ModSite.ps1`，从已验证版本的 Release DLL 更新 `dist/nicokobo-forge/` 和固定文件名的 `dist/nicokobo-forge.zip`。安装说明由 `docs/RELEASE_README.md` 模板生成，版本从实际 DLL 读取；默认输入同时校验核心工程版本，`-ForgeDll` 可选择与内容 Mod 配套的明确 DLL。发布目录内维护的 `CHANGELOG.md` 等文件随目录一起压缩，ZIP 保留 `nicokobo-forge/` 顶层目录。
+单独的玩家前置包使用 `scripts/Pack-ModSite.ps1`，从已验证版本的 Release DLL 更新 `dist/nicokobo-forge/` 和固定文件名的 `dist/nicokobo-forge.zip`。安装说明由 `docs/RELEASE_README.md` 模板生成，版本从实际 DLL 读取；默认输入同时校验核心工程版本，`-ForgeDll` 可选择与内容 Mod 配套的明确 DLL。发布目录内维护的 `change.log` 等文件随目录一起压缩，ZIP 保留 `nicokobo-forge/` 顶层目录。
+
+同一入口还把可选兼容补丁放进 Forge 包：默认取 `dist/compatibility/nicokobo-compatibility-patches/` 中已发布的 `Nicokobo.CompatibilityPatches-*.dll`，没有打包产物时回退到 `compatibility/Nicokobo.CompatibilityPatches/bin/Release/`，两者都不存在时警告并跳过，`-CompatibilityDll` 可显式指定。该文件按程序集版本改名并清理同前缀旧文件，同步到内容发布目录；`mods-melonloader/Build-MechcoreProtocol.ps1` 按同一规则把该 DLL 复制进 `dist/mechcore-protocol/`，并在缺少时省略机核 README 的可选章节；Forge 和机核协议本身都不安装、不加载它。
 
 该入口同时在关联 `probably-stolen` 仓库的 `mods-melonloader/dist/` 放置相同的 `nicokobo-forge/` 目录及 `nicokobo-forge.zip`，可用 `-ModDistRoot` 指定内容发布根目录。`Build-MechcoreProtocol.ps1` 正常打包成功后调用同一入口，将本轮 `-DistRoot` 作为 Forge 独立包的同步位置；`Build-ForgeMods.ps1` 通过该流程同步更新，无需再手动打包 Forge。`-OnlyProject` 沿用该行为，`-ValidateExistingBinaries` 只检查混淆，不写发布目录。
 

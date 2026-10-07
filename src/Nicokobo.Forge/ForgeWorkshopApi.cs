@@ -140,7 +140,8 @@ public static class ForgeWorkshopApi
     {
         if (!_visible && !BlocksNativeInput) ForgeWorkshopInputShield.Hide();
         if (!_enabled) return;
-        if (Application.isFocused && Input.GetKeyDown(KeyCode.N))
+        bool suppressTextInput = ForgeTextInputFocus.ShouldSuppressHotkeys();
+        if (!suppressTextInput && Input.GetKeyDown(KeyCode.N))
         {
             if (_visible) Close();
             else
@@ -154,7 +155,7 @@ public static class ForgeWorkshopApi
         }
         if (!_visible) return;
         if (!ForgeWorkshopInputShield.Show(SafeLog)) { Close(); return; }
-        if (Application.isFocused && Input.GetKeyDown(KeyCode.Escape))
+        if (!suppressTextInput && Input.GetKeyDown(KeyCode.Escape))
         {
             Close();
             return;

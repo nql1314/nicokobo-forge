@@ -75,6 +75,11 @@ public sealed record ForgeMachineItemOutput(string ItemId, int Count = ForgeNumb
     IReadOnlyList<ForgeMachineLiquidAmount>? Contents = null) : ForgeMachineOutput
 {
     public ForgeRecipeGuideDisplay? Guide { get; init; }
+    /// <summary>Select one registered item ID for the entire batch, after
+    /// planning resources and before creating products or debiting inputs.
+    /// The resolver must not mutate game state. ItemId remains the guide's
+    /// default illustration; every product is checked against the resolved ID.</summary>
+    public Func<ForgeMachineBatchContext, string>? ResolveItemId { get; init; }
 }
 public sealed record ForgeMachineContainerOutput(
     IReadOnlyList<ForgeMachineLiquidAmount> Contents) : ForgeMachineOutput

@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Il2Cpp;
 using Nicokobo.Forge.Registration;
 
@@ -9,11 +11,23 @@ public sealed record NativeModuleRegistration(string ItemId, Func<GameItem> Fact
 /// Distribution, presentation and native hooks belong to separate adapters.</summary>
 public static class ForgeItemApi
 {
-    public static SubmitResult RegisterNode(string ownerId, string itemId, Func<GameItem> factory, NativeItemOptions? options = null) => NativeItemRegistry.RegisterNode(ownerId, itemId, factory, options);
-    public static SubmitResult RegisterItem(string ownerId, string itemId, Func<GameItem> factory, NativeItemOptions? options = null) => NativeItemRegistry.RegisterItem(ownerId, itemId, factory, options);
-    public static SubmitResult RegisterAmenity(string ownerId, string itemId, Func<GameItem> factory, NativeItemOptions? options = null) => NativeItemRegistry.RegisterAmenity(ownerId, itemId, factory, options);
-    public static SubmitResult RegisterModule(string ownerId, string itemId, Func<GameItem> factory, NativeItemOptions? options = null) => NativeItemRegistry.RegisterModule(ownerId, itemId, factory, options);
-    public static SubmitResult RegisterModules(string ownerId, IReadOnlyList<NativeModuleRegistration> modules) => NativeItemRegistry.RegisterModules(ownerId, modules);
+    // Capture the declaring DLL before Forge wraps factories. Keep these public
+    // boundaries out of the caller's JIT body, including batch registrations.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SubmitResult RegisterNode(string ownerId, string itemId, Func<GameItem> factory, NativeItemOptions? options = null) =>
+        NativeItemRegistry.RegisterNode(ownerId, itemId, factory, options, Assembly.GetCallingAssembly().GetName().Name);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SubmitResult RegisterItem(string ownerId, string itemId, Func<GameItem> factory, NativeItemOptions? options = null) =>
+        NativeItemRegistry.RegisterItem(ownerId, itemId, factory, options, Assembly.GetCallingAssembly().GetName().Name);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SubmitResult RegisterAmenity(string ownerId, string itemId, Func<GameItem> factory, NativeItemOptions? options = null) =>
+        NativeItemRegistry.RegisterAmenity(ownerId, itemId, factory, options, Assembly.GetCallingAssembly().GetName().Name);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SubmitResult RegisterModule(string ownerId, string itemId, Func<GameItem> factory, NativeItemOptions? options = null) =>
+        NativeItemRegistry.RegisterModule(ownerId, itemId, factory, options, Assembly.GetCallingAssembly().GetName().Name);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static SubmitResult RegisterModules(string ownerId, IReadOnlyList<NativeModuleRegistration> modules) =>
+        NativeItemRegistry.RegisterModules(ownerId, modules, Assembly.GetCallingAssembly().GetName().Name);
     public static IReadOnlyList<NativeApplicationView> Snapshot() => NativeItemRegistry.Snapshot();
     public static bool Exists(string itemId) => ForgeCapabilities.Current.KnownGameBuild && DirectoryMaster.Has<GameItem>(itemId);
     /// <summary>Creates a native item or template instance. The caller owns the

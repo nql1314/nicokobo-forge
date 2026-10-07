@@ -1,6 +1,6 @@
 # Nicokobo Forge 的能力与扩展边界
 
-更新：2026-10-06。Forge 是 Probably Stolen 内容 Mod 的通用前置。框架维护注册、能力门控、原生适配、公共事件和资源事务，并持有共享全域制造终端；内容 Mod 各自维护成品、配方、玩法规则与存档格式。
+更新：2026-10-07。Forge 是 Probably Stolen 内容 Mod 的通用前置。框架维护注册、能力门控、原生适配、公共事件和资源事务，并持有共享全域制造终端；内容 Mod 各自维护成品、配方、玩法规则与存档格式。
 
 ## 框架提供
 
@@ -11,6 +11,7 @@
 | 原版 UI 机器模板与资源事务 | `ForgeMachineRegistrationApi` 声明输入、输出、电池、模组及手册；运行时处理材料、液体、电量、容量、逐项读回和恢复 |
 | 动态配方手册目录 | `ForgeMachineRegistrationApi.GuideSnapshot()` 自动收集已接受的机器及追加配方，含提供者、单批数量、分类与双语条件；版本号供界面刷新缓存，不执行生产回调 |
 | 内置全域制造终端 | `ForgeManufacturingTerminal` 提供稳定 ID 与参数；Forge 注册本体、图标、拾荒和夜间商店入口，兼容两个已知旧终端存档 ID；内容 Mod 追加配方 |
+| 缺失物品读档兼容 | 仅处理通过 Forge API 成功登记且正常保存已有来源记录的普通物品：原生登记缺失、当前无 Forge 声明且确认提供者 DLL 已移除时才清理；第三方物品、无记录旧档及来源不确定的项保留。玩家持有的缺失项按存档单价和数量返款，正常子物品完整返还；工厂不可用或空间不足时保存在周目 `modData`。来源记录使用 `nicokobo.forge.save.item_providers_v1`，待返还图使用 `nicokobo.forge.save.recovered_items_v1`，均随原版正常保存持久化。保留终端 ID 迁移；已售或未持有项不返款；须继续安装 Forge |
 | 显式批次处理 | `ForgeMachineRuntimeApi.CreateBatchProcessor` 复用事务；调用者提供实时槽位、投料规则、时机与同夜去重 |
 | 机器自动化观察 | `ForgeMachineAutomationApi` 读取真实配方及提供者，在原有加工机会的逐批前后分派回调；选择只影响该次机会，不增加加工次数 |
 | 电量、液体与生产价值 | `ForgePowerApi`、`ForgeLiquidApi`、`ForgeProductionValueApi` 及纯计算类；内容方决定配方与系数 |
@@ -26,7 +27,11 @@
 | 整批奖励落位预检 | `ForgeInventoryPlacementApi.PlanWholeGrid` 在托管占格图中规划未附着单件物品，再用真实库存校验准入；不创建临时原生库存或修改原物品，交付与保存留调用方 |
 | 单次物品搬运与倒液 | `ForgeItemTransferApi.Move` / `ForgeLiquidTransferApi.Pour` 走原生接受／转移路径并核对两端实际量；结果不确定时由调用方暂停，不代表完整网络或保存重载已验收 |
 
+`NpcTradeStockOptions.PreserveLootTableWeight` 可让合格物品在 NPC 掉落表抽取中保留已有条目及其权重，不再分配共享 Mod 预算，也不补入缺失条目；仍先检查供货人、类别、天数、持有状态与工厂应用状态。该选项只影响掉落表路径，直接供货、矿工批次与全局拾荒表沿用各自规则。内容方声明基础材料与原版等权重时可使用此选项。
+
 原生注册应在目录初始化前提交。`Accepted` 表示声明暂存成功，目录 `Applied` 才表示工厂已接入。当前 API 不保证目录初始化后的迟到注册立即生效。动作前查询 `ForgeCapabilities.Current`，一项能力失效不自动停用其他能力。
+
+G 键合成表由 Forge 持有：快捷键、真实配方关系查询、窗口、分页、拖动与输入隔离均独立于内容 Mod。已登记 Forge 机器配方自动可读；原版机器扩展可提交只读展示声明。实体手册和原版机器扩展的加工逻辑由对应内容 Mod 持有。
 
 ## 内容 Mod 负责
 

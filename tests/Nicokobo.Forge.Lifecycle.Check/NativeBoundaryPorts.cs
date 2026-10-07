@@ -11,19 +11,23 @@ namespace Il2Cpp
         public long unitValue;
         public GameInventory? parentInventory;
         public ItemState state = new();
+        public ItemState? modifiedState;
         public int GetUniqueID() => (int)Pointer;
-        public bool IsTag(string tag) => false;
-        public TagState? GetTagReadonly(string tag) => state.dict.GetValueOrDefault(tag);
+        public bool IsTag(string tag) => (modifiedState ?? state).dict.GetValueOrDefault(tag)?.enabled == true;
+        public TagState? GetTagReadonly(string tag) => (modifiedState ?? state).dict.GetValueOrDefault(tag)?.Clone();
         public void SyncModifiedState() { }
         public SlotMarker? TryFindOneValidInventorySlot(GameItem item) => null;
     }
     public sealed class ItemState { public Dictionary<string, TagState> dict = []; }
     public sealed class TagState(string id, string name)
     {
+        public IntPtr Pointer = (IntPtr)44;
         public string Id { get; } = id;
         public string Name { get; } = name;
         public string valueString = "";
-        public void Enable() { }
+        public bool enabled;
+        public TagState Clone() => new(Id, Name) { valueString = valueString, enabled = enabled };
+        public void Enable() => enabled = true;
         public void SetString(string value) => valueString = value;
     }
     public class PixelElement

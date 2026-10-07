@@ -27,6 +27,6 @@ Forge 是 Probably Stolen Demo 的公共前置 API。先确认任务是修改框
 
 - 用当前游戏目录执行 `scripts/Build-P0.ps1 -GameDir <游戏目录>`；它覆盖领域检查、核心、两个 P0 示例及物流示例，**不包含**工坊和效果探针。改动后按需单独构建相应样例。直接构建核心工程时也要传 `-p:GameDir=<游戏目录>`。
 - `scripts/Pack-P0.ps1` 只打包核心与两个 P0 示例，产物按 `<程序集名>-<版本>.dll` 命名并写入 `dist/p0/manifest.json`。打包、安装与启动是不同步骤；核对目标游戏构建、清单、实际 `Mods/` 文件哈希和新进程日志后，才能把运行结论归于当前代码。
-- 给 Mod 网站准备文件时，先完成 Release 构建，再运行 `scripts/Pack-ModSite.ps1`。它将面向玩家的双语 `README.md`、唯一的核心 DLL（`Nicokobo.Forge-<版本>.dll`），以及项目已有的 `cover.png` 放入 `dist/nicokobo-forge/`；下载 ZIP 只含 DLL 与 `README.md`。`dist/nicokobo-forge/CHANGELOG.md` 面向玩家独立维护，记录各发布版本改了什么，不参与打包。不要把 P0 诊断示例或探针加入玩家安装包。
+- 给 Mod 网站准备文件时，先完成 Release 构建，再运行 `scripts/Pack-ModSite.ps1`。它将面向玩家的双语 `README.md`、唯一的核心 DLL（`Nicokobo.Forge-<版本>.dll`），以及项目已有的 `cover.png` 放入 `dist/nicokobo-forge/`；下载 ZIP 只含 DLL 与 `README.md`。`dist/nicokobo-forge/change.log` 面向玩家独立维护，记录各发布版本改了什么，不参与打包。不要把 P0 诊断示例或探针加入玩家安装包。
 - 对每项结果分别报告纯逻辑检查、编译、补丁安装、目录应用、游戏行为、保存文件回读与重新载入。原生交易或存档的成功不能只凭内存状态或单次 `SaveGame()` 返回值断言；缺少可丢弃测试档时明确标为待实机验证。
 - 更新进度时维护 `docs/FORGE_PROGRESS.md` 的当前状态和证据；`docs/probes/` 下的记录绑定当时构建的哈希与日期，不随新构建改写。

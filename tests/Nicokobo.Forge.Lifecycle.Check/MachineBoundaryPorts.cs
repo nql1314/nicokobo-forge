@@ -16,7 +16,7 @@ namespace HarmonyLib
 }
 namespace Nicokobo.Forge.Registration
 {
-    public sealed record NativeItemOptions;
+    public sealed record NativeItemOptions(LocalizedItemText? Name = null, LocalizedItemText? ShortDescription = null);
     internal sealed record RegisteredMachineRecipe(string OwnerId, ForgeMachineRecipe Value);
     internal sealed class MachineProfile(ForgeMachineDefinition definition)
     {

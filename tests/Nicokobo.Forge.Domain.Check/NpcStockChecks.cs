@@ -18,12 +18,13 @@ internal static class NpcStockChecks
         void Offer(string id, NpcTradeStockCategory category, float weight = 1,
             bool skipOwned = false, Func<GameItem>? factory = null, int minimumDay = 0,
             float? minerWeight = null, NpcTradeStockSupplier suppliers = NpcTradeStockSupplier.Any,
-            bool nightShop = false)
+            bool nightShop = false, bool preserveLootTableWeight = false)
         {
             NativeItemRegistry.Offers.Add(new("test.pool", id, NativeItemKind.Item,
                 factory ?? (() => Item(id)), new() { NpcTrade = new(category, weight)
                     { SkipWhenOwned = skipOwned, MinimumDay = minimumDay, MinerWeight = minerWeight,
-                        Suppliers = suppliers, IncludeInNightShop = nightShop } }));
+                        Suppliers = suppliers, IncludeInNightShop = nightShop,
+                        PreserveLootTableWeight = preserveLootTableWeight } }));
         }
         void Reset()
         {
@@ -156,6 +157,60 @@ internal static class NpcStockChecks
                 "A custom table result was drawn again during placement");
         });
         Expect(ReferenceEquals(Merge("medicalTable", entries), entries), "Pool context survived supply completion");
+
+        Reset();
+        Offer("test.pool.quartz", NpcTradeStockCategory.Ore, 125f,
+            minerWeight: 0.5f, preserveLootTableWeight: true);
+        Offer("test.pool.titanium", NpcTradeStockCategory.Ore, 125f,
+            minerWeight: 0.5f, preserveLootTableWeight: true);
+        var equalMaterialEntries = new Il2CppSystem.Collections.Generic.List<LootEntry>();
+        foreach (string id in new[] { "scrap_metal", "nuts_metal", "flux_agent", "printer_plastic",
+            "wire", "gun_part", "common_electronic", "kotton_fabric" })
+            equalMaterialEntries.Add(new(id, 125f, ""));
+        equalMaterialEntries.Add(new("test.pool.quartz", 125f, "test.pool"));
+        equalMaterialEntries.Add(new("test.pool.titanium", 125f, "test.pool"));
+        Supply("MaterialStockPrefix", () =>
+        {
+            var merged = Merge("materialTable", equalMaterialEntries);
+            Expect(merged.Count == 10 && merged.All(entry => entry.weight == 125f) &&
+                merged.Sum(entry => entry.weight) == 1250f,
+                "NPC material draws must give the eight native materials and two ores equal 10-percent shares");
+            Expect(equalMaterialEntries.Count == 10 && equalMaterialEntries.All(entry => entry.weight == 125f),
+                "NPC material merging changed the persistent scavenging pool");
+            var quartz = Drawn("materialTable", "test.pool.quartz");
+            Expect(ReferenceEquals(Place(quartz), quartz) && RNG.Calls == 0,
+                "A retained ore table result was replaced or drawn a second time");
+        });
+        NativeItemRegistry.Outcomes["test.pool.quartz"] = NativeApplicationStatus.Staged;
+        Supply("MaterialStockPrefix", () =>
+        {
+            var merged = Merge("materialTable", equalMaterialEntries);
+            Expect(merged.Count == 9 && merged.All(entry => entry.id != "test.pool.quartz"),
+                "Preserving table weights bypassed factory application eligibility");
+        });
+        NativeItemRegistry.Outcomes["test.pool.quartz"] = NativeApplicationStatus.Applied;
+        Offer("test.pool.component", NpcTradeStockCategory.Material, minimumDay: 22);
+        foreach (int day in new[] { 21, 22, 21 })
+        {
+            StoreStation.Day = day;
+            Supply("MaterialStockPrefix", () =>
+            {
+                var merged = Merge("materialTable", equalMaterialEntries);
+                Expect(merged.Count(entry => entry.weight == 125f) == 10 &&
+                    merged.Count == (day == 22 ? 11 : 10) &&
+                    (day != 22 || merged.Single(entry => entry.id == "test.pool.component").weight == 0.25f),
+                    "Retained ores consumed the ordinary component budget or changed day eligibility");
+            });
+        }
+        foreach (var (sample, id) in new[] { (0.699999, "common_ore"),
+            (0.7, "test.pool.quartz"), (0.85, "test.pool.titanium") })
+            Supply("MinerStockPrefix", () =>
+            {
+                RNG.Samples.Enqueue(sample);
+                var item = Place(Item("common_ore", 5));
+                Expect(item.identifier == id && item.unitCount == 5,
+                    "Equal material weights changed the miner's 70/15/15 batch odds or native quantity");
+            });
 
         Reset(); Offer("test.pool.conflict", NpcTradeStockCategory.Food,
             factory: () => throw new InvalidOperationException("A conflicting factory must not be used"));

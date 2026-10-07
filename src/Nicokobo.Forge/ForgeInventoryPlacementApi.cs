@@ -52,7 +52,15 @@ public static class ForgeInventoryPlacementApi
     /// excluded. Searches in the native row/orientation order. Returned proposals
     /// do not prove that subsequent acceptance, rollback or saving will succeed.</summary>
     public static IReadOnlyList<ForgeInventoryPlacement>? PlanWholeGrid(GameGridInventory inventory,
-        IReadOnlyList<GameItem> products)
+        IReadOnlyList<GameItem> products) => PlanGrid(inventory, products, singleUnits: true);
+
+    // Save recovery preserves a whole saved stack and its identity. It must
+    // never merge into another item or split while the persisted receipt lives.
+    internal static IReadOnlyList<ForgeInventoryPlacement>? PlanWholeStacks(GameGridInventory inventory,
+        IReadOnlyList<GameItem> products) => PlanGrid(inventory, products, singleUnits: false);
+
+    private static IReadOnlyList<ForgeInventoryPlacement>? PlanGrid(GameGridInventory inventory,
+        IReadOnlyList<GameItem> products, bool singleUnits)
     {
         if (!IsAvailable || inventory == null || inventory.Pointer == IntPtr.Zero || products == null ||
             products.Count > ForgeNumbers.Inventory.MaxDirectItems) return null;
@@ -62,7 +70,7 @@ public static class ForgeInventoryPlacementApi
             var seen = new HashSet<IntPtr>();
             foreach (var product in products)
                 if (product == null || product.Pointer == IntPtr.Zero || !seen.Add(product.Pointer) ||
-                    product.parentInventory != null || product.unitCount != 1) return null;
+                    product.parentInventory != null || product.unitCount <= 0 || singleUnits && product.unitCount != 1) return null;
             if (products.Count == 0) return Array.Empty<ForgeInventoryPlacement>();
             var shape = inventory.inventoryShape;
             var children = inventory.childItems;
@@ -86,10 +94,11 @@ public static class ForgeInventoryPlacementApi
             {
                 var planned = ReserveShape(grid, product.shape);
                 if (planned == null) return null;
-                var slot = inventory.TryInventorySlot(product, 1, planned);
+                int units = product.unitCount;
+                var slot = inventory.TryInventorySlot(product, units, planned);
                 if (slot == null || slot.Pointer == IntPtr.Zero || slot.item?.Pointer != product.Pointer ||
-                    slot.inventory?.Pointer != inventory.Pointer || slot.targetItem != null || slot.numTransfer != 1 ||
-                    !slot.IsValid() || product.parentInventory != null || product.unitCount != 1) return null;
+                    slot.inventory?.Pointer != inventory.Pointer || slot.targetItem != null || slot.numTransfer != units ||
+                    !slot.IsValid() || product.parentInventory != null || product.unitCount != units) return null;
                 result.Add(new(product, planned));
             }
             return result.AsReadOnly();

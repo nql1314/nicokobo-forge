@@ -18,17 +18,21 @@ internal static partial class ForgeMachineRuntime
         {
             steps.Add(new("item-output", () =>
             {
+                string outputId = itemOutput.ResolveItemId == null
+                    ? itemOutput.ItemId : itemOutput.ResolveItemId(plan.Context);
+                if (string.IsNullOrWhiteSpace(outputId) || outputId != outputId.Trim())
+                    throw new InvalidOperationException("output item ID invalid");
                 for (int index = 0; index < plan.Context.OutputCount; index++)
                 {
-                    var product = DirectoryMaster.Item(itemOutput.ItemId, true);
+                    var product = DirectoryMaster.Item(outputId, true);
                     if (product == null || product.Pointer == IntPtr.Zero) throw new InvalidOperationException("factory failed");
                     if (product.parentInventory != null || products.Any(other => other.Pointer == product.Pointer))
                         throw new InvalidOperationException("factory returned an existing item");
                     products.Add(product);
-                    if (product.identifier != itemOutput.ItemId || product.unitCount != 1 || product.GetUniqueID() <= 0)
+                    if (product.identifier != outputId || product.unitCount != 1 || product.GetUniqueID() <= 0)
                         throw new InvalidOperationException("factory contract failed");
                     itemOutput.PrepareItem?.Invoke(plan.Context, product);
-                    if (product.identifier != itemOutput.ItemId || product.unitCount != 1 || product.parentInventory != null)
+                    if (product.identifier != outputId || product.unitCount != 1 || product.parentInventory != null)
                         throw new InvalidOperationException("prepare changed product identity");
                     if (plan.Contents != null)
                     {

@@ -195,7 +195,11 @@ internal static class MachineCatalogChecks
                 Guide = new("tag_illustration", new("整叠原料", "Stacked input")) }
         };
         var guideRecipe = new ForgeMachineRecipe(owner + ".guide_recipe", guideInputs,
-            new ForgeMachineItemOutput("product", 2, _ => { guideCallbacks++; return 7; }))
+            new ForgeMachineItemOutput("product", 2, _ => { guideCallbacks++; return 7; })
+            {
+                ResolveItemId = _ => { guideCallbacks++; return "random_product"; },
+                Guide = new(Name: new("随机产物", "Random product"))
+            })
         {
             LiquidInputs = [new("water", 50, Condition: _ => { guideCallbacks++; return true; })
                 { Guide = new("water_illustration", new("水", "Water")) }]
@@ -212,6 +216,11 @@ internal static class MachineCatalogChecks
         guideInputs.Clear();
         Expect(guideCallbacks == 0 && guideEntry.Inputs.Count == 3 && guideEntry.Inputs[0].Amount == 3 &&
             guideEntry.Output.Amount == 2, "handbook evaluated callbacks or lost frozen input quantities");
+        Expect(guides.TryGet(guideMachine.MachineId, out var randomProfile) &&
+            ((ForgeMachineItemOutput)randomProfile!.Recipes.Single().Value.Output).ResolveItemId ==
+                ((ForgeMachineItemOutput)guideRecipe.Output).ResolveItemId &&
+            guideEntry.Output.Name?.English == "Random product" && guideEntry.Output.ItemId == "product",
+            "freezing lost the output resolver or the handbook rolled a random product");
         Expect(guideEntry.OwnerId == owner && guideEntry.CategoryId == "custom_category" &&
             guideEntry.MachineName!.Chinese == "扩展机器" && guideEntry.Note!.English == "Machine note",
             "handbook did not inherit its machine presentation");

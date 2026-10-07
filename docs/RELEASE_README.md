@@ -17,6 +17,15 @@ Nicokobo Forge 是内容 Mod 的公共前置，提供物品／效果注册、机
 Forge 可单独使用内置工坊与原版成就。源码版本、包内版本和游戏实际加载版本分别确认。
 
 
+@COMPAT_SECTION_BEGIN@
+### 可选：兼容补丁
+
+`@COMPAT_DLL@` 是**可选**组件，不属于 Forge 本体，也不会被 Forge 自动安装或加载。它把 Wage's Perks **1.3.4** 的启动挂载延后到游戏本地化初始化完成之后，避免该 Mod 因过早读取本地化文本而崩溃。
+
+只在这款第三方 Mod 已安装时才把该 DLL 复制到游戏 `Mods/`；不需要时不要复制，已经放入的移出即可停用。目标缺失或版本不符时补丁自身停用并记录原因，不影响 Forge 与其他内容 Mod。
+@COMPAT_SECTION_END@
+
+
 ### 全域制造终端
 
 共享 K05 全域制造终端由 Forge 提供：外部 3×3，输入／输出仓各 9×6，模组仓沿用 7×5 环形定义；基础价值 400，基础耗电 25，每晚一批。合成扩展、机械飞升和物流网络分别追加配方；只安装 Forge 时没有制造配方。
@@ -25,6 +34,20 @@ Forge 可单独使用内置工坊与原版成就。源码版本、包内版本�
 
 读档支持旧合成扩展的两个已知终端 ID，保留物品身份、状态、占格与内部物品关系，后续正常保存使用当前 ID。真实旧档迁移仍待对应版本的游戏验证。
 
+
+### 卸载内容 Mod 后的旧档
+
+Forge 0.6.32 起只处理通过 Forge 注册且存档已有提供者记录的普通物品；原生登记缺失、当前无 Forge 声明，并确认提供者 DLL 已移除时才清理。未通过 Forge 注册的第三方物品、无记录旧档，以及提供者仍安装或无法确认来源的项保留。先在原内容 Mod 仍安装时用新版 Forge 正常保存，才建立来源记录；卸载时继续保留 Forge。旧制造终端继续迁移。
+
+符合清理条件且属于玩家的缺失项按存档单价与数量返还信用点。缺失机器／容器里的正常材料、电池、模组和其他物品保持完整身份与状态；工厂可用且空间足够时返回店内、后房或储物容器，否则保存在本周目的待返还数据中，下次读档或正常保存前再尝试，不折算正常物品。已售、未持有或不可达物品不返款。
+
+清理、余额和待返还数据随下一次原版正常保存写入，重复读档不累计返款。此流程需要保留 Forge；当前仅有离线检查与编译证据，真实旧档读取、返还及保存重载尚待原生验收。
+
+### G 键合成表
+
+鼠标指向物品按 **G**，查看它作为产物与材料的配方；指向机器时另列自身加工配方。指向另一件物品按 G 切换查询；同种物品、窗口或空白处再按 G 关闭。无目标时浏览完整已登记目录并保留当前场景内的阅读页，输入文字或打开工坊时不触发。
+
+合成表由 Forge 独立提供，机器与追加配方自动加入；内容 Mod 可提交原版机器扩展的展示声明，实际加工和实体手册仍由对应提供者负责。只安装 Forge 时也能打开已登记的目录；本次窗口交互尚待原生验收。
 
 ### Nico 工坊
 
@@ -39,6 +62,7 @@ Forge 可单独使用内置工坊与原版成就。源码版本、包内版本�
 - 新游戏选择栏采用紧凑行高，支持滚轮与滚动条。
 - 一次性／高级加速器可立即加工 Forge 机器一批；成功后才消耗工具或充能。
 - 手册从当前机器与追加配方目录读取材料、数量、分类及双语条件，内容更新后刷新。
+- 支持每批动态选择产物，配套模组矩阵在 K02 添加随机稀有升级；分类、候选与价格由内容 Mod 维护，阅读配方不触发随机抽取。
 - 白天供货按指定 NPC、类别、当前天数和实际持有筛选，合格 Mod 候选均分固定总权重 `0.25`，不保底追加；可显式让模组加入杰克逊夜间原版模组／节点名额。直接供货的原版结果权重为 `1`，Mod 总概率约 `20%`；原生表保留其他条目的权重。独立夜店上架条件继续生效。配套机核的矿工仍独立按原版矿石 70%、石英 15%、钛矿料 15% 整批选矿。
 - 单件搬运与倒液核对两端实际变化；整批奖励用占格图预检落位。完整资源／电力网络由内容方实现。
 
@@ -54,6 +78,8 @@ Forge 可单独使用内置工坊与原版成就。源码版本、包内版本�
 
 ---
 
+
+内容 Mod 可选择保留其 NPC 原生掉落表条目的原有权重，仍受类别、天数、持有与登记状态筛选；这些条目不再分摊普通供货的总权重0.25。直接供货与矿工独立抽取继续按各自规则处理。
 
 ## English
 
@@ -71,6 +97,15 @@ Nicokobo Forge is a shared content-mod dependency providing item/effect registra
 Forge can be installed alone for its workshop and native achievements. Source, package and actually loaded versions must be checked separately.
 
 
+@COMPAT_SECTION_BEGIN_EN@
+### Optional: compatibility patches
+
+`@COMPAT_DLL@` is an **optional** component. It is not part of Forge itself, and Forge never installs or loads it automatically. It defers the Wage's Perks **1.3.4** startup mounts until the game's localization initialization has completed, so that mod does not fail on early localization reads.
+
+Copy the DLL into the game's `Mods/` folder only when that third-party mod is installed; remove it to disable the patches. When the target is missing or its version differs, the patch disables itself and logs the reason without affecting Forge or other content mods.
+@COMPAT_SECTION_END_EN@
+
+
 ### Universal Manufacturing Terminal
 
 Forge owns shared K05: a 3×3 footprint, separate 9×6 input/output grids, the native 7×5 ring-shaped module bay, base value 400 and base power 25. It processes one batch per night. Synthesis, Aug and Logistics Nexus contribute recipes; Forge alone supplies none.
@@ -79,6 +114,18 @@ The terminal has a 40% listing chance when night-shop stock is generated, includ
 
 Loading supports two known legacy Synthesis terminal IDs while preserving identity, state, shape and internal item relationships. Subsequent normal saves use the current ID. Real legacy-save migration still needs validation for the matching build.
 
+
+### Missing content after uninstalling a mod
+
+Forge 0.6.32 limits cleanup to ordinary items successfully registered through Forge with a saved provider record. Removal requires a missing native registration, no current Forge declaration and a confirmed absent provider DLL. Third-party items outside Forge registration, legacy saves without records and uncertain provider status remain untouched. Save normally with the original provider installed before uninstalling it, and keep Forge installed.
+
+Eligible player-owned missing items refund their saved unit value times count. Intact contents of missing machines or containers preserve identity, state, charge, quality and nested contents; unavailable factories or inventory space keep their full graphs in run recovery data for later placement. Sold, unowned and unreachable items grant no refund. Inventory, balance and recovery data persist together on the next normal save; reloading an unchanged save does not accumulate refunds. Native old-save recovery and save/reload remain unverified.
+
+### G recipe browser
+
+Hover an item and press **G** to view recipes that produce or consume it; machines also show their own recipes. Another item switches the query. The same kind, window or empty space closes it. With no target, browse the registered catalog at the last scene-local page. Typing and the workshop suppress the shortcut.
+
+Forge provides this browser independently. Machine/additional recipes appear automatically; content mods may declare presentation for native-machine extensions while retaining processing and physical books. Forge alone can open its registered catalog. Native window interaction remains unverified.
 
 ### Nico Workshop
 
@@ -93,6 +140,7 @@ After claiming and confirming the native final achievement reward, NPC purchase 
 - Compact new-game rows support wheel scrolling and a scrollbar.
 - Disposable/advanced accelerators process one immediate Forge batch and consume the tool or charge only after success.
 - Handbooks read current machines and additional recipes, including inputs, counts, categories and bilingual conditions, and refresh after changes.
+- Dynamic outputs can select an item once per batch. Matrix contributes the random Rare upgrade to K02 and owns its pool, tiers and prices; reading does not draw an output.
 - Daytime supply and opted-in Jackson night-module slots divide a fixed total Mod weight of 0.25 equally among eligible candidates after supplier, category, day and ownership filtering. Direct native results have weight 1, giving a combined Mod chance of about 20%; native tables retain their other entries' weights. Separate night-shop listings retain their availability rules. Matching Mechcore miner batches retain separate odds: native ore 70%, Quartz 15%, Titanium Ore 15%.
 - Single-item transfers and pours verify changes at both ends; reward batches use a managed placement preflight. Content mods remain responsible for complete resource/power networks.
 
@@ -104,3 +152,5 @@ Default logging is `INFO`; existing `UserData/MelonPreferences.cfg` settings tak
 The dated 2026-10-06 candidate records machine processing, selected local logistics and save readback across processes. Mouse/keyboard UI, stock weights, built-in workshop rewards, two complete nightly settlements and real legacy-terminal migration remain unvalidated. Later source does not inherit earlier binary results. See source `docs/FORGE_PROGRESS.md` for scope and [CHANGELOG](RELEASE_CHANGELOG.md) for changes.
 
 Released under the MIT License.
+
+Content mods may retain their original native NPC loot-table weights after category, day, ownership and registration checks; these opted-in entries do not divide the ordinary 0.25 supply budget. Direct supply and separate miner draws retain their own rules.

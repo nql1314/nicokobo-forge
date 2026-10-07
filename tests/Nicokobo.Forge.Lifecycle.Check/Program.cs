@@ -87,7 +87,8 @@ try
         Require(standaloneLate == 1, "Standalone game-loaded-late subscription lost the actual late notification");
     }
     MachineLifecycleChecks.Run(Require);
-    Console.WriteLine($"Lifecycle checks passed: {checks} assertions (six rejected/executed After boundaries, night cleanup and machine load ledger).");
+    PresentationChecks.Run(Require);
+    Console.WriteLine($"Lifecycle and presentation checks passed: {checks} assertions.");
 }
 catch (Exception ex)
 {

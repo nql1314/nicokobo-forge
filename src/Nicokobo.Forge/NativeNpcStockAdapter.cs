@@ -192,10 +192,13 @@ internal static class NativeNpcStockAdapter
         {
             var store = PlayerStore.instance;
             if (store == null || store.Pointer == IntPtr.Zero) return;
-            // Use a draw-local list. Remove Forge declarations before merging,
-            // except IDs whose native factory belongs to another Mod. A failed
-            // Forge claim must not remove the actual owner's loot entries.
+            // Use a draw-local list. Eligible declarations can retain their loot
+            // weights; other Forge entries are replaced by the shared budget.
+            // Failed claims must not remove another owner's loot entries.
             // Neither the global loot table nor scavenging is changed here.
+            var offers = StockOffers(categories, store, supply);
+            var retained = offers.Where(offer => offer.Options.NpcTrade!.PreserveLootTableWeight)
+                .Select(offer => offer.ItemId).ToHashSet(StringComparer.Ordinal);
             var registered = NativeItemRegistry.Declarations()
                 .Where(item => NativeItemRegistry.Outcome(item.ItemId) != NativeApplicationStatus.Conflict)
                 .Select(item => item.ItemId)
@@ -204,11 +207,12 @@ internal static class NativeNpcStockAdapter
             for (int index = 0; index < __0.Count; index++)
             {
                 var entry = __0[index];
-                if (entry != null && !registered.Contains(entry.id)) merged.Add(entry);
+                if (entry != null && (!registered.Contains(entry.id) || retained.Contains(entry.id)))
+                    merged.Add(entry);
             }
-            var offers = StockOffers(categories, store, supply);
-            float weight = (float)NativeNpcStockPolicy.ModSupplyItemWeight(offers.Length);
-            foreach (var offer in offers)
+            var budgetOffers = offers.Where(offer => !offer.Options.NpcTrade!.PreserveLootTableWeight).ToArray();
+            float weight = (float)NativeNpcStockPolicy.ModSupplyItemWeight(budgetOffers.Length);
+            foreach (var offer in budgetOffers)
                 merged.Add(new LootEntry(offer.ItemId, weight, offer.OwnerId));
             __0 = merged;
         }

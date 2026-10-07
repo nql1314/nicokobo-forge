@@ -3,6 +3,19 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+if (args is ["save-compatibility"])
+{
+    MissingItemSaveChecks.Run();
+    InventoryPlacementChecks.Run();
+    return;
+}
+
+if (args is ["recipes"])
+{
+    RecipeGuideChecks.Run();
+    return;
+}
+
 if (args is ["transfer-review"])
 {
     try
@@ -17,7 +30,9 @@ if (args is ["transfer-review"])
 }
 
 MachineCatalogChecks.Run();
+RecipeGuideChecks.Run();
 ManufacturingTerminalChecks.Run();
+MissingItemSaveChecks.Run();
 ProductionValueChecks.Run();
 RuntimeBoundaryChecks.Run();
 ModuleInventoryChecks.Run();

@@ -8,6 +8,8 @@ Forge 负责原版机器 UI 模板、设施物品注册、槽位回调、过夜�
 
 `ForgeMachineDefinition.ProductionMarkupPercent` 是内容 Mod 为机器声明的生产倍率，合法范围为 0–1000%，省略时为 0%。Forge 将它复制到每次批处理的 `ForgeMachineBatchContext.ProductionMarkupPercent`，机器拥有者和追加配方都能读取同一值。Forge 只传递倍率，不定义或覆盖内容 Mod 的价格表。
 
+`ForgeMachineItemOutput.ResolveItemId`（0.6.28）可按本批上下文返回一个原生目录中的物品 ID，用于随机或条件产物。事务在资源规划后、创建产物和扣除资源前只调用一次；整批使用同一 ID，工厂产物及 `PrepareItem` 后的身份按它校验。返回空白／带首尾空白的 ID、工厂失败或输出仓放不下时，走现有恢复流程。该回调不能修改游戏资源；声明的 `ItemId` 仍提供默认手册图示，动态产物名称和范围由 `.Guide` 说明。手册读取不调用随机回调，修改选择规则时需同步 `RuleRevision`。
+
 ## 注册机器
 
 ### 手册动态配方目录
@@ -30,6 +32,12 @@ ForgeMachineRegistrationApi.RegisterAdditionalRecipes(ownerId, targetMachineId, 
 ```
 
 物品原料、液体原料、物品输出和容器输出均可通过 `.Guide` 的 `ForgeRecipeGuideDisplay` 提供双语 `Name / Requirement / Quantity` 与 `IllustrationItemId`。件数和毫升数直接来自真实配方；类别原料可另指定代表性图示，图示不会限制实际材料。条件委托不能自动转成文字，内容方应提供实际要求；省略条件说明时显示“需满足配方条件”。动态产量或体积省略数量说明时显示“依配方”，整叠输入显示“整叠”。这些展示字段不改变实际准入、扣料或生产规则。
+
+### Forge G 键合成表（0.6.29）
+
+G 键入口与阅读界面由 Forge 提供；内容 Mod 不再各自监听 G。`ForgeRecipeGuideApi.Snapshot()` 返回已接受机器配方与原版机器扩展展示声明的合并目录；`IsVisible / Close()` 供实体手册避开共享窗口。物品会查询作为产物和材料的相关配方，机器还会显示自己的加工配方；匹配读取真实固体 ID、材料类别或液体图示，不执行配方条件和动态产出回调。
+
+通过 `ForgeMachineRegistrationApi` 注册的新机器与追加配方自动加入，无需重复声明。只有在 Forge 机器事务之外加工的配方（例如内容 Mod 为原版熔炉增加的玻璃回收），才调用 `ForgeRecipeGuideApi.RegisterRecipes(ownerId, entries)` 提交 `ForgeRecipeGuideEntry` 列表。该操作按 owner 整批替换其展示声明，验证身份、配方 ID、数量及重复 ID，冻结原料列表，并增加目录版本；拒绝时原目录不变。提供者应提交自己的真实配方，图示 ID 对应材料和产物；这条接口不创建机器、不执行加工，也不证明生产逻辑已应用到游戏。接受机器声明与目录 Applied 的边界保持不变。
 
 ### 自动化读取与批次边界（0.6.20）
 

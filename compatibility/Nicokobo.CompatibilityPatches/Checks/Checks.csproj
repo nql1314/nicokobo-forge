@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseAppHost>false</UseAppHost>
+    <RollForward>Major</RollForward>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Patches\WagePerksStartup\DeferredStartupPatches.cs" Link="Production\DeferredStartupPatches.cs" />
+    <Reference Include="Mono.Cecil"><HintPath>$(GameDir)\MelonLoader\net6\Mono.Cecil.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

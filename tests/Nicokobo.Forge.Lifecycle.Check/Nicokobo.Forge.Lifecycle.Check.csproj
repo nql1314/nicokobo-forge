@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(ForgeLifecycleSource)" Link="Production/ForgeLifecycleApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgePresentationApi.cs" Link="Production/ForgePresentationApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Runtime/OwnedCallbacks.cs" Link="Production/OwnedCallbacks.cs" />
     <Compile Include="../../BuildConfig/ForgeNumbers.cs" Link="Production/ForgeNumbers.cs" />
     <Compile Include="$(ForgeMachineHooksSource)" Link="Production/ForgeMachineHooks.cs" />

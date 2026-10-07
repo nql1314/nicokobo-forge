@@ -63,6 +63,12 @@ internal static class InventoryPlacementChecks
         grid.MergePlacementPreview = false;
         single.unitCount = 2;
         Expect(ForgeInventoryPlacementApi.PlanWholeGrid(grid, [single]) == null, "Stacked reward was admitted");
+        Expect(ForgeInventoryPlacementApi.PlanWholeStacks(grid, [single]) is { Count: 1 } &&
+            grid.LastPlacementSlot?.numTransfer == 2 && single.unitCount == 2 && single.parentInventory == null,
+            "Recovery stack was split or its full native acceptance was not previewed");
+        grid.MergePlacementPreview = true;
+        Expect(ForgeInventoryPlacementApi.PlanWholeStacks(grid, [single]) == null, "Recovery merged a saved identity");
+        grid.MergePlacementPreview = false;
         single.unitCount = 1;
         single.parentInventory = grid;
         Expect(ForgeInventoryPlacementApi.PlanWholeGrid(grid, [single]) == null, "An attached reward was admitted");

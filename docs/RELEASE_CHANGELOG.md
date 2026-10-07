@@ -4,6 +4,71 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.32 — 2026-10-07
+
+- 缺失物品清理限定为通过 Forge API 成功登记、且正常存档已有提供者记录的普通物品。第三方物品与无记录旧档保留，避免仅凭原生目录缺失删除命运之骰等物品。
+- 正常保存记录物品 ID 与来源程序集；读档只在原生登记缺失、当前无 Forge 声明并确认提供者 DLL 已移除时清理。提供者仍安装但加载／注册失败，或安装目录无法完整读取时保留。公共注册签名不变。
+- 已确认卸载物品的退款、正常子物品返还与待返还数据继续沿用；38 项存档图／来源范围检查及 22 项空间预检通过，Release 编译为 0 警告／0 错误。未打包、安装或原生验收。
+
+### English
+
+- Limited cleanup to ordinary items successfully registered through Forge with provider provenance stored by a normal save. Foreign items and legacy saves without that evidence remain untouched.
+- Cleanup requires a missing native registration, no current Forge declaration and confirmed provider DLL removal. Installed but failed providers and unreadable installation identities retain their items. Public registration signatures remain unchanged; confirmed-removal refunds and intact content recovery continue. Targeted offline checks and Release compilation passed; native acceptance is pending.
+
+## 0.6.31 — 2026-10-07
+
+- 修复动态模组说明仍显示旧数值：原版 `GetTagReadonly` 返回克隆，提示绘制现在读取临时替换后的实际显示标签。认知涡轮的上限和成长量可进入原有模组效果区。
+- 绘制结束、异常或原方法被拒绝时恢复原文案，保留其他 Mod 的不同修改；不改写保存用基础说明，也不创建缺失标签。
+- 14 项面板渲染回归检查与现有生命周期／机器检查合计 76 项通过，Release 编译通过；未打包、安装或原生验收。
+
+### English
+
+- Fixed dynamic module descriptions remaining stale because `GetTagReadonly` returns a clone. Native rendering now reads a temporary replacement in the live display state, keeping the original layout.
+- Restores text after successful, failed or rejected draws and preserves concurrent foreign edits without changing saved base descriptions or creating missing tags. Offline rendering/lifecycle checks and Release compilation passed; native acceptance is pending.
+
+## 0.6.30 — 2026-10-07
+
+- 新增 `NpcTradeStockOptions.PreserveLootTableWeight`：内容Mod可选择保留 NPC 原生材料表权重，仍执行供货人、类别、天数和持有筛选；这类条目不占普通Mod供货总权重0.25，直接供货和矿工入口保持原有规则。
+- 新增通用缺失 ID 存档兼容：库存解码前按当前原生目录清理缺失物品，玩家持有项按存档单价与数量返还信用点；正常原版／Mod 物品保留。
+- 缺失机器和容器内的正常子物品原样返还；空间不足时完整保留在当前周目的待返还数据中，读档及后续正常保存前再尝试。已售、未持有、不可达条目不产生退款或返还。
+- 保留已有旧制造终端迁移，清理、退款和待返还数据随下一次原版正常保存写入；同一身份去重，不直接写存档文件。卸载内容 Mod 后须继续保留 Forge。
+- 离线图迁移与空间检查已有通过记录；真实旧档读写与物品返还尚未原生验证。
+
+### English
+
+- Unknown owned item IDs refund saved value/count before decoding; registered native and Mod items remain. Intact registered contents of missing containers are returned, and overflow stays in the run recovery data for later placement. Sold/unowned/unreachable nodes are excluded. Normal saves persist inventory, balance and recovery together; keep Forge installed when removing content mods. Native legacy-save acceptance remains outstanding.
+- Added `NpcTradeStockOptions.PreserveLootTableWeight` so eligible content entries can retain their native NPC loot-table weight without sharing the ordinary 0.25 Mod budget. Direct supply and separate miner draws are unchanged.
+
+## 0.6.29 — 2026-10-06
+
+### 中文
+
+- G 键合成表归入 Forge，独立提供物品的产物／材料关系、机器加工配方、完整目录查询、分页与拖动。输入文字或打开工坊时不触发；切换目标可切换查询，同种目标、窗口或空白处再次按 G 关闭。
+- 新增 `ForgeRecipeGuideApi`：自动合并 Forge 机器与追加配方，允许内容 Mod 为原版机器扩展提交只读展示声明。查询不执行加工条件或随机产出委托；实体手册与原版机器加工仍由内容方维护。
+- 配套合成扩展 0.9.57 移除重复 G 键监听，提交四条玻璃回收展示，并与共享窗口互相关闭、保留实体书页码。
+- 配方查询／登记离线检查及配套 Release 编译已有通过记录；当前源码未打包、安装或执行 G 键原生交互验收。具体范围见 `FORGE_PROGRESS.md`。
+
+### English
+
+- Forge now owns the G recipe browser, providing product/input relationships, machine recipes, full-catalog queries, paging and dragging. Typing and the workshop suppress the shortcut; another target switches queries, while the same kind, window or empty space closes it.
+- Added `ForgeRecipeGuideApi` to merge Forge machine/additional recipes and accept read-only presentation declarations for native-machine extensions. Queries invoke neither processing predicates nor random-output delegates. Physical books and native-machine processing remain content-owned.
+- Matching Synthesis 0.9.57 removes duplicate G handling, declares four recycling recipes, and coordinates window closing while retaining physical-book page positions.
+- Offline query/registration checks and matching Release builds have passed. The current source has not been packaged, installed or accepted through native G interaction; see `FORGE_PROGRESS.md`.
+
+## 0.6.28 — 2026-10-06
+
+### 中文
+
+- 新增 `ForgeMachineItemOutput.ResolveItemId`：资源规划后、创建产物与扣料扣电前，每批只解析一次产物 ID；工厂、身份或落位失败沿用现有事务恢复。注册与手册查询保留声明，不执行动态产出委托。
+- 配套模组矩阵 1.1.4 在 K02 追加两件基础模组／节点随机制造一件稀有品；候选池、分类与价格由模组矩阵维护。
+- 领域／机器目录检查与 Release 编译已有通过记录；未打包、安装或验证随机合成、交易及保存重载。
+
+### English
+
+- Added `ForgeMachineItemOutput.ResolveItemId`, resolved once per batch after resource planning and before output creation or resource debit. Factory, identity or placement failures use existing recovery. Registration and handbook queries retain declarations without invoking output delegates.
+- Matrix 1.1.4 uses this API to add the two-Basic-to-one-Rare K02 recipe, retaining ownership of tiers, prices and the candidate pool.
+- Domain/machine-catalog checks and Release builds have passed; packaging, installation, native crafting/trading and save/reload remain pending.
+
 ## 0.6.27 — 2026-10-06
 
 ### 中文

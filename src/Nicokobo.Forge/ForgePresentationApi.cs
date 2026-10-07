@@ -11,6 +11,13 @@ public sealed record ForgeModuleText(string? AdditionalEffect = null, IReadOnlyL
 /// return text; the adapter controls native rendering and ownership checks.</summary>
 public static class ForgePresentationApi
 {
+    private sealed class ModuleTooltipState(ForgeModuleText text)
+    {
+        internal readonly ForgeModuleText Text = text;
+        internal TagState? Tag;
+        internal string Original = "";
+        internal string? Replacement;
+    }
     private static readonly Dictionary<string, LocalizedItemText> Owners = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, Func<GameItem, bool, ForgeModuleText>> Modules = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, (LocalizedItemText Name, LocalizedItemText Description)> Effects = new(StringComparer.Ordinal);
@@ -54,10 +61,10 @@ public static class ForgePresentationApi
         if (!_allowed) throw new InvalidOperationException("Module presentation adapter unavailable");
         if (_installed) return;
         _installed = NativeHookSet.Install("nicokobo.forge.module_presentation", [new(typeof(ModuleHelper), nameof(ModuleHelper.CreateModuleTooltip),
-            [typeof(RichTextBuilder), typeof(GameItem)], typeof(void), typeof(ForgePresentationApi), nameof(BeforeModule), nameof(AfterModule))], _log);
+            [typeof(RichTextBuilder), typeof(GameItem)], typeof(void), typeof(ForgePresentationApi), nameof(BeforeModule), nameof(AfterModule), nameof(RestoreModule))], _log);
         if (!_installed) throw new InvalidOperationException("Module presentation hook unavailable");
     }
-    private static void BeforeModule(GameItem item, out ForgeModuleText? __state)
+    private static void BeforeModule(GameItem item, out ModuleTooltipState? __state)
     {
         __state = null;
         if (!_installed) return;
@@ -74,17 +81,36 @@ public static class ForgePresentationApi
             if (item == null || item.Pointer == IntPtr.Zero || !NativeItemRegistry.IsAppliedItem(item.identifier) ||
                 !Modules.TryGetValue(item.identifier, out var callback)) return;
             var returned = callback(item, english);
-            __state = returned with { Lines = returned.Lines?.ToArray() };
-            var tag = item.GetTagReadonly("ADDITIONAL_EFFECT_STRING");
-            if (returned.AdditionalEffect != null && tag != null && tag.valueString != returned.AdditionalEffect)
+            __state = new(returned with { Lines = returned.Lines?.ToArray() });
+            // GetTagReadonly returns a clone. Native rendering takes another
+            // clone from modifiedState, so edit that live tag for this draw only.
+            var tags = item.modifiedState?.dict;
+            if (returned.AdditionalEffect != null && tags != null &&
+                tags.TryGetValue("ADDITIONAL_EFFECT_STRING", out var tag) && tag != null &&
+                tag.valueString != returned.AdditionalEffect)
+            {
+                __state.Tag = tag;
+                __state.Original = tag.valueString;
+                __state.Replacement = returned.AdditionalEffect;
                 tag.SetString(returned.AdditionalEffect);
+            }
         }
         catch (Exception ex) { try { _log?.Invoke($"[WARN] [NicokoboForge/Presentation] text unavailable: {ex.Message}"); } catch { } }
     }
-    private static void AfterModule(RichTextBuilder builder, ForgeModuleText? __state)
+    private static void AfterModule(RichTextBuilder builder, ModuleTooltipState? __state)
     {
-        if (!_installed || builder == null || builder.Pointer == IntPtr.Zero || __state?.Lines == null) return;
-        try { foreach (var line in __state.Lines) builder.AddLine(line, color: RenderHandler.ColorPalette.White); }
+        if (!_installed || builder == null || builder.Pointer == IntPtr.Zero || __state?.Text.Lines == null) return;
+        try { foreach (var line in __state.Text.Lines) builder.AddLine(line, color: RenderHandler.ColorPalette.White); }
         catch (Exception ex) { try { _log?.Invoke($"[WARN] [NicokoboForge/Presentation] tooltip rendering: {ex.Message}"); } catch { } }
+    }
+
+    private static void RestoreModule(ModuleTooltipState? __state)
+    {
+        try
+        {
+            if (__state?.Tag is { } tag && tag.Pointer != IntPtr.Zero && tag.valueString == __state.Replacement)
+                tag.valueString = __state.Original;
+        }
+        catch (Exception ex) { try { _log?.Invoke($"[WARN] [NicokoboForge/Presentation] tooltip restoration: {ex.Message}"); } catch { } }
     }
 }

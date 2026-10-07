@@ -48,6 +48,10 @@ public sealed record NpcTradeStockOptions(NpcTradeStockCategory Category, float 
     public bool SkipWhenOwned { get; init; }
     /// <summary>First native game day eligible for supply; 0 has no day restriction.</summary>
     public int MinimumDay { get; init; }
+    /// <summary>In NPC table draws, retain this eligible item's existing loot entry
+    /// and weight instead of assigning it a share of the ordinary Mod budget.
+    /// Does not add missing table entries or change direct supply/miner draws.</summary>
+    public bool PreserveLootTableWeight { get; init; }
     /// <summary>Optional ore weight for the miner's batch draw; defaults to Weight.</summary>
     public float? MinerWeight { get; init; }
 }

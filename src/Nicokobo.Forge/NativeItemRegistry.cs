@@ -23,6 +23,8 @@ internal static class NativeItemRegistry
         new(StringComparer.Ordinal);
     private static readonly Dictionary<string, NativeApplicationView> Outcomes =
         new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> SaveProviders =
+        new(StringComparer.Ordinal);
     private static Action<string>? _log;
     private static bool _enabled;
     private static bool _moduleEnabled;
@@ -57,27 +59,27 @@ internal static class NativeItemRegistry
     }
 
     internal static SubmitResult RegisterNode(string ownerId, string nativeItemId,
-        Func<GameItem> factory, NativeItemOptions? options = null)
-        => Register(ownerId, nativeItemId, NativeItemKind.Node, factory, options);
+        Func<GameItem> factory, NativeItemOptions? options = null, string? providerAssembly = null)
+        => Register(ownerId, nativeItemId, NativeItemKind.Node, factory, options, providerAssembly);
 
     /// <summary>Register a non-node item in MiscItemDirectory, such as a card.</summary>
     internal static SubmitResult RegisterItem(string ownerId, string nativeItemId,
-        Func<GameItem> factory, NativeItemOptions? options = null)
-        => Register(ownerId, nativeItemId, NativeItemKind.Item, factory, options);
+        Func<GameItem> factory, NativeItemOptions? options = null, string? providerAssembly = null)
+        => Register(ownerId, nativeItemId, NativeItemKind.Item, factory, options, providerAssembly);
 
     /// <summary>Register a non-node item in AmenitiesItemDirectory.</summary>
     internal static SubmitResult RegisterAmenity(string ownerId, string nativeItemId,
-        Func<GameItem> factory, NativeItemOptions? options = null)
-        => Register(ownerId, nativeItemId, NativeItemKind.Amenity, factory, options);
+        Func<GameItem> factory, NativeItemOptions? options = null, string? providerAssembly = null)
+        => Register(ownerId, nativeItemId, NativeItemKind.Amenity, factory, options, providerAssembly);
 
     /// <summary>Register a native machine module in ModuleDirectory.</summary>
     internal static SubmitResult RegisterModule(string ownerId, string nativeItemId,
-        Func<GameItem> factory, NativeItemOptions? options = null)
-        => Register(ownerId, nativeItemId, NativeItemKind.Module, factory, options);
+        Func<GameItem> factory, NativeItemOptions? options = null, string? providerAssembly = null)
+        => Register(ownerId, nativeItemId, NativeItemKind.Module, factory, options, providerAssembly);
 
     /// <summary>Claim all module IDs together, or leave the catalog unchanged.</summary>
     internal static SubmitResult RegisterModules(string ownerId,
-        IReadOnlyList<NativeModuleRegistration> modules)
+        IReadOnlyList<NativeModuleRegistration> modules, string? providerAssembly = null)
     {
         if (modules == null)
             return new(SubmitStatus.Invalid, "Module batch is null");
@@ -90,9 +92,13 @@ internal static class NativeItemRegistry
                     module.Factory, module.Options)).ToArray());
             if (result.Status is SubmitStatus.Accepted or SubmitStatus.AlreadyPresent)
                 foreach (var module in modules)
-                    Outcomes.TryAdd(module.ItemId, new(ownerId, module.ItemId,
+                {
+                    bool added = Outcomes.TryAdd(module.ItemId, new(ownerId, module.ItemId,
                         NativeItemKind.Module.ToString(),
                         NativeApplicationStatus.Staged, result.Reason));
+                    if (added && !string.IsNullOrWhiteSpace(providerAssembly))
+                        SaveProviders.TryAdd(module.ItemId, providerAssembly);
+                }
             log = _log;
         }
         var prefix = result.Status is SubmitStatus.Accepted or SubmitStatus.AlreadyPresent
@@ -105,7 +111,7 @@ internal static class NativeItemRegistry
     }
 
     private static SubmitResult Register(string ownerId, string nativeItemId,
-        NativeItemKind kind, Func<GameItem> factory, NativeItemOptions? options)
+        NativeItemKind kind, Func<GameItem> factory, NativeItemOptions? options, string? providerAssembly)
     {
         SubmitResult result;
         Action<string>? log;
@@ -113,8 +119,11 @@ internal static class NativeItemRegistry
         {
             result = Catalog.Submit(ownerId, nativeItemId, kind, factory, options);
             if (result.Status == SubmitStatus.Accepted)
+            {
                 Outcomes[nativeItemId] = new(ownerId, nativeItemId, kind.ToString(),
                     NativeApplicationStatus.Staged, result.Reason);
+                if (!string.IsNullOrWhiteSpace(providerAssembly)) SaveProviders[nativeItemId] = providerAssembly;
+            }
             log = _log;
         }
         var prefix = result.Status is SubmitStatus.Accepted or SubmitStatus.AlreadyPresent
@@ -137,6 +146,13 @@ internal static class NativeItemRegistry
 
     internal static IReadOnlyList<NativeItemDeclaration> Declarations()
     { lock (Gate) return Catalog.Snapshot(); }
+    internal static IReadOnlyDictionary<string, string> AppliedSaveProviders()
+    {
+        lock (Gate)
+            return SaveProviders.Where(pair => AppliedDirectories.ContainsKey(pair.Key) &&
+                Outcomes.TryGetValue(pair.Key, out var outcome) && outcome.Status == NativeApplicationStatus.Applied)
+                .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+    }
     internal static NativeApplicationStatus Outcome(string id)
     { lock (Gate) return Outcomes.TryGetValue(id, out var v) ? v.Status : NativeApplicationStatus.Staged; }
 

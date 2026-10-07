@@ -2,7 +2,7 @@ using MelonLoader;
 using MelonLoader.Utils;
 using Nicokobo.Forge.Logging;
 
-[assembly: MelonInfo(typeof(Nicokobo.Forge.Plugin), "Nicokobo Forge", "0.6.27", "Nicokobo")]
+[assembly: MelonInfo(typeof(Nicokobo.Forge.Plugin), "Nicokobo Forge", "0.6.32", "Nicokobo")]
 [assembly: MelonProcess("Probably Stolen.exe")]
 
 namespace Nicokobo.Forge;
@@ -27,6 +27,15 @@ public sealed class Plugin : MelonMod
         NativeNpcStockAdapter.Update();
         Workshop.NativeWorkshop.Update();
         ForgeWorkshopApi.Update();
+        RecipeGuideBrowser.Update();
+    }
+
+    public override void OnLateUpdate() => RecipeGuideBrowser.UpdateCursor();
+    public override void OnSceneWasLoaded(int buildIndex, string sceneName) => RecipeGuideBrowser.ClearScene();
+    public override void OnDeinitializeMelon()
+    {
+        RecipeGuideBrowser.Uninstall();
+        MissingItemSaveRuntime.Uninstall();
     }
 
     public override void OnGUI() => ForgeWorkshopApi.Draw();
