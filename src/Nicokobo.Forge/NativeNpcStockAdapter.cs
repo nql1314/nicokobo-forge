@@ -20,6 +20,7 @@ internal static class NativeNpcStockAdapter
         internal bool Attempted { get; set; }
         internal string? SelectedOreId { get; set; }
         internal HashSet<IntPtr> PoolItems { get; } = [];
+        internal HashSet<IntPtr> RandomModules { get; } = [];
         internal Dictionary<string, int> PoolDraws { get; } = new(StringComparer.Ordinal);
     }
     private sealed record StockPlacement(IntPtr Pointer, string ItemId, string Mode);
@@ -42,8 +43,8 @@ internal static class NativeNpcStockAdapter
     {
         if (!_allowed || _installationAttempted ||
             !NativeItemRegistry.Declarations().Any(item => item.Options.NpcTrade != null)) return;
-        // Resolving closure metadata initializes StoreClientListSpec, whose
-        // static constructor reads localized dialogue synchronously. Queue
+        // Resolving supplier closure metadata can initialize dialogue holders,
+        // whose static constructors read localized dialogue synchronously. Queue
         // hooks until the game's existing localization operation has finished.
         _installationPending = true;
     }
@@ -85,7 +86,7 @@ internal static class NativeNpcStockAdapter
                 [typeof(Il2CppSystem.Collections.Generic.List<LootEntry>)], typeof(string),
                 typeof(NativeNpcStockAdapter), Prefix: nameof(PoolPickPrefix)),
             new(typeof(ItemSpawner), nameof(ItemSpawner.Spawn), [typeof(string)], typeof(GameItem),
-                typeof(NativeNpcStockAdapter), Postfix: nameof(PoolItemPostfix)),
+                typeof(NativeNpcStockAdapter), Postfix: nameof(SpawnItemPostfix)),
             new(typeof(ItemSpawner), nameof(ItemSpawner.SpawnFromTable), [typeof(string)], typeof(GameItem),
                 typeof(NativeNpcStockAdapter), Postfix: nameof(PoolItemPostfix)),
             new(typeof(ItemSpawner), nameof(ItemSpawner.SpawnFromTableGroup), [typeof(string)], typeof(GameItem),
@@ -103,32 +104,31 @@ internal static class NativeNpcStockAdapter
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(MaterialStockPrefix), "_CreateJunker_b__21_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(TechnicalStockPrefix),
             "_CreateScrapper_b__35_0", "_CreateLowerLevelRareMerchant_b__64_0");
-        Suppliers(hooks, typeof(StoreClientList.__c), nameof(InventorSupplyStockPrefix), "_CreateInventorStorage_b__31_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(ThiefStockPrefix), "_CreateThief_b__47_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(GeneralStockPrefix),
             "_CreatePettyThief_b__48_0", "_CreateBrokeUpperLevel_b__69_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(FoodStockPrefix), "_CreateFoodThief_b__49_0");
         Suppliers(hooks, typeof(StoreClientList.__c), nameof(MedicalStockPrefix),
-            "_CreateShadyPharmacist_b__34_0", "_CreateScavBlood_b__58_0", "_CreateRareLowerLevelChemist_b__65_0");
+            "_CreateShadyPharmacist_b__34_0", "_CreateRareLowerLevelChemist_b__65_0");
         Suppliers(hooks, typeof(StoreClientList.__c__DisplayClass22_0), nameof(MaterialStockPrefix), "_CreateJunkerSellOnly_b__0");
         Suppliers(hooks, typeof(StoreClientList.__c__DisplayClass37_0), nameof(MedicalStockPrefix), "_CreateLowerLevelChemist_b__0");
         Suppliers(hooks, typeof(StoreClientList.__c__DisplayClass41_0), nameof(GeneralStockPrefix), "_CreateScavGeneral_b__0");
         Suppliers(hooks, typeof(StoreClientList.__c__DisplayClass42_0), nameof(GeneralStockPrefix), "_CreateScavCrate_b__0");
-        Suppliers(hooks, typeof(StoreClientListMinor.__c), nameof(GeneralStockPrefix),
-            "_CreateScavHaul_b__8_0", "_CreateSalvagePilot_b__14_0", "_CreateOldScav_b__17_0", "_CreateConspiracyClient_b__22_0");
-        Suppliers(hooks, typeof(StoreClientListMinor.__c), nameof(MaterialStockPrefix), "_CreatePeatClient_b__21_0");
+        Suppliers(hooks, typeof(StoreClientListMinor.__c), nameof(MaterialStockPrefix),
+            "_CreateScavHaul_b__8_0", "_CreateSalvagePilot_b__14_0");
         Suppliers(hooks, typeof(StoreClientListMinor.__c), nameof(MedicalStockPrefix), "_CreateNurse1_b__5_0");
         Suppliers(hooks, typeof(StoreClientListRev.__c), nameof(GeneralStockPrefix), "_CreateRevRaider_b__0_0", "_CreateRevQuartermaster_b__1_0");
-        Suppliers(hooks, typeof(StoreClientListSpec.__c), nameof(FoodStockPrefix), "_CreateRetiredWinemaker_b__4_0");
-        Suppliers(hooks, typeof(StoreClientListSpec.__c), nameof(MaterialStockPrefix), "_CreateRetiredJunker_b__5_0");
-        Suppliers(hooks, typeof(StoreClientListSpec.__c), nameof(MedicalStockPrefix), "_CreateRetiredChemist_b__7_0");
+        // Special meat/blood sellers, old/conspiracy scavengers and retired
+        // professionals offer specified goods or complete sets of equipment.
+        // Their fixed-stock callbacks do not open a random replacement scope.
         Suppliers(hooks, typeof(StoreClientListSurplus.__c), nameof(FoodStockPrefix), "_CreateFoodSurplusClient_b__0_0", "_CreateFoodSurplusClient_b__0_1");
         Suppliers(hooks, typeof(StoreClientListSurplus.__c), nameof(MedicalStockPrefix), "_CreateMedicalSurplusClient_b__1_0", "_CreateMedicalSurplusClient_b__1_1");
         Suppliers(hooks, typeof(StoreClientListSurplus.__c), nameof(MaterialStockPrefix), "_CreateMaterialSurplusClient_b__4_0", "_CreateMaterialSurplusClient_b__4_1");
         Suppliers(hooks, typeof(StoreClientListEvent.__c), nameof(HouseholdStockPrefix), "_CreateScavengerHouseholdClient_b__8_0");
         Installed = NativeHookSet.Install("nicokobo.forge.npc_stock", hooks, _log);
         ForgeCapabilities.Publish(ForgeCapabilities.Current with { NpcTradeStock = Installed });
-        SafeLog($"[NicokoboForge/NpcStock] installed={Installed}; supplyHooks={hooks.Count - 6}; mode=native-pools");
+        SafeLog($"[NicokoboForge/NpcStock] installed={Installed}; " +
+            $"supplyHooks={hooks.Count(hook => hook.Finalizer == nameof(EndSupply))}; mode=native-pools");
     }
 
     private static NativeHook Supply(Type type, string method, string callback) =>
@@ -155,8 +155,7 @@ internal static class NativeNpcStockAdapter
     private static void ThiefStockPrefix(out SupplyScope? __state) => BeginSupply(
         NativeNpcStockPolicy.All, out __state, supplier: NpcTradeStockSupplier.Thief);
     private static void InventorSupplyStockPrefix(out SupplyScope? __state) => BeginSupply(
-        NpcTradeStockCategory.Material | NpcTradeStockCategory.Module |
-        NpcTradeStockCategory.Machine | NpcTradeStockCategory.Household, out __state,
+        NpcTradeStockCategory.Module, out __state,
         supplier: NpcTradeStockSupplier.Inventor);
     private static void FoodStockPrefix(out SupplyScope? __state) => BeginSupply(NpcTradeStockCategory.Food, out __state);
     private static void MedicalStockPrefix(out SupplyScope? __state) => BeginSupply(NpcTradeStockCategory.Medical, out __state);
@@ -228,6 +227,20 @@ internal static class NativeNpcStockAdapter
         if (pending == 1) supply.PoolDraws.Remove(__result.identifier);
         else supply.PoolDraws[__result.identifier] = pending - 1;
         supply.PoolItems.Add(__result.Pointer);
+    }
+
+    private static void SpawnItemPostfix(string __0, GameItem __result)
+    {
+        PoolItemPostfix(__result);
+        // Named specialist modules retain their native availability and purpose
+        // for every supplier. Only random module/node factories create slots
+        // eligible for direct Mod-module replacement.
+        if (_supply is { } supply &&
+            __result != null && __result.Pointer != IntPtr.Zero &&
+            __0 is "random_performance_module" or "random_efficiency_module" or
+                "random_quality_module" or "random_overclock_module" or
+                "random_eco_module" or "random_fineness_module" or "random_node")
+            supply.RandomModules.Add(__result.Pointer);
     }
 
     private static bool PlaceStockPrefix(ref GameItem __0, bool __1, out StockPlacement? __state)
@@ -356,19 +369,20 @@ internal static class NativeNpcStockAdapter
             var store = PlayerStore.instance;
             if (store == null || store.Pointer == IntPtr.Zero || original.parentInventory != null ||
                 original.unitCount <= 0) return true;
-            // The inventor also generates guaranteed keycards, guides and machines.
-            // Only his native module/node stock slots participate at night.
-            if (supply.NightShopModules && !original.IsGameItemType("MODULE") &&
-                !original.IsGameItemType("NODE")) return true;
-            var offers = StockOffers(supply.Categories, store, supply);
+            var categories = DirectStockCategories(supply, original) & supply.Categories;
+            if (categories == NpcTradeStockCategory.None) return true;
+            var offers = StockOffers(categories, store, supply);
             if (offers.Length == 0) return true;
-            var offer = NativeNpcStockPolicy.SelectFromPool(offers, supply.Categories, RNG.GetRandomDouble(0, 1));
+            var offer = NativeNpcStockPolicy.SelectFromPool(offers, categories, RNG.GetRandomDouble(0, 1));
             if (offer == null) return true;
             itemId = offer.ItemId;
             item = DirectoryMaster.Item(offer.ItemId, true);
             if (item == null || item.Pointer == IntPtr.Zero || item.Pointer == original.Pointer ||
                 item.identifier != offer.ItemId || item.parentInventory != null || item.unitCount <= 0)
                 throw new InvalidOperationException("Registered NPC stock could not be created");
+            if (item.unitCount != original.unitCount) item.SetUnitCount(original.unitCount);
+            if (item.unitCount != original.unitCount)
+                throw new InvalidOperationException("NPC stock quantity could not be preserved");
         }
         catch (Exception ex)
         {
@@ -383,6 +397,28 @@ internal static class NativeNpcStockAdapter
         placement = new(original.Pointer, itemId!, "SupplyPool");
         DestroyUnusedStock(previous);
         return true;
+    }
+    private static NpcTradeStockCategory DirectStockCategories(SupplyScope supply, GameItem item)
+    {
+        // Purpose types precede secondary household/luxury labels: a kitchen
+        // knife is a weapon, and blue blood is medical.
+        if (item.IsGameItemType("WEAPON") || item.IsGameItemType("AMMUNITION") ||
+            item.IsGameItemType("ARMOR") || item.IsGameItemType("TOOL") ||
+            item.IsGameItemType("MACHINE") || item.IsGameItemType("STORAGE") ||
+            item.IsGameItemType("ACCESS_CARD") || item.IsGameItemType("DOCUMENT") ||
+            item.IsTag("IMPORTANT_TAG") || item.IsTag("NOT_FOR_RESALE") ||
+            item.IsTag("CONTAINER_TAG") || item.IsTag("LIQUID_CONTAINER_TAG"))
+            return NpcTradeStockCategory.None;
+        if (item.IsGameItemType("MODULE") || item.IsGameItemType("NODE"))
+            return supply.RandomModules.Remove(item.Pointer) ? NpcTradeStockCategory.Module : NpcTradeStockCategory.None;
+        if (item.IsGameItemType("MEDICAL")) return NpcTradeStockCategory.Medical;
+        if (item.IsGameItemType("FOOD") || item.IsGameItemType("PROCESSED_FOOD") ||
+            item.IsGameItemType("BREVAGE")) return NpcTradeStockCategory.Food;
+        if (item.IsGameItemType("MATERIAL"))
+            return NpcTradeStockCategory.Material | NpcTradeStockCategory.Ore;
+        if (item.IsGameItemType("HOUSEHOLD_GOOD") || item.IsGameItemType("LUXURY_ITEM"))
+            return NpcTradeStockCategory.Household;
+        return NpcTradeStockCategory.None;
     }
     private static void SafeLog(string message) { try { _log?.Invoke(message); } catch { } }
 }

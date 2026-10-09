@@ -4,7 +4,12 @@ namespace Il2Cpp;
 // This checks the API against detached snapshots; it does not run IL2CPP.
 public sealed partial class GameItem
 {
-    public TagSystem state { get; } = new();
+    private TagSystem _state = new();
+    public TagSystem state
+    {
+        get { _state.LiquidSnapshot = Liquid; return _state; }
+        set { _state = value; Liquid = value.LiquidSnapshot; }
+    }
     public long unitValue;
     private readonly TagSystem _modifiedState = new();
 
@@ -22,6 +27,13 @@ public sealed partial class GameItem
 public sealed class TagSystem
 {
     public Dictionary<string, TagState> dict { get; } = new(StringComparer.Ordinal);
+    internal Nicokobo.Forge.ForgeMachineLiquidSnapshot? LiquidSnapshot;
+    public TagSystem Clone()
+    {
+        var copy = new TagSystem { LiquidSnapshot = LiquidSnapshot };
+        foreach (var pair in dict) copy.dict[pair.Key] = pair.Value.Clone();
+        return copy;
+    }
 }
 
 public sealed class TagState(string identifier, string identifierName)

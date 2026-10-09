@@ -12,7 +12,8 @@ internal static partial class ForgeMachineRuntime
     private sealed record BatchPlan(ForgeMachineBatchContext Context, ForgeMachineRecipe Recipe,
         ForgeMachineInventory Inventory, IReadOnlyList<ItemReceipt> Takes,
         IReadOnlyList<LiquidChange> Liquids, IReadOnlyList<ForgeMachineLiquidPart>? Contents,
-        LiquidChange? ContainerOutput, GameItem? Battery, int Energy, int Power);
+        LiquidChange? ContainerOutput, GameItem? Battery, int Energy, int Power,
+        IForgePowerTransaction? ExternalPower, IForgeBatchTransaction? Transaction);
     private const string FaultTag = "NICOKOBO_FORGE_MACHINE_FAULT";
     private static readonly HashSet<(int Slot, string Run, int Day, int Item)> Attempted = [];
     private static readonly HashSet<int> Quarantined = [];
@@ -102,7 +103,9 @@ internal static partial class ForgeMachineRuntime
         {
             if (automation.RecipeId != null && entry.Value.RecipeId != automation.RecipeId) continue;
             if (!TryPlan(machine, profile, inventory, entry.Value, out var plan, out last)) continue;
-            var result = Execute(plan!);
+            string result;
+            try { result = Execute(plan!); }
+            finally { plan!.ExternalPower?.Dispose(); plan.Transaction?.Dispose(); }
             automation.Result = result;
             ForgeMachineAutomationApi.Dispatch(ForgeMachineAutomationPhase.AfterBatch, automation);
             return result;
@@ -238,14 +241,27 @@ internal static partial class ForgeMachineRuntime
             int power = ForgeMachinePowerMath.CalculateCost(profile.Power.ResolveCost?.Invoke(context) ?? profile.Power.Cost,
                 count, profile.Power.PerOutput);
             var battery = inventory.Battery?.childItem;
-            int energy = battery == null ? -1 : ForgePowerApi.ReadSource(battery) ?? -1;
+            bool external = battery != null && ForgeExternalPowerApi.IsConnector(battery);
+            int energy = battery == null ? -1 : external ? ForgeExternalPowerApi.GetEnergy(battery) : ForgePowerApi.ReadSource(battery) ?? -1;
             if ((profile.Template.Battery?.Required == true || power > 0) &&
                 (battery == null || battery.Pointer == IntPtr.Zero || !GeneralHelper.IsItemOwned(battery) ||
                  battery.parentInventory?.Pointer != inventory.Battery!.Pointer || energy < power ||
                  !ForgePowerApi.CanDrawSource(battery, power)))
             { status = "power-unavailable"; return false; }
-            plan = new(context, recipe, inventory, takes, changes, contents, containerOutput, battery, energy, power);
-            if (!Unchanged(plan)) { plan = null; status = "input-changed"; return false; }
+            IForgePowerTransaction? supply = external && power > 0
+                ? ForgeExternalPowerApi.Plan(machine, battery!, power) : null;
+            if (external && power > 0 && supply == null) { status = "external-power-unavailable"; return false; }
+            IForgeBatchTransaction? participant = null;
+            try
+            {
+                participant = recipe.Transaction?.Invoke(context);
+                if (recipe.Transaction != null && participant == null)
+                { supply?.Dispose(); status = "recipe-transaction-unavailable"; return false; }
+                plan = new(context, recipe, inventory, takes, changes, contents, containerOutput, battery, energy, power, supply, participant);
+                if (!Unchanged(plan))
+                { supply?.Dispose(); participant?.Dispose(); plan = null; status = "input-changed"; return false; }
+            }
+            catch { supply?.Dispose(); participant?.Dispose(); throw; }
             status = "ready"; return true;
         }
         catch (Exception ex) { status = "batch-rule-invalid:" + ex.Message; return false; }
@@ -269,8 +285,9 @@ internal static partial class ForgeMachineRuntime
             if (change.Container.parentInventory?.Pointer != change.Slot.Pointer ||
                 !GeneralHelper.IsItemOwned(change.Container) ||
                 !ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(change.Container), change.Before)) return false;
-        return plan.Battery == null || (plan.Battery.parentInventory?.Pointer == plan.Inventory.Battery?.Pointer &&
-            ForgePowerApi.ReadSource(plan.Battery) == plan.Energy);
+        return (plan.Transaction?.Validate() ?? true) && (plan.ExternalPower?.Validate() ?? true) &&
+            (plan.Battery == null || (plan.Battery.parentInventory?.Pointer == plan.Inventory.Battery?.Pointer &&
+            (ForgeExternalPowerApi.IsConnector(plan.Battery) || ForgePowerApi.ReadSource(plan.Battery) == plan.Energy)));
     }
 
     private static void Quarantine(GameItem machine, string failure)

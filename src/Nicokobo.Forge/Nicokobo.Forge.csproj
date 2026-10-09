@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>Nicokobo.Forge</AssemblyName>
     <RootNamespace>Nicokobo.Forge</RootNamespace>
-    <Version>0.6.32</Version>
+    <Version>0.6.33</Version>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>

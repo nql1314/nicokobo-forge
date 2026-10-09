@@ -69,6 +69,13 @@ internal static partial class ForgeMachineRuntime
         if (plan.Power > 0)
             steps.Add(new("battery", () =>
             {
+                if (plan.ExternalPower != null)
+                {
+                    if (!plan.ExternalPower.Validate()) throw new InvalidOperationException("external power changed");
+                    plan.ExternalPower.Debit();
+                    if (!plan.ExternalPower.Verify()) throw new InvalidOperationException("external power readback failed");
+                    return;
+                }
                 if (plan.Battery == null || plan.Battery.parentInventory?.Pointer != plan.Inventory.Battery?.Pointer ||
                     ForgePowerApi.ReadSource(plan.Battery) != plan.Energy ||
                     !ForgePowerApi.DrawSource(plan.Battery, plan.Power) ||
@@ -76,6 +83,7 @@ internal static partial class ForgeMachineRuntime
                     throw new InvalidOperationException("power debit readback failed");
             }, () =>
             {
+                if (plan.ExternalPower != null) return plan.ExternalPower.Restore();
                 ForgePowerApi.RestoreSource(plan.Battery!, plan.Energy);
                 return plan.Battery!.parentInventory?.Pointer == plan.Inventory.Battery?.Pointer &&
                     ForgePowerApi.ReadSource(plan.Battery) == plan.Energy;
@@ -117,17 +125,29 @@ internal static partial class ForgeMachineRuntime
                     !ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(change.Container), change.After))
                     throw new InvalidOperationException("liquid commit mismatch");
             if (plan.Battery != null && (plan.Battery.parentInventory?.Pointer != plan.Inventory.Battery?.Pointer ||
-                ForgePowerApi.ReadSource(plan.Battery) != plan.Energy - plan.Power))
+                (plan.ExternalPower != null ? !plan.ExternalPower.Verify() :
+                    !ForgeExternalPowerApi.IsConnector(plan.Battery) && ForgePowerApi.ReadSource(plan.Battery) != plan.Energy - plan.Power)))
                 throw new InvalidOperationException("battery commit mismatch");
             if (products.Any(product => product.parentInventory?.Pointer != plan.Inventory.Output.Pointer) ||
                 (products.Count > 0 && plan.Inventory.Output.childItems?.Count != outputBefore + products.Count))
                 throw new InvalidOperationException("output commit mismatch");
         }, () => true));
+        if (plan.Transaction != null)
+            steps.Add(new("recipe-transaction", () =>
+            {
+                if (!plan.Transaction.Validate()) throw new InvalidOperationException("recipe transaction changed");
+                plan.Transaction.Apply(products.AsReadOnly());
+                if (!plan.Transaction.Verify()) throw new InvalidOperationException("recipe transaction readback failed");
+            }, plan.Transaction.Restore));
         var result = MachineTransaction.Run(steps, failure =>
             ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] rollback step failed: {failure}"));
         if (!result.Committed)
         {
-            if (!result.Restored) Quarantine(plan.Context.Machine, result.Status);
+            if (!result.Restored)
+            {
+                plan.ExternalPower?.Fault(result.Status); plan.Transaction?.Fault(result.Status);
+                Quarantine(plan.Context.Machine, result.Status);
+            }
             return result.Status;
         }
         // Destruction happens only after the resource transaction commits.
@@ -162,7 +182,9 @@ internal static partial class ForgeMachineRuntime
         foreach (var change in plan.Liquids.Concat(plan.ContainerOutput == null ? [] : new[] { plan.ContainerOutput }))
             try { if (!RestoreContainer(change)) restored = false; }
             catch { restored = false; }
-        if (plan.Battery != null)
+        if (plan.ExternalPower != null)
+            try { if (!plan.ExternalPower.Restore()) restored = false; } catch { restored = false; }
+        else if (plan.Battery != null && !ForgeExternalPowerApi.IsConnector(plan.Battery))
             try
             {
                 if (ForgePowerApi.ReadSource(plan.Battery) != plan.Energy)

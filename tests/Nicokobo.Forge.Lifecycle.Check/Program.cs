@@ -86,6 +86,22 @@ try
         Boundary.Call(typeof(ModHook), nameof(ModHook.FireOnGameLoadedLate), store, true);
         Require(standaloneLate == 1, "Standalone game-loaded-late subscription lost the actual late notification");
     }
+    // Endpoint preparation and consumers must share ordered dispatch, even
+    // when the preparer subscribes later. This checks the production dispatcher,
+    // not native DecodeNodes or endpoint graphs; those require new-PID tests.
+    var readyOrder = new List<string>();
+    using (var consumer = ForgeLifecycleApi.Subscribe("nicokobo.lifecycle.check", "nicokobo.lifecycle.check.consumer",
+        ForgeLifecyclePhase.AfterGameLoadedLate, _ => readyOrder.Add("content")))
+    using (var preparer = ForgeLifecycleApi.Subscribe("nicokobo.lifecycle.check", "nicokobo.lifecycle.check.preparer",
+        ForgeLifecyclePhase.AfterGameLoadedLate, _ => readyOrder.Add("prepare"), int.MinValue))
+    {
+        Boundary.Call(typeof(ModHook), nameof(ModHook.FireOnGameLoadedLate), store, true);
+        Require(readyOrder.SequenceEqual(new[] { "prepare", "content" }),
+            "Native ready consumers ran before endpoint preparation because of subscription order");
+        Boundary.Call(typeof(ModHook), nameof(ModHook.FireOnGameLoadedLate), store, true);
+        Require(readyOrder.SequenceEqual(new[] { "prepare", "content", "prepare", "content" }),
+            "A later native load must prepare exactly once before its consumers");
+    }
     MachineLifecycleChecks.Run(Require);
     PresentationChecks.Run(Require);
     Console.WriteLine($"Lifecycle and presentation checks passed: {checks} assertions.");

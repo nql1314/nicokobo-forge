@@ -13,8 +13,12 @@ internal static class NpcStockChecks
         object? Call(string name, params object?[] arguments) =>
             typeof(NativeNpcStockAdapter).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!
                 .Invoke(null, arguments);
-        GameItem Item(string id, int units = 1, string type = "ITEM") => new()
-        { Pointer = new(nextPointer++), identifier = id, unitCount = units, GameItemType = type };
+        GameItem Item(string id, int units = 1, string? type = null) => new()
+        { Pointer = new(nextPointer++), identifier = id, unitCount = units,
+            GameItemType = type ?? (id switch {
+                "native.food" => "FOOD", "native.material" or "common_ore" => "MATERIAL",
+                "native.medical" => "MEDICAL", "native.household" => "HOUSEHOLD_GOOD",
+                "native.module" => "MODULE", "native.node" => "NODE", _ => "ITEM" }) };
         void Offer(string id, NpcTradeStockCategory category, float weight = 1,
             bool skipOwned = false, Func<GameItem>? factory = null, int minimumDay = 0,
             float? minerWeight = null, NpcTradeStockSupplier suppliers = NpcTradeStockSupplier.Any,
@@ -75,10 +79,114 @@ internal static class NpcStockChecks
             finally { Call("EndPoolRoll", context[1]); }
             var item = Item(id); Call("PoolItemPostfix", item); return item;
         }
+        GameItem Spawned(string source, string id, string type = "MODULE")
+        {
+            var item = Item(id, type: type); Call("SpawnItemPostfix", source, item); return item;
+        }
 
         Reset(); Offer("test.pool.food", NpcTradeStockCategory.Food);
         NativeNpcStockAdapter.Configure(true, _ => { }); NativeNpcStockAdapter.Update();
         Expect(NativeNpcStockAdapter.Installed, "Fixture did not install the supply callbacks");
+        Reset();
+        Offer("test.pool.component", NpcTradeStockCategory.Material);
+        Offer("test.pool.food", NpcTradeStockCategory.Food);
+        Offer("test.pool.gel", NpcTradeStockCategory.Medical);
+        Offer("test.pool.card", NpcTradeStockCategory.Household);
+        foreach (string callback in new[] { "GeneralStockPrefix", "TechnicalStockPrefix",
+            "ThiefStockPrefix", "MaterialStockPrefix", "MedicalStockPrefix" })
+            Supply(callback, () =>
+            {
+                foreach (string type in new[] { "WEAPON|HOUSEHOLD_GOOD", "AMMUNITION", "TOOL",
+                    "MACHINE", "STORAGE|HOUSEHOLD_GOOD", "ACCESS_CARD", "DOCUMENT", "ARMOR", "MODULE", "NODE", "ITEM" })
+                {
+                    var original = Item("native.protected_stock", type: type);
+                    RNG.Samples.Enqueue(0.99);
+                    Expect(ReferenceEquals(Place(original), original) && original.DestroyCalls == 0 && RNG.Calls == 0,
+                        "Mixed supplier replaced equipment or an unsupported stock type: " + callback + "/" + type);
+                    RNG.Samples.Clear();
+                }
+                foreach (string tag in new[] { "IMPORTANT_TAG", "NOT_FOR_RESALE", "LIQUID_CONTAINER_TAG", "CONTAINER_TAG" })
+                {
+                    var original = Item("native.protected_stock", type: "HOUSEHOLD_GOOD");
+                    original.Tags.Add(tag); RNG.Samples.Enqueue(0.99);
+                    Expect(ReferenceEquals(Place(original), original) && RNG.Calls == 0,
+                        "Mixed supplier replaced a protected container or quest item: " + callback + "/" + tag);
+                    RNG.Samples.Clear();
+                }
+            });
+
+        Reset();
+        Offer("test.pool.component", NpcTradeStockCategory.Material);
+        Offer("test.pool.food", NpcTradeStockCategory.Food);
+        Offer("test.pool.gel", NpcTradeStockCategory.Medical);
+        Offer("test.pool.card", NpcTradeStockCategory.Household);
+        Supply("GeneralStockPrefix", () =>
+        {
+            foreach (var (type, id) in new[] { ("FOOD", "test.pool.food"),
+                ("MEDICAL|LUXURY_ITEM", "test.pool.gel"), ("MATERIAL", "test.pool.component"),
+                ("HOUSEHOLD_GOOD", "test.pool.card") })
+            {
+                RNG.Samples.Enqueue(0.99);
+                var placed = Place(Item("native.ordinary_stock", 3, type));
+                Expect(placed.identifier == id && placed.unitCount == 3,
+                    "Mixed supply changed category or lost the original quantity: " + type);
+            }
+        });
+
+        Reset();
+        StoreStation.Day = 22;
+        Offer("test.pool.control_chip", NpcTradeStockCategory.Material, minimumDay: 22);
+        Offer("test.pool.module", NpcTradeStockCategory.Module,
+            suppliers: NpcTradeStockSupplier.Inventor, nightShop: true);
+        foreach (bool visiting in new[] { true, false })
+            Inventor(visiting, () =>
+            {
+                foreach (var (id, type) in new[] { ("desequencer", "MACHINE"),
+                    ("storage_bay_large", "ITEM"), ("blank_keycard", "ITEM"),
+                    ("crypto_module_sec", "MODULE"), ("farm_module_nutrifruit", "MODULE") })
+                {
+                    var original = Item(id, type: type);
+                    RNG.Samples.Enqueue(0.99);
+                    Expect(ReferenceEquals(Place(original), original) && original.DestroyCalls == 0 && RNG.Calls == 0,
+                        "Jackson's specified stock was replaced by a control chip/module: " + id);
+                    RNG.Samples.Clear();
+                }
+            });
+        foreach (string method in new[] { "_CreateOldScav_b__17_0", "_CreateInventorStorage_b__31_0",
+            "_CreatePeatClient_b__21_0",
+            "_CreateConspiracyClient_b__22_0", "_CreateScavBlood_b__58_0", "_CreateRetiredWinemaker_b__4_0",
+            "_CreateRetiredJunker_b__5_0", "_CreateRetiredChemist_b__7_0" })
+            Expect(Nicokobo.Forge.Runtime.NativeHookSet.Installed.All(hook => hook.Method != method),
+                "Specified stock still opens a replacement scope: " + method);
+        foreach (var (method, prefix) in new[] { ("_CreateScavHaul_b__8_0", "MaterialStockPrefix"),
+            ("_CreateSalvagePilot_b__14_0", "MaterialStockPrefix") })
+            Expect(Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == method).Prefix == prefix,
+                "An ordinary supplier was mapped to the wrong category: " + method);
+        foreach (string id in new[] { "heavy_handmade_gun", "heavy_pistol_ammo", "heavy_pistol_ammo_p" })
+        {
+            var original = Item(id);
+            Expect(ReferenceEquals(Place(original), original) && original.DestroyCalls == 0 && RNG.Calls == 0,
+                "Fixed old-scavenger stock was changed outside random supply: " + id);
+        }
+        foreach (bool visiting in new[] { true, false })
+            Inventor(visiting, () =>
+            {
+                foreach (string source in new[] { "random_performance_module", "random_efficiency_module",
+                    "random_quality_module", "random_overclock_module", "random_eco_module",
+                    "random_fineness_module", "random_node" })
+                {
+                    RNG.Samples.Enqueue(0.99);
+                    Expect(Place(Spawned(source, "native.random_module",
+                        source == "random_node" ? "NODE" : "MODULE")).identifier == "test.pool.module",
+                        "Jackson lost a reviewed random module slot: " + source);
+                }
+                int before = RNG.Calls;
+                var named = Spawned("crypto_module_sec", "crypto_module_sec");
+                Expect(ReferenceEquals(Place(named), named) && named.DestroyCalls == 0 && RNG.Calls == before,
+                    "An ItemSpawner call alone made a named Jackson module replaceable");
+            });
+
+        Reset(); Offer("test.pool.food", NpcTradeStockCategory.Food);
         Supply("FoodStockPrefix", () =>
         {
             RNG.Samples.Enqueue(0); RNG.Samples.Enqueue(0.9); RNG.Samples.Enqueue(0.9);
@@ -133,6 +241,18 @@ internal static class NpcStockChecks
                 "A failed factory removed native stock");
         });
         Expect(PlayerStore.instance!.Placements == 1, "A failed factory changed the stock count");
+
+        Reset();
+        GameItem failedQuantity = Item("test.pool.food"); failedQuantity.ThrowOnSetUnitCount = true;
+        Offer("test.pool.food", NpcTradeStockCategory.Food, factory: () => failedQuantity);
+        Supply("FoodStockPrefix", () =>
+        {
+            RNG.Samples.Enqueue(0.99); var original = Item("native.food", 3);
+            Expect(ReferenceEquals(Place(original), original) && original.unitCount == 3 && original.DestroyCalls == 0,
+                "A failed quantity update removed or truncated the original stock");
+            Expect(failedQuantity.DestroyCalls == 1 && PlayerStore.instance!.Placements == 1,
+                "A failed quantity update leaked the replacement or changed the stock count");
+        });
 
         Reset(); Offer("test.pool.gel", NpcTradeStockCategory.Medical, 0.125f);
         Offer("test.pool.food", NpcTradeStockCategory.Food);
@@ -329,15 +449,15 @@ internal static class NpcStockChecks
             {
                 StoreStation.Day = day;
                 RNG.Samples.Enqueue(0.799999);
-                var original = Item("native.stock");
+                var original = Item("native.material");
                 Expect(ReferenceEquals(Place(original), original),
                     "More eligible goods increased the direct supply's Mod probability on day " + day);
-                int count = day == 22 ? 22 : 15;
+                int count = day == 22 ? 9 : 2;
                 var selected = new HashSet<string>(StringComparer.Ordinal);
                 for (int index = 0; index < count; index++)
                 {
                     RNG.Samples.Enqueue((1 + 0.25 * (index + 0.5) / count) / 1.25);
-                    selected.Add(Place(Item("native.stock")).identifier);
+                    selected.Add(Place(Item("native.material")).identifier);
                 }
                 Expect(selected.Count == count && selected.All(id => id.StartsWith("test.pool.")) &&
                     !selected.Contains("test.pool.unapplied") && !selected.Contains("test.pool.card") &&
@@ -413,7 +533,8 @@ internal static class NpcStockChecks
             new("test.pool.neural_interface", 0.04f, "test.pool") };
         Expect(Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == "_CreateThief_b__47_0").Prefix == "ThiefStockPrefix" &&
             Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == "_CreatePettyThief_b__48_0").Prefix == "GeneralStockPrefix" &&
-            Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == "_CreateInventorStorage_b__31_0").Prefix == "InventorSupplyStockPrefix",
+            Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == "PlaceInventorInventory").Prefix == "InventorStockPrefix" &&
+            Nicokobo.Forge.Runtime.NativeHookSet.Installed.Single(hook => hook.Method == "Spawn").Postfix == "SpawnItemPostfix",
             "The restricted suppliers were attached to the wrong native callbacks");
         foreach (string callback in new[] { "GeneralStockPrefix", "TechnicalStockPrefix", "MaterialStockPrefix" })
             Supply(callback, () =>
@@ -436,8 +557,8 @@ internal static class NpcStockChecks
                 merged.All(entry => entry.id != "test.pool.neural_interface"),
                 "Authorized module supply did not share the fixed budget or excluded the wrong items");
             RNG.Samples.Enqueue(0.84); RNG.Samples.Enqueue(0.96);
-            Expect(Place(Item("native.stock")).identifier == "test.pool.basic_module" &&
-                Place(Item("native.stock")).identifier == "test.pool.advanced_node",
+            Expect(Place(Spawned("random_performance_module", "native.module")).identifier == "test.pool.basic_module" &&
+                Place(Spawned("random_node", "native.node", "NODE")).identifier == "test.pool.advanced_node",
                 "Authorized direct supply failed to reach basic and advanced modules");
         }
         Supply("ThiefStockPrefix", CheckModuleSupply);
@@ -446,11 +567,12 @@ internal static class NpcStockChecks
         Offer("test.pool.food", NpcTradeStockCategory.Food);
         Supply("ThiefStockPrefix", () =>
         {
-            RNG.Samples.Enqueue(0.84); RNG.Samples.Enqueue(0.90); RNG.Samples.Enqueue(0.97);
-            Expect(new[] { Place(Item("native.stock")).identifier, Place(Item("native.stock")).identifier,
-                    Place(Item("native.stock")).identifier }.SequenceEqual(new[] {
+            RNG.Samples.Enqueue(0.84); RNG.Samples.Enqueue(0.96); RNG.Samples.Enqueue(0.97);
+            Expect(new[] { Place(Spawned("random_performance_module", "native.module")).identifier,
+                    Place(Spawned("random_node", "native.node", "NODE")).identifier,
+                    Place(Item("native.food")).identifier }.SequenceEqual(new[] {
                     "test.pool.basic_module", "test.pool.advanced_node", "test.pool.food" }),
-                "Modules took an extra budget instead of sharing the supplier's ordinary Mod candidates");
+                "A mixed thief replaced native stock with an unrelated Mod category");
         });
         Offer("test.pool.day_module", NpcTradeStockCategory.Module);
         Inventor(false, () =>
@@ -468,10 +590,10 @@ internal static class NpcStockChecks
                     "Night module selection replaced guaranteed or non-module stock");
             }
             RNG.Samples.Enqueue(0); RNG.Samples.Enqueue(0.84); RNG.Samples.Enqueue(0.96);
-            var kept = Item("native.module", type: "MODULE");
+            var kept = Spawned("random_quality_module", "native.module");
             Expect(ReferenceEquals(Place(kept), kept) && kept.DestroyCalls == 0 &&
-                Place(Item("native.module", type: "MODULE")).identifier == "test.pool.basic_module" &&
-                Place(Item("native.node", type: "NODE")).identifier == "test.pool.advanced_node",
+                Place(Spawned("random_efficiency_module", "native.module")).identifier == "test.pool.basic_module" &&
+                Place(Spawned("random_node", "native.node", "NODE")).identifier == "test.pool.advanced_node",
                 "Night-shop native module/node slots did not share the mixed pool");
             var drawn = Drawn("t2moduleTable", "native.module"); drawn.GameItemType = "MODULE";
             Expect(ReferenceEquals(Place(drawn), drawn) && RNG.Calls == before + 3,

@@ -59,6 +59,8 @@ internal static class NativeHookSet
             throw new InvalidOperationException("Native hook target is abstract or open generic");
         var field = Il2CppInteropUtils.GetIl2CppMethodInfoPointerFieldForGeneratedMethod(method)
             ?? throw new InvalidOperationException("Native hook target has no generated method metadata");
+        if (field.Name.Contains("_Abstract_", StringComparison.Ordinal))
+            throw new InvalidOperationException("Native hook target is a generated wrapper for an abstract native method");
         if (field.GetValue(null) is not IntPtr pointer || pointer == IntPtr.Zero)
             throw new InvalidOperationException("Native hook target has no method metadata pointer");
         var nativeMethod = UnityVersionHandler.Wrap((Il2CppMethodInfo*)pointer);

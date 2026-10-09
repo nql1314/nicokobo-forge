@@ -25,6 +25,11 @@ Forge 持有通用注册、事件分派、构建门控和资源事务，以及�
 | `ForgeInventoryPlacementApi` | 未附着单件物品的整批几何落位预检，返回克隆形状；不提交、发奖、保存或预留真实库存 |
 | `ForgeItemTransferApi` / `ForgeLiquidTransferApi` | 单次原生物品搬运／倒液与两端读回；返回实际量和不确定状态，不撤回此前独立成功操作 |
 | `ForgeRunDataApi` | 所属 Mod 的周目 JSON 读取与比较后暂存 |
+| `ForgeTransactionApi` / `IForgeBatchTransaction` | 批次内容状态与材料、产物、电量共同提交/补偿；唯一额度规则由内容方持有 |
+| `ForgeExternalPowerApi` / `IForgePowerTransaction` | 电线原电池槽适配、真实多源扣电及原版炉事务；不保存虚拟余额 |
+| `ForgeInventoryEndpointApi` / `ForgeSaveGraphApi` | 隐藏原生根、完整图与正常存档接入；内容工厂负责固定拓扑，未知图停止而不清空替代 |
+| `ForgeListInventoryApi` / `ForgeInventoryFreezeApi` | 列表后台几何承载、持久尺寸与真实实例临时锁；件数容量及 UI 由内容方持有 |
+| `ForgeRunPurchaseApi` / `ForgeItemInspectionApi` | 原生付款事务、实际单价与原生富文本提示只读接入 |
 | `ForgeStartApi` | 开局身份认领 |
 | `ForgeWorkshopApi` | 独立工坊标签、图谱展示与事件分派 |
 | `ForgeAssetsApi` / `ForgeSpriteAtlas` | 图片声明、图集路径所有权、完整发布读回、失败清理及物品赋图 |
@@ -32,6 +37,8 @@ Forge 持有通用注册、事件分派、构建门控和资源事务，以及�
 | `ForgeHookApi` | 检查 IL2CPP 方法的原生执行入口，不安装内容方补丁 |
 
 `NativeItemRegistry`、`NativeEffectRegistry`、`NativeShopAdapter` 是内部适配器，内容 Mod 通过公共入口调用。商店库存生成由独立适配器处理，购买后不自动补货；效果注册复用物品目录就绪接入。
+
+新增库存与供电契约见[真实库存端点与外部供电事务](INVENTORY_POWER_TRANSACTIONS.md)。当前物流 0.2.0 是待最终 review/原生验收的候选；公共能力不代替新进程保存或实际夜结读回。
 
 ## 独立逻辑与原生端口
 

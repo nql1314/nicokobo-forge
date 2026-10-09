@@ -15,7 +15,7 @@ public static class ForgeItemTransferApi
             item == null || item.Pointer == IntPtr.Zero || destination == null || destination.Pointer == IntPtr.Zero)
             return new(0, false, "unavailable");
         var source = item.parentInventory;
-        if (source == null || source.Pointer == destination.Pointer || source.IsRemoveLocked() ||
+        if (source == null || source.Pointer == destination.Pointer || source.IsRemoveLocked() || ForgeInventoryFreezeApi.IsFrozen(item) ||
             destination.IsInsertLocked() || !ForgeInventoryApi.IsPlayerOwned(item) || !item.MayRemove()) return new(0, false, "locked-or-source");
         int before = item.unitCount;
         int requested = Math.Min(maximum, before);

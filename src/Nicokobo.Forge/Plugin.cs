@@ -2,7 +2,7 @@ using MelonLoader;
 using MelonLoader.Utils;
 using Nicokobo.Forge.Logging;
 
-[assembly: MelonInfo(typeof(Nicokobo.Forge.Plugin), "Nicokobo Forge", "0.6.32", "Nicokobo")]
+[assembly: MelonInfo(typeof(Nicokobo.Forge.Plugin), "Nicokobo Forge", "0.6.33", "Nicokobo")]
 [assembly: MelonProcess("Probably Stolen.exe")]
 
 namespace Nicokobo.Forge;

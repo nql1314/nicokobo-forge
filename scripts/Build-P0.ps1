@@ -21,6 +21,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $resolvedGameDir 'GameAssembly.dll')
 }
 
 & (Join-Path $PSScriptRoot 'Check-AdapterContracts.ps1') -GameDir $resolvedGameDir
+& (Join-Path $PSScriptRoot 'Check-InventoryPowerContracts.ps1') -GameDir $resolvedGameDir
 
 & dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.Domain.Check\Nicokobo.Forge.Domain.Check.csproj') -c Release -p:NuGetAudit=false
 if ($LASTEXITCODE -ne 0) { throw 'Domain checks failed' }

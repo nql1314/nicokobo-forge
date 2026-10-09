@@ -8,6 +8,54 @@ public sealed record ForgeLiquidTransferResult(int PartsMoved, bool Indeterminat
 /// Content owns liquid/quality selection; this adapter verifies both sides.</summary>
 public static class ForgeLiquidTransferApi
 {
+    /// <summary>Transfers at most the supplied amount from the whole native
+    /// mixture. A bounded pour preserves every component and value ledger; it
+    /// never selects one component. Each side is compensated on failure.</summary>
+    public static ForgeLiquidTransferResult Pour(GameItem source, GameItem target, int maximumParts,
+        Func<bool>? stillAllowed = null)
+    {
+        if (maximumParts <= 0 || stillAllowed?.Invoke() == false) return new(0, false, "reserve-or-condition");
+        var from = ForgeLiquidApi.Capture(source); var into = ForgeLiquidApi.Capture(target);
+        if (from == null || into == null) return new(0, false, "unavailable");
+        int natural = Math.Min(from.TotalParts, into.CapacityParts - into.TotalParts);
+        if (maximumParts >= natural) return Pour(source, target);
+        if (!ForgeCapabilities.Current.KnownGameBuild || !ForgeMachineRuntimeApi.RuntimeInstalled ||
+            source.Pointer == target.Pointer || !ForgeInventoryApi.IsPlayerOwned(source) || !ForgeInventoryApi.IsPlayerOwned(target) ||
+            source.parentInventory is not { } sourceParent || target.parentInventory is not { } targetParent ||
+            sourceParent.IsRemoveLocked() || targetParent.IsInsertLocked() || source.unitCount != 1 || target.unitCount != 1 ||
+            WaterHelper.GetFilterItem(source) != null || WaterHelper.GetFilterItem(target) != null)
+            return new(0, false, "locked-or-filtered");
+        using var frozen = ForgeInventoryFreezeApi.TryAcquire([source, target]);
+        if (frozen == null) return new(0, false, "busy");
+        var sourceState = source.state.Clone(); var targetState = target.state.Clone();
+        long sourceValue = source.unitValue, targetValue = target.unitValue;
+        var afterSource = MachineBatchMath.Consume(from, maximumParts, null);
+        var drawn = ForgeLiquidCompositionMath.Consumed(from, afterSource);
+        var afterTarget = MachineBatchMath.Add(into, drawn);
+        bool Current() => source.parentInventory?.Pointer == sourceParent.Pointer && target.parentInventory?.Pointer == targetParent.Pointer &&
+            source.unitCount == 1 && target.unitCount == 1 && ForgeInventoryApi.IsPlayerOwned(source) && ForgeInventoryApi.IsPlayerOwned(target);
+        bool Restore(GameItem item, TagSystem state, long value, ForgeMachineLiquidSnapshot snapshot)
+        {
+            if (!Current()) return false;
+            item.state = state.Clone(); item.unitValue = value; item.SyncModifiedState(); SpriteHelper.UpdateWaterContainerSprite(item);
+            return ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(item), snapshot);
+        }
+        var result = ForgeTransactionApi.Run([
+            new("bounded-pour-source", () =>
+            {
+                if (!Current() || stillAllowed?.Invoke() == false || !ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(source), from) ||
+                    !ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(target), into) || !ForgeLiquidApi.Write(source, afterSource))
+                    throw new InvalidOperationException("source changed or bounded draw failed");
+            }, () => Restore(source, sourceState, sourceValue, from)),
+            new("bounded-pour-target", () =>
+            {
+                if (!Current() || !ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(target), into) || !ForgeLiquidApi.Write(target, afterTarget) ||
+                    !ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(source), afterSource))
+                    throw new InvalidOperationException("target changed or bounded receive failed");
+                SpriteHelper.UpdateWaterContainerSprite(source); SpriteHelper.UpdateWaterContainerSprite(target);
+            }, () => Restore(target, targetState, targetValue, into))]);
+        return new(result.Committed ? maximumParts : 0, !result.Committed && !result.Restored, result.Status);
+    }
     public static ForgeLiquidTransferResult Pour(GameItem source, GameItem target)
     {
         if (!ForgeCapabilities.Current.KnownGameBuild || !ForgeMachineRuntimeApi.RuntimeInstalled ||

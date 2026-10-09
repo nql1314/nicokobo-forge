@@ -55,6 +55,11 @@ internal static class ForgeBootstrap
         ForgeManufacturingTerminalRuntime.Install(report.KnownBuild && machineInstalled &&
             NativeItemRegistry.AmenityHookInstalled, log.Callback);
         MissingItemSaveRuntime.Install(report.KnownBuild && report.RunDataSignaturesMatch, log.Callback);
+        ForgeExternalPowerApi.Install(report.KnownBuild && machineInstalled, log.Callback);
+        ForgeInventoryEndpointApi.Install(report.KnownBuild && report.RunDataSignaturesMatch && report.InventoryReadSignaturesMatch, log.Callback);
+        ForgeInventoryFreezeApi.Install(report.KnownBuild, log.Callback);
+        ForgeListInventoryApi.Install(report.KnownBuild, log.Callback);
+        ForgeInventoryAdmissionApi.Install(report.KnownBuild, log.Callback);
         var inventoryDragProbeInstalled = log.IsDebugEnabled && InventoryDragFaultProbe.Install(
             report.KnownBuild, log.Callback);
         ForgeCapabilities.Publish(new(report.KnownBuild, nativeNodeInstalled,
@@ -66,7 +71,9 @@ internal static class ForgeBootstrap
             report.KnownBuild && report.InventoryPreviewSignaturesMatch,
             nativeEffectInstalled, false, machineInstalled)
             { NpcTradeStock = NativeNpcStockAdapter.Installed,
-              DossierExpansion = ForgeDossierExpansion.Installed });
+              DossierExpansion = ForgeDossierExpansion.Installed,
+              PersistentInventoryEndpoints = ForgeInventoryEndpointApi.IsAvailable,
+              ExternalPowerTransactions = ForgeExternalPowerApi.IsAvailable && ForgeInventoryFreezeApi.IsAvailable });
         ForgeInventoryPlacementApi.Configure(report.KnownBuild && report.InventoryPreviewSignaturesMatch,
             log.Callback);
         RecipeGuideBrowser.Install(report.KnownBuild, log.Callback);

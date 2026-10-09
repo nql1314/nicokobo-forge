@@ -32,6 +32,23 @@ internal static class LiquidTransferChecks
             Expect(result.PartsMoved == 40 && !result.Indeterminate, "Conserved pour did not report actual volume");
         }
         {
+            var (source, target) = Setup(); int nativeCalls = WaterHelper.TransferCalls;
+            var result = ForgeLiquidTransferApi.Pour(source, target, 20);
+            Expect(result.PartsMoved == 20 && !result.Indeterminate && source.Liquid!.TotalParts == 60 && target.Liquid!.TotalParts == 20,
+                "A reserve-bounded pour must move exactly the allowed whole-mixture amount");
+            Expect(target.Liquid!.Contents.Single(part => part.LiquidId == "water").Parts == 15 &&
+                target.Liquid.Contents.Single(part => part.LiquidId == "wine").Parts == 5 &&
+                target.Liquid.Contents.Sum(part => part.Value ?? 0) == 10 && target.Liquid.Contents.Sum(part => part.QualityBasis ?? 0) == 6.25m,
+                "A bounded pour must carry every component and its proportional value/basis");
+            Expect(WaterHelper.TransferCalls == nativeCalls, "A bounded adapter must not call an unbounded native transfer then fabricate a refund");
+        }
+        {
+            var (source, target) = Setup(); int calls = WaterHelper.TransferCalls;
+            var result = ForgeLiquidTransferApi.Pour(source, target, 20, () => false);
+            Expect(result.PartsMoved == 0 && !result.Indeterminate && source.Liquid!.TotalParts == 80 && target.Liquid!.TotalParts == 0 && WaterHelper.TransferCalls == calls,
+                "A changed reservation must reject a bounded pour before writing either vessel");
+        }
+        {
             var (source, target) = Setup();
             WaterHelper.Transfer = (from, to) => { PourHalf(from, to); throw new InvalidOperationException("Native callback failed after transfer"); };
             var result = ForgeLiquidTransferApi.Pour(source, target);

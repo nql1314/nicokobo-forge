@@ -103,6 +103,10 @@ public sealed record ForgeMachineRecipe(string RecipeId,
     public ForgeRecipeGuideOptions? Guide { get; init; }
     public IReadOnlyList<ForgeMachineLiquidIngredient> LiquidInputs { get; init; } = [];
     public IReadOnlyList<string> AuxiliaryItemIds { get; init; } = [];
+    /// <summary>Optional content-owned commit participant, such as a per-run
+    /// unique output quota. Null returned by the factory rejects this batch.
+    /// The participant joins the same material/output/power transaction.</summary>
+    public Func<ForgeMachineBatchContext, IForgeBatchTransaction?>? Transaction { get; init; }
 }
 public sealed record ForgeMachineDefinition(string MachineId,
     ForgeMachineTemplate Template, IReadOnlyList<ForgeMachineRecipe> Recipes,

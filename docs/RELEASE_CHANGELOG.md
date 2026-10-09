@@ -4,6 +4,17 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.33 — 2026-10-08
+
+- N／G 快捷键输入焦点检测在访问 EventSystem 和选中对象前使用 Unity 判空，避免对已销毁但仍有托管包装的对象调用原生方法。
+- 扩展焦点回调返回 false 时继续检查原生输入框与输入法组合文字，保留输入文字时的快捷键抑制。
+- 12 项离线焦点回归检查及标准构建检查通过；未打包、安装或执行原生复测。
+
+### English
+
+- Check Unity object validity before reading the EventSystem selection and querying parent input fields for N/G shortcuts.
+- A false Mod focus callback continues native-field and IME checks. Twelve offline focus regression checks and the standard build checks passed; packaging, installation and native retesting remain pending.
+
 ## 0.6.32 — 2026-10-07
 
 - 缺失物品清理限定为通过 Forge API 成功登记、且正常存档已有提供者记录的普通物品。第三方物品与无记录旧档保留，避免仅凭原生目录缺失删除命运之骰等物品。

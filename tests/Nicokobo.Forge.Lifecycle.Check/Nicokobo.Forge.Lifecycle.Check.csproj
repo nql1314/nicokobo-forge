@@ -13,6 +13,7 @@
     <Compile Include="$(ForgeMachineHooksSource)" Link="Production/ForgeMachineHooks.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeMachineRuntime.cs" Link="Production/ForgeMachineRuntime.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeMachineModels.cs" Link="Production/ForgeMachineModels.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeBatchTransactions.cs" Link="Production/ForgeBatchTransactions.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineTransaction.cs" Link="Production/MachineTransaction.cs" />
   </ItemGroup>
 </Project>

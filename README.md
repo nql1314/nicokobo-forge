@@ -1,6 +1,6 @@
 # Nicokobo Forge / 模组前置框架
 
-Author: Nicokobo · Source Version: **0.6.32** · Target: **Probably Stolen Demo，Steam Build `25382790`**
+Author: Nicokobo · Source Version: **0.6.33** · Target: **Probably Stolen Demo，Steam Build `25382790`**
 
 
 ## 中文
@@ -54,7 +54,7 @@ G 键合成表由 Forge 提供。鼠标指向物品按 **G**，分别显示它�
 
 名片在正常初始化时加入原生日用品掉落表，保留所有开局的赠送入口。每次白天 NPC 供货／刷货前检查玩家实际持有，已有名片时不再刷新名片；检查包含柜台、背包及嵌套容器，只计算玩家自己的物品。内容 Mod 各自声明物品掉落；十二种最终义体仅由所属 Mod 制造，合成扩展的五台机器与 Forge 的全域制造终端可在夜间商店生成库存时上架，持有后仍可购买。购买后不自动补货，货架放不下的新增商品跳过。
 
-`NativeItemOptions.NpcTrade` 声明白天供货类别与最早天数；`Suppliers` 可限制为小偷／杰克逊，默认不限制白天供货人，`IncludeInNightShop` 让模组候选也加入杰克逊夜间模组／节点名额。`NpcTradeStock` 表示供货钩子已安装。36 条供货入口将合格 Mod 商品与原版候选共同抽取，不保底追加商品，也不改写全局拾荒表。普通供货及夜间模组池中 Mod 总权重固定为 `0.25`，按筛选后的候选种类数平均分配；直接供货的原版结果权重为 `1`，Mod 总概率约为 `20%`，原生表抽取则保留原版条目的权重。独立的 `NativeItemOptions.NightShop` 上架条件与矿工单批选矿规则继续生效。完整契约见[能力范围](docs/SCOPE.md)。
+`NativeItemOptions.NpcTrade` 声明白天供货类别与最早天数；`Suppliers` 可限制为小偷／杰克逊，默认不限制白天供货人，`IncludeInNightShop` 让模组候选也加入杰克逊夜间模组／节点名额。`NpcTradeStock` 表示供货钩子已安装。28 条供货入口将合格 Mod 商品与原版候选共同抽取，不保底追加商品，也不改写全局拾荒表。普通供货及夜间模组池中 Mod 总权重固定为 `0.25`，按筛选后的候选种类数平均分配；直接供货的原版结果权重为 `1`，Mod 总概率约为 `20%`，原生表抽取则保留原版条目的权重。独立的 `NativeItemOptions.NightShop` 上架条件与矿工单批选矿规则继续生效。老拾荒客的固定枪械和弹药不参加替换；杰克逊白天与夜间仅让随机模组／节点名额参与抽取，设备、钥匙卡、具名专用模组及大存储区供货保留原版。其他直接供货也按原商品的主要用途类别筛选，保留堆叠数量；武器、工具、容器、钥匙卡、文件与具名模组不参与替换。卖加工肉的特殊拾荒者、固定供血者、阴谋论顾客和三类退休专业人员的指定供货保留原版。完整契约见[能力范围](docs/SCOPE.md)。
 
 
 ## 通用能力
@@ -111,7 +111,7 @@ G 键合成表由 Forge 提供。鼠标指向物品按 **G**，分别显示它�
 
 ## English
 
-Author: Nicokobo · Matching version: **0.6.32** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Matching version: **0.6.33** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
 Nicokobo Forge is a shared content-mod dependency providing item/effect registration, machine templates, material/liquid/power transactions and the Nico Workshop. Forge owns the shared manufacturing terminal, an all-start card and ten native-game achievements. Content mods provide recipes, items and gameplay.
 
@@ -119,7 +119,7 @@ Nicokobo Forge is a shared content-mod dependency providing item/effect registra
 ### Installation and updates
 
 1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
-2. Copy `Nicokobo.Forge-0.6.32.dll` and required content mod DLLs into `Mods/`.
+2. Copy `Nicokobo.Forge-0.6.33.dll` and required content mod DLLs into `Mods/`.
 3. Remove older copies of each assembly. Keep one matching Forge DLL when both Mechcore Protocol and Logistics Nexus include it; versioned filenames can stay unchanged.
 4. The standalone Forge package and the Mechcore Protocol bundle also carry `Nicokobo.CompatibilityPatches-*.dll`, an **optional** component that is not part of Forge itself. Copy it into `Mods/` only when the matching third-party mod is installed; neither Forge nor the bundle installs or loads it. See `compatibility/README.md`.
 
@@ -160,7 +160,7 @@ After claiming and confirming the native final achievement reward, NPC purchase 
 - Compact new-game rows support wheel scrolling and a scrollbar.
 - Disposable/advanced accelerators process one immediate Forge batch and consume the tool or charge only after success.
 - Handbooks read current machines and additional recipes, including inputs, counts, categories and bilingual conditions, and refresh after changes.
-- Daytime supply and opted-in Jackson night-module slots divide a fixed total Mod weight of 0.25 equally among eligible candidates after supplier, category, day and ownership filtering. `NpcTrade.Suppliers` can restrict daytime suppliers; `IncludeInNightShop` explicitly opts modules into native night module/node draws. Direct native results have weight 1, giving a combined Mod chance of about 20%; native tables retain their other entries' weights. Separate night-shop listings retain their availability rules. Matching Mechcore miner batches retain separate odds: native ore 70%, Quartz 15%, Titanium Ore 15%.
+- Daytime supply and opted-in Jackson night-module slots divide a fixed total Mod weight of 0.25 equally among eligible candidates after supplier, category, day and ownership filtering. `NpcTrade.Suppliers` can restrict daytime suppliers; `IncludeInNightShop` explicitly opts modules into native night module/node draws. Direct native results have weight 1, giving a combined Mod chance of about 20%; native tables retain their other entries' weights. Jackson's daytime and night supply replace only random module/node slots, preserving equipment, keycards, named specialist modules and storage visits. The old scavenger retains his fixed gun and ammunition. Other direct stock selects same-category candidates and preserves its original quantity. Weapons, tools, containers, access cards, documents and named modules remain intact; the special processed-meat seller, fixed blood sellers, conspiracy clients and retired professionals retain their specified stock. Separate night-shop listings retain their availability rules. Matching Mechcore miner batches retain separate odds: native ore 70%, Quartz 15%, Titanium Ore 15%.
 - Single-item transfers and pours verify changes at both ends; reward batches use a managed placement preflight. Content mods remain responsible for complete resource/power networks.
 
 

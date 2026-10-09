@@ -1,6 +1,6 @@
 # Nicokobo Forge 的能力与扩展边界
 
-更新：2026-10-07。Forge 是 Probably Stolen 内容 Mod 的通用前置。框架维护注册、能力门控、原生适配、公共事件和资源事务，并持有共享全域制造终端；内容 Mod 各自维护成品、配方、玩法规则与存档格式。
+更新：2026-10-09。Forge 是 Probably Stolen 内容 Mod 的通用前置。框架维护注册、能力门控、原生适配、公共事件和资源事务，并持有共享全域制造终端；内容 Mod 各自维护成品、配方、玩法规则与存档格式。
 
 ## 框架提供
 
@@ -17,7 +17,7 @@
 | 电量、液体与生产价值 | `ForgePowerApi`、`ForgeLiquidApi`、`ForgeProductionValueApi` 及纯计算类；内容方决定配方与系数 |
 | Nico 工坊 | `ForgeWorkshopApi.RegisterChain` 声明独立图谱与回调；条件和奖励用于展示，实际交易由提供者完成；Forge 内置全开局名片与原版成就提供者，内容 Mod 持有各自的独立页面 |
 | 夜间商店库存 | `NativeItemOptions` 声明 `Repeatable / Unique / None`；只在原生商店生成库存时加入商品，购买后不自动补货；可用条件由内容方提供，框架预检货架空间并核对实际落点 |
-| NPC 供货与夜间模组池 | `NativeItemOptions.NpcTrade` 声明物品类别，包含食品与医疗品；`Suppliers` 可组合 `Thief / Inventor`，默认 `Any` 不限制白天供货人。`IncludeInNightShop` 只允许 `Module` 类别加入杰克逊原版夜间模组／节点名额，其他夜店商品保留原规则。`MinimumDay` 限制最早供货日，`SkipWhenOwned` 按玩家实际持有过滤。普通池先筛选供货人、类别、天数、持有状态及已应用工厂，合格 Mod 候选均分 `ForgeNumbers.NpcStock.ModSupplyWeight = 0.25`，每种为 `0.25 / N`。36 条入口中，掉落表抽取临时合并对应类别候选，保留原版、未知条目及被其他 Mod 占用的 `Conflict` ID 原有权重，不重复加权；直接供货同样保留 `Conflict` ID 的结果，其余按原版商品名额抽签，原版结果权重默认 1，Mod 总概率约 20%，候选数量变化不增加总概率。无合格候选时保留原版，不额外保底追加商品。矿工仍按独立 `MinerWeight`（未声明时用 `Weight`）整批选一种矿物，保留原版件数；农夫、水商及冰矿工沿用原版供货。每次供货／刷货重新筛选并分配权重，原生处理归属、阵营限制和容量；不改写全局拾荒掉落表 |
+| NPC 供货与夜间模组池 | `NativeItemOptions.NpcTrade` 声明物品类别，包含食品与医疗品；`Suppliers` 可组合 `Thief / Inventor`，默认 `Any` 不限制白天供货人。`IncludeInNightShop` 只允许 `Module` 类别加入杰克逊原版夜间模组／节点名额，其他夜店商品保留原规则。`MinimumDay` 限制最早供货日，`SkipWhenOwned` 按玩家实际持有过滤。普通池先筛选供货人、类别、天数、持有状态及已应用工厂，合格 Mod 候选均分 `ForgeNumbers.NpcStock.ModSupplyWeight = 0.25`，每种为 `0.25 / N`。28 条入口中，掉落表抽取临时合并对应类别候选，保留原版、未知条目及被其他 Mod 占用的 `Conflict` ID 原有权重，不重复加权；直接供货同样保留 `Conflict` ID 的结果，其余按原版商品名额抽签，原版结果权重默认 1，Mod 总概率约 20%，候选数量变化不增加总概率。无合格候选时保留原版，不额外保底追加商品。矿工仍按独立 `MinerWeight`（未声明时用 `Weight`）整批选一种矿物，保留原版件数；农夫、水商及冰矿工沿用原版供货。每次供货／刷货重新筛选并分配权重，原生处理归属、阵营限制和容量；不改写全局拾荒掉落表 |
 | 生命周期、模组与文本 | `ForgeLifecycleApi`、`ForgeModuleApi`、`ForgePresentationApi`；共享观察 Hook 和拥有者回调 |
 | 开局与周目数据 | `ForgeStartApi` 认领开局 ID；`ForgeRunDataApi.Read / Stage` 读取及比较后暂存所属 JSON，文件保存与回读由内容方确认 |
 | 开局选择栏 | Forge 自动处理原版和新增卡片的紧凑行高、裁剪、滚轮和滚动条；内容 Mod 持有卡片文本与选择回调 |
@@ -26,8 +26,15 @@
 | 库存读取与搬运预检 | `ForgeInventoryApi.CaptureDirect / PreviewWholeGridTransfer` 只读；`InventoryTransfer = false`，预检不提交搬运 |
 | 整批奖励落位预检 | `ForgeInventoryPlacementApi.PlanWholeGrid` 在托管占格图中规划未附着单件物品，再用真实库存校验准入；不创建临时原生库存或修改原物品，交付与保存留调用方 |
 | 单次物品搬运与倒液 | `ForgeItemTransferApi.Move` / `ForgeLiquidTransferApi.Pour` 走原生接受／转移路径并核对两端实际量；结果不确定时由调用方暂停，不代表完整网络或保存重载已验收 |
+| 内容状态及多源供电事务 | `IForgeBatchTransaction` / `IForgePowerTransaction` 与真实输入、输出和电量共用一次提交/补偿；网络、唯一额度和电池范围由内容持有 |
+| 隐藏真实库存与列表承载 | `ForgeInventoryEndpointApi` / `ForgeSaveGraphApi` / `ForgeListInventoryApi` 保存原生完整图、固定工厂拓扑和实际尺寸；原生跨进程行为须按最终候选验收。见[接入契约](INVENTORY_POWER_TRANSACTIONS.md) |
+| 内容所属网格的附加准入 | `ForgeInventoryAdmissionApi` 按根物品 ID 与库存 ID 在原生准入后增加托管限制，保留原生拒绝，不将转换委托写入原生准入字段。内容持有设备／对象图规则，真实拖放另验 |
 
 `NpcTradeStockOptions.PreserveLootTableWeight` 可让合格物品在 NPC 掉落表抽取中保留已有条目及其权重，不再分配共享 Mod 预算，也不补入缺失条目；仍先检查供货人、类别、天数、持有状态与工厂应用状态。该选项只影响掉落表路径，直接供货、矿工批次与全局拾荒表沿用各自规则。内容方声明基础材料与原版等权重时可使用此选项。
+
+老拾荒客的固定重型手枪与三份弹药，以及杰克逊的大存储区专门供货，不建立 Mod 替换作用域。杰克逊的白天与夜间库存只将七类 `ItemSpawner.Spawn("random_...")` 模组／节点工厂结果作为可替换名额；设备、钥匙卡及具名专用模组保留原版，白天也不替换成材料或日用品。
+
+其他直接供货以原物品的主要用途类别与该入口允许类别的交集筛选候选，再按合格种类数均分共享预算。医疗类型优先于附带的奢侈／日用品类型；食品、加工食品与饮品共用食品池，材料使用材料／矿料池。武器（包括带日用品分类的厨房刀）、弹药、防具、工具、机器、存储区、钥匙卡、文件，以及重要／不可转售／容器标签的商品保留原版。具名模组不参与直接替换，所有供货人只用七类原版随机模组／节点工厂的结果抽取 Mod 模组。阴谋论顾客、固定供血者和退休酿酒师／废料商／化学师不建立替换作用域；卖加工肉的特殊拾荒者不建立替换作用域，拾荒运输者与打捞飞行员接材料池。替换保留原堆叠数量，创建或数量设置失败时保留原商品。
 
 原生注册应在目录初始化前提交。`Accepted` 表示声明暂存成功，目录 `Applied` 才表示工厂已接入。当前 API 不保证目录初始化后的迟到注册立即生效。动作前查询 `ForgeCapabilities.Current`，一项能力失效不自动停用其他能力。
 
@@ -41,7 +48,7 @@ G 键合成表由 Forge 持有：快捷键、真实配方关系查询、窗口�
 - 原版熔炉扩展的投料、配方、原版优先级、夜间调度与生产 Hook。
 - 物流配方卡、来源选择、调度、UI 与周目配置；资源／电力网络、容量、过滤、解锁及网络存档。
 
-`samples/Nicokobo.Forge.LogisticsExtension` 是内容侧示例库，不装入游戏，也不编入 Forge 核心。实际插件位于 `probably-stolen/mods-melonloader/logistics-nexus/`，当前已接入本地固体／液体填料、附近产物弹出、终端配置卡与周目配置暂存。资源／电力网络和网络货物仍待实现；配置暂存不代表文件保存或新进程重载成功。详细边界见[物流 API](LOGISTICS_API_PROGRESS.md)，`InventoryTransfer` 总能力维持 `false`。
+`samples/Nicokobo.Forge.LogisticsExtension` 是内容侧示例库，不装入游戏，也不编入 Forge 核心。实际插件位于 `probably-stolen/mods-melonloader/logistics-nexus/`，0.2.0 候选接入本地物流、真实网络库存、材料保留量、唯一容器与真实电池供电。新增制造/解锁数值仍待用户确定；配置暂存不代表文件保存或新进程重载成功。`InventoryTransfer` 总能力维持 `false`，新库存与供电能力按各自已安装的适配门控和最终产物验收。
 
 ## 数值与验证
 

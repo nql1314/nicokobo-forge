@@ -71,26 +71,22 @@ try {
         Assert-AdapterMethod 'Il2Cpp.ItemSpawner' $adapterMethod 'Il2Cpp.GameItem' @('System.String')
     }
     foreach ($adapterMethod in @('_CreateMiner_b__38_0', '_CreateJunker_b__21_0',
-        '_CreateScrapper_b__35_0', '_CreateLowerLevelRareMerchant_b__64_0', '_CreateInventorStorage_b__31_0',
+        '_CreateScrapper_b__35_0', '_CreateLowerLevelRareMerchant_b__64_0',
         '_CreateThief_b__47_0', '_CreatePettyThief_b__48_0', '_CreateBrokeUpperLevel_b__69_0',
         '_CreateFoodThief_b__49_0',
-        '_CreateShadyPharmacist_b__34_0', '_CreateScavBlood_b__58_0', '_CreateRareLowerLevelChemist_b__65_0')) {
+        '_CreateShadyPharmacist_b__34_0', '_CreateRareLowerLevelChemist_b__65_0')) {
         Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c' $adapterMethod 'System.Void' @()
     }
     Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c__DisplayClass22_0' '_CreateJunkerSellOnly_b__0' 'System.Void' @()
     Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c__DisplayClass37_0' '_CreateLowerLevelChemist_b__0' 'System.Void' @()
     Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c__DisplayClass41_0' '_CreateScavGeneral_b__0' 'System.Void' @()
     Assert-AdapterMethod 'Il2Cpp.StoreClientList/__c__DisplayClass42_0' '_CreateScavCrate_b__0' 'System.Void' @()
-    foreach ($adapterMethod in @('_CreateScavHaul_b__8_0', '_CreateSalvagePilot_b__14_0', '_CreateOldScav_b__17_0',
-        '_CreateConspiracyClient_b__22_0', '_CreatePeatClient_b__21_0', '_CreateNurse1_b__5_0')) {
+    foreach ($adapterMethod in @('_CreateScavHaul_b__8_0', '_CreateSalvagePilot_b__14_0',
+        '_CreateNurse1_b__5_0')) {
         Assert-AdapterMethod 'Il2Cpp.StoreClientListMinor/__c' $adapterMethod 'System.Void' @()
     }
     foreach ($adapterMethod in @('_CreateRevRaider_b__0_0', '_CreateRevQuartermaster_b__1_0')) {
         Assert-AdapterMethod 'Il2Cpp.StoreClientListRev/__c' $adapterMethod 'System.Void' @()
-    }
-    foreach ($adapterMethod in @('_CreateRetiredWinemaker_b__4_0',
-        '_CreateRetiredJunker_b__5_0', '_CreateRetiredChemist_b__7_0')) {
-        Assert-AdapterMethod 'Il2Cpp.StoreClientListSpec/__c' $adapterMethod 'System.Void' @()
     }
     foreach ($adapterMethod in @('_CreateFoodSurplusClient_b__0_0', '_CreateFoodSurplusClient_b__0_1',
         '_CreateMedicalSurplusClient_b__1_0', '_CreateMedicalSurplusClient_b__1_1',

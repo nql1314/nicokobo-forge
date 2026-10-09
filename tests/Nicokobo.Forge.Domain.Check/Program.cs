@@ -3,6 +3,13 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+if (args is ["npc-stock"])
+{
+    NightShopChecks.Run();
+    NpcStockChecks.Run();
+    return;
+}
+
 if (args is ["save-compatibility"])
 {
     MissingItemSaveChecks.Run();
@@ -30,6 +37,10 @@ if (args is ["transfer-review"])
 }
 
 MachineCatalogChecks.Run();
+        PowerBatchChecks.Run();
+        PowerConnectorIdentityChecks.Run();
+        InventoryAdmissionChecks.Run();
+        NativeBatchFinalizationChecks.Run();
 RecipeGuideChecks.Run();
 ManufacturingTerminalChecks.Run();
 MissingItemSaveChecks.Run();
@@ -39,6 +50,7 @@ ModuleInventoryChecks.Run();
 AchievementChecks.Run();
 WorkshopRewardChecks.Run();
 WorkshopInputChecks.Run();
+TextInputFocusChecks.Run();
 InventoryReadChecks.Run();
 SpriteAtlasChecks.Run();
 NightShopChecks.Run();
