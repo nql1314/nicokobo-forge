@@ -12,6 +12,9 @@ public sealed record ForgeCapabilitySnapshot(bool KnownGameBuild,
     public bool DossierExpansion { get; init; }
     public bool PersistentInventoryEndpoints { get; init; }
     public bool ExternalPowerTransactions { get; init; }
+    public bool BranchingDialogue { get; init; }
+    public bool ClientVisits { get; init; }
+    public bool ReadingWindow { get; init; }
 }
 
 /// <summary>Read-only capability report for content Mods. A true gate means the

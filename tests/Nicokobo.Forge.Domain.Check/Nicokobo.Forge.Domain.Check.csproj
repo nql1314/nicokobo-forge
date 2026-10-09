@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/Nicokobo.Forge/ForgeConversationModels.cs" Link="ForgeConversationModels.cs" />
     <Compile Include="..\..\BuildConfig\ForgeNumbers.cs" Link="BuildConfig\ForgeNumbers.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementRules.cs" Link="Workshop/AchievementRules.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Workshop/AchievementSaveReadback.cs" Link="Workshop/AchievementSaveReadback.cs" />

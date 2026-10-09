@@ -1,11 +1,13 @@
 # Nicokobo Forge / 模组前置框架
 
-Author: Nicokobo · Source Version: **0.6.33** · Target: **Probably Stolen Demo，Steam Build `25382790`**
+Author: Nicokobo · Source Version: **0.6.34** · Target: **Probably Stolen Demo，Steam Build `25382790`**
 
 
 ## 中文
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配和资源事务，并内置全域制造终端、Nico工坊的全开局名片与原版成就页。各内容 Mod 维护自己的物品、配方、价格、成长和独立解锁页。
+
+0.6.34 新增 `ForgeDialogueApi`、`ForgeClientVisitApi` 和 `ForgeReadingApi`，提供分支对话、具名原生来访与 owner 隔离的阅读窗；伪人 0.1.58 已切换调用。内容进度继续随原版 `modData` 保存，不新增存档文件。见[对话与来访 API](docs/CONVERSATION_API.md)；当前仅离线验证与编译通过，待原生验收。
 
 
 ## 安装

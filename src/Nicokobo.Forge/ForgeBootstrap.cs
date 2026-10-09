@@ -60,6 +60,7 @@ internal static class ForgeBootstrap
         ForgeInventoryFreezeApi.Install(report.KnownBuild, log.Callback);
         ForgeListInventoryApi.Install(report.KnownBuild, log.Callback);
         ForgeInventoryAdmissionApi.Install(report.KnownBuild, log.Callback);
+        ConversationRuntime.Install(report.KnownBuild && report.RunDataSignaturesMatch, log.Callback);
         var inventoryDragProbeInstalled = log.IsDebugEnabled && InventoryDragFaultProbe.Install(
             report.KnownBuild, log.Callback);
         ForgeCapabilities.Publish(new(report.KnownBuild, nativeNodeInstalled,
@@ -73,7 +74,9 @@ internal static class ForgeBootstrap
             { NpcTradeStock = NativeNpcStockAdapter.Installed,
               DossierExpansion = ForgeDossierExpansion.Installed,
               PersistentInventoryEndpoints = ForgeInventoryEndpointApi.IsAvailable,
-              ExternalPowerTransactions = ForgeExternalPowerApi.IsAvailable && ForgeInventoryFreezeApi.IsAvailable });
+              ExternalPowerTransactions = ForgeExternalPowerApi.IsAvailable && ForgeInventoryFreezeApi.IsAvailable,
+              BranchingDialogue = ForgeDialogueApi.IsAvailable, ClientVisits = ForgeClientVisitApi.IsAvailable,
+              ReadingWindow = ForgeReadingApi.IsAvailable });
         ForgeInventoryPlacementApi.Configure(report.KnownBuild && report.InventoryPreviewSignaturesMatch,
             log.Callback);
         RecipeGuideBrowser.Install(report.KnownBuild, log.Callback);

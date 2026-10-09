@@ -1,6 +1,6 @@
 # Nicokobo Forge / 模组前置框架
 
-作者：Nicokobo · 配套版本：**0.6.33** · 目标：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 配套版本：**0.6.34** · 目标：**Probably Stolen Demo，Steam Build `25382790`**
 
 
 ## 中文
@@ -11,7 +11,7 @@ Nicokobo Forge 是内容 Mod 的公共前置，提供物品／效果注册、机
 ### 安装与更新
 
 1. 安装 [MelonLoader](https://melonwiki.xyz/)，关闭游戏。
-2. 将 `Nicokobo.Forge-0.6.33.dll` 与所需内容 Mod DLL 放入游戏 `Mods/`。
+2. 将 `Nicokobo.Forge-0.6.34.dll` 与所需内容 Mod DLL 放入游戏 `Mods/`。
 3. 移出同程序集的旧 DLL，每个程序集只保留一份。机核协议和物流网络都带 Forge 时只安装一份同次构建的文件，无需改名。
 
 Forge 可单独使用内置工坊与原版成就。源码版本、包内版本和游戏实际加载版本分别确认。
@@ -81,7 +81,7 @@ Forge 0.6.32 起只处理通过 Forge 注册且存档已有提供者记录的普
 
 ## English
 
-Author: Nicokobo · Matching version: **0.6.33** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Matching version: **0.6.34** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
 Nicokobo Forge is a shared content-mod dependency providing item/effect registration, machine templates, material/liquid/power transactions and the Nico Workshop. Forge owns the shared manufacturing terminal, an all-start card and ten native-game achievements. Content mods provide recipes, items and gameplay.
 
@@ -89,7 +89,7 @@ Nicokobo Forge is a shared content-mod dependency providing item/effect registra
 ### Installation and updates
 
 1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
-2. Copy `Nicokobo.Forge-0.6.33.dll` and required content mod DLLs into `Mods/`.
+2. Copy `Nicokobo.Forge-0.6.34.dll` and required content mod DLLs into `Mods/`.
 3. Remove older copies of each assembly. Keep one matching Forge DLL when both Mechcore Protocol and Logistics Nexus include it; versioned filenames can stay unchanged.
 
 Forge can be installed alone for its workshop and native achievements. Source, package and actually loaded versions must be checked separately.

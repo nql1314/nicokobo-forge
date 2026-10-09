@@ -21,6 +21,7 @@ Forge 持有通用注册、事件分派、构建门控和资源事务，以及�
 | `ForgeLiquidApi` / `ForgeLiquidCompositionMath` | 容器快照、水质、组分取出与替换的纯计算及内部组分写入适配；具体转换和纯度规则由内容 Mod 持有 |
 | `ForgeProductionValueApi` | 逐批材料内在价值汇总、按产量与加工倍率折算、产物生产基础价值的保存与读取 |
 | `ForgeProductionValueMath` | 生产价值与液体价值的纯计算规则（无 Harmony、无原生调用） |
+| `ForgeDialogueApi` / `ForgeClientVisitApi` / `ForgeReadingApi` | 分支选择、原生来访与阅读窗；管理 owner、会话与对象生命周期，不接管内容规则或主动保存；见[对话 API](CONVERSATION_API.md) |
 | `ForgeInventoryApi` | 库存读取、周目物品观察、所有权和搬运预检 |
 | `ForgeInventoryPlacementApi` | 未附着单件物品的整批几何落位预检，返回克隆形状；不提交、发奖、保存或预留真实库存 |
 | `ForgeItemTransferApi` / `ForgeLiquidTransferApi` | 单次原生物品搬运／倒液与两端读回；返回实际量和不确定状态，不撤回此前独立成功操作 |

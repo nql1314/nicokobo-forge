@@ -3,6 +3,8 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+ConversationChecks.Run();
+
 if (args is ["npc-stock"])
 {
     NightShopChecks.Run();
