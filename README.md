@@ -4,14 +4,16 @@
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.33** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Source version: **0.6.34** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
 Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
+
+0.6.34 adds shared dialogue, named client visits and reading windows. See [Conversation API](docs/CONVERSATION_API.md).
 
 ### Installation and updates
 
 1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
-2. Copy `Nicokobo.Forge-0.6.33.dll` and required content mod DLLs into `Mods/`.
+2. Copy `Nicokobo.Forge-0.6.34.dll` and required content mod DLLs into `Mods/`.
 3. Remove older DLLs of the same assemblies. Keep one matching Forge DLL when multiple packages include it; versioned filenames can stay unchanged.
 
 Forge can run alone for its workshop and native achievements.
@@ -104,14 +106,14 @@ Released under the MIT License.
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.33** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 源码版本：**0.6.34** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
 
 ### 安装与更新
 
 1. 安装 [MelonLoader](https://melonwiki.xyz/)，关闭游戏。
-2. 将 `Nicokobo.Forge-0.6.33.dll` 和所需内容 Mod DLL 放入 `Mods/`。
+2. 将 `Nicokobo.Forge-0.6.34.dll` 和所需内容 Mod DLL 放入 `Mods/`。
 3. 移出同程序集旧 DLL。多个包附带 Forge 时只保留一份配套文件，版本号文件名可保留。
 
 Forge 可单独使用内置工坊与原版成就。

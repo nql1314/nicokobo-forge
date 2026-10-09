@@ -16,6 +16,13 @@ function Assert-AdapterMethod([string]$Type, [string]$Name, [string]$Return, [st
     $script:adapterChecked++
 }
 try {
+    Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'StartNewGame' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.MainMenuUIController' 'Awake' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.StoreClientManager' 'AddNextClient' 'System.Void' @('Il2Cpp.StoreClient')
+    Assert-AdapterMethod 'Il2Cpp.Dialogue' 'AddChoice' 'Il2Cpp.Dialogue' @('Il2Cpp.GameItem', 'System.String', 'System.String', 'Il2Cpp.Dialogue', 'Il2CppSystem.Action', 'Il2CppSystem.Func`1<System.Boolean>')
+    Assert-AdapterMethod 'Il2Cpp.DialogUIManager' 'CurrentClientLeave' 'System.Void' @('System.Single')
+    Assert-AdapterMethod 'Il2Cpp.HandnoteUIManager' 'OpenPanel' 'System.Void' @('Il2Cpp.GameItem')
+    Assert-AdapterMethod 'Il2Cpp.HandnoteUIManager' 'ClosePanel' 'System.Void' @()
     foreach ($adapterDirectory in @('MiscItemDirectory', 'ModuleDirectory', 'AmenitiesItemDirectory')) {
         Assert-AdapterMethod "Il2Cpp.$adapterDirectory" 'InitDirectory' 'System.Void' @()
     }
