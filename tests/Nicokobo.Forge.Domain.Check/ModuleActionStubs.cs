@@ -24,7 +24,10 @@ namespace Il2Cpp
 }
 namespace Il2CppSystem
 {
-    public sealed class Action;
+    public sealed class Action(System.Action? callback = null)
+    {
+        public void Invoke() => callback?.Invoke();
+    }
 }
 namespace Il2CppInterop.Runtime.InteropTypes.Arrays
 {

@@ -83,8 +83,9 @@ public static class ForgeInventoryApi
         item.Pointer != IntPtr.Zero && GeneralHelper.IsItemOwned(item);
 
     /// <summary>Detached positive unit counts by item ID for read-only effects.
-    /// Reads share one snapshot within a frame, until native inventory, quantity,
-    /// ownership or run changes. Pass relevant IDs to limit native ownership checks;
+    /// Reads share a snapshot for up to 250 ms, invalidated immediately by native
+    /// inventory, quantity, ownership or run changes. Direct field writes outside
+    /// those hooks are observed on expiry. Pass relevant IDs to limit ownership checks;
     /// the map may also include IDs requested by other readers. Transaction
     /// preflight must use a fresh capture.</summary>
     public static IReadOnlyDictionary<string, int> CaptureOwnedItemCounts(PlayerStore store,

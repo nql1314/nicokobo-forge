@@ -5,7 +5,8 @@ namespace Nicokobo.Forge.Runtime;
 
 internal static class InventoryReadRuntime
 {
-    private static readonly InventoryReadCache<IReadOnlyDictionary<string, int>> Counts = new();
+    private static readonly InventoryReadCache<IReadOnlyDictionary<string, int>> Counts =
+        new(ForgeNumbers.Inventory.OwnedCountCacheSeconds);
     private static readonly HashSet<string> RequestedIds = new(StringComparer.Ordinal);
     private static bool _allIds;
     private static bool _enabled;
@@ -21,6 +22,10 @@ internal static class InventoryReadRuntime
         {
             new(typeof(GameItem), nameof(GameItem.SetUnitCount), [typeof(int)], typeof(GameItem),
                 typeof(InventoryReadRuntime), Prefix: nameof(Invalidate), Postfix: nameof(Invalidate)),
+            new(typeof(GeneralHelper), nameof(GeneralHelper.SetItemOwned), [typeof(GameItem), typeof(bool)], typeof(void),
+                typeof(InventoryReadRuntime), Prefix: nameof(Invalidate), Postfix: nameof(Invalidate)),
+            new(typeof(GameItemElement), nameof(GameItemElement.Destroy), [], typeof(void),
+                typeof(InventoryReadRuntime), Prefix: nameof(Invalidate), Postfix: nameof(Invalidate)),
             new(typeof(GameItem), nameof(GameItem.ModifyTag), [typeof(string), typeof(Il2CppSystem.Action<TagState>), typeof(bool)], typeof(GameItem),
                 typeof(InventoryReadRuntime), Prefix: nameof(OwnershipTagChanged), Postfix: nameof(OwnershipTagChanged))
         };
@@ -35,6 +40,9 @@ internal static class InventoryReadRuntime
         foreach (string name in new[] { nameof(PlayerStore.LoadGame), nameof(PlayerStore.StartNewGame),
                      nameof(PlayerStore.EndNight), nameof(PlayerStore.EndDay) })
             hooks.Add(new(typeof(PlayerStore), name, [], typeof(void), typeof(InventoryReadRuntime),
+                Prefix: nameof(Invalidate), Postfix: nameof(Invalidate)));
+        foreach (string name in new[] { nameof(PlayerStore.BuyItem), nameof(PlayerStore.SellItem) })
+            hooks.Add(new(typeof(PlayerStore), name, [typeof(GameItem)], typeof(void), typeof(InventoryReadRuntime),
                 Prefix: nameof(Invalidate), Postfix: nameof(Invalidate)));
         _enabled = NativeHookSet.Install("nicokobo.forge.inventory_read_cache", hooks, log);
         if (!_enabled)
@@ -58,7 +66,7 @@ internal static class InventoryReadRuntime
         }
         IReadOnlyDictionary<string, int> Scan() => capture(_allIds ? null : RequestedIds);
         return !_enabled ? Scan() :
-            Counts.Capture(new(store.Pointer, store.runID, store.saveSlotId, Time.frameCount), Scan);
+            Counts.Capture(new(store.Pointer, store.runID, store.saveSlotId), Time.unscaledTimeAsDouble, Scan);
     }
 
     private static void OwnershipTagChanged(string __0)

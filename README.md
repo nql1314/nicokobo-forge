@@ -4,16 +4,18 @@
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.34** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Source version: **0.6.35** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
 Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
 
 0.6.34 adds shared dialogue, named client visits and reading windows. See [Conversation API](docs/CONVERSATION_API.md).
 
+0.6.35 adds native phone-book contacts and supplier visits with repeatable purchases. Content Mods own unlocks, scheduling, stock, payment and persistence; these new paths still await native acceptance.
+
 ### Installation and updates
 
 1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
-2. Copy `Nicokobo.Forge-0.6.34.dll` and required content mod DLLs into `Mods/`.
+2. Copy `Nicokobo.Forge-0.6.35.dll` and required content mod DLLs into `Mods/`.
 3. Remove older DLLs of the same assemblies. Keep one matching Forge DLL when multiple packages include it; versioned filenames can stay unchanged.
 
 Forge can run alone for its workshop and native achievements.
@@ -40,7 +42,7 @@ Machine and additional recipes appear automatically. Content mods may declare na
 
 #### Nico Workshop
 
-Every start receives a workshop card. Press `N` or double-click the card to open ten native achievements, tracking progress, completion and one reward per run. A full backpack delays card delivery or retains reward eligibility; the final badge uses no inventory slot. Aug adds its own page for the Aug start.
+Every start receives a workshop card. Press `N` or double-click the card to open ten base-game achievements, tracking progress, completion and one reward per run. A full backpack delays card delivery or retains reward eligibility; the final badge uses no inventory slot. Aug adds its own page for the Aug start.
 
 Claiming and confirming Established Proprietor doubles NPC purchase budgets for current and future customers in that run; sales still deduct remaining funds. This stacks with the Aug ×2 budget for ×4 total. Confirmed old reward records apply after loading; new runs must qualify again.
 
@@ -106,14 +108,16 @@ Released under the MIT License.
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.34** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 源码版本：**0.6.35** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
+
+0.6.35 新增原生电话簿联系人与可多次购买的供应商会面。内容 Mod 持有解锁、预约日期、货量、扣款和保存；新增路径尚待原生验收。见[对话 API](docs/CONVERSATION_API.md)。
 
 ### 安装与更新
 
 1. 安装 [MelonLoader](https://melonwiki.xyz/)，关闭游戏。
-2. 将 `Nicokobo.Forge-0.6.34.dll` 和所需内容 Mod DLL 放入 `Mods/`。
+2. 将 `Nicokobo.Forge-0.6.35.dll` 和所需内容 Mod DLL 放入 `Mods/`。
 3. 移出同程序集旧 DLL。多个包附带 Forge 时只保留一份配套文件，版本号文件名可保留。
 
 Forge 可单独使用内置工坊与原版成就。

@@ -22,14 +22,15 @@ internal static class ConversationRuntime
     internal static bool ReadingAvailable => _installed;
     private sealed record Reading(string Owner, string Id, GameItem Item);
     private sealed class Visit(string owner, string request, string actor, ForgeDialogueScript script,
-        long generation, string run, int slot)
+        long generation, string run, int slot, ForgeSupplierDefinition? supplier = null)
     {
         internal readonly string Owner = owner, Request = request, Actor = actor, Run = run;
         internal readonly int Slot = slot;
         internal readonly long Generation = generation;
         internal readonly ForgeDialogueScript Script = script;
+        internal readonly ForgeSupplierDefinition? Supplier = supplier;
         internal StoreClient? Client;
-        internal bool ArrivalRequested, Retired, Observed;
+        internal bool ArrivalRequested, Retired, Observed, DismissRequested;
         internal readonly ConversationSelection Selection = new();
         internal readonly List<GameItem> Items = [];
         internal readonly List<Dialogue> Dialogues = [];
@@ -46,6 +47,8 @@ internal static class ConversationRuntime
             NativeHookSet.Require(typeof(StoreClientManager), nameof(StoreClientManager.AddNextClient), [typeof(StoreClient)], typeof(void));
             NativeHookSet.Require(typeof(Dialogue), nameof(Dialogue.AddChoice),
                 [typeof(GameItem), typeof(string), typeof(string), typeof(Dialogue), typeof(Il2CppSystem.Action), typeof(Il2CppSystem.Func<bool>)], typeof(Dialogue));
+            NativeHookSet.Require(typeof(Dialogue), nameof(Dialogue.SetText), [typeof(string), typeof(string)], typeof(Dialogue));
+            NativeHookSet.Require(typeof(Dialogue), nameof(Dialogue.SetNextDialogue), [typeof(Dialogue)], typeof(Dialogue));
             NativeHookSet.Require(typeof(DialogUIManager), nameof(DialogUIManager.CurrentClientLeave), [typeof(float)], typeof(void));
             _installed = NativeHookSet.Install(HookId,
             [
@@ -106,7 +109,7 @@ internal static class ConversationRuntime
     }
 
     internal static ForgePresentationResult Queue(string owner, string request, string run, int slot,
-        string actor, string sprite, ForgeDialogueScript script)
+        string actor, string sprite, ForgeDialogueScript script, ForgeSupplierDefinition? supplier = null)
     {
         if (!ConversationContract.Owned(owner, actor) || !ConversationContract.Request(request) ||
             script == null || script.OwnerId != owner || string.IsNullOrWhiteSpace(sprite)) return new(ForgePresentationStatus.Invalid);
@@ -127,7 +130,7 @@ internal static class ConversationRuntime
             if (manager.clientStack.ToArray().Any(x => x != null && x.identifier == actor) ||
                 store.currentClientInstance?.GetClientBlueprint()?.identifier == actor)
             { Requests.Set(owner, request, ForgePresentationStatus.Conflict); return new(ForgePresentationStatus.Conflict); }
-            visit = new(owner, request, actor, script, _generation, run, slot);
+            visit = new(owner, request, actor, script, _generation, run, slot, supplier);
             var definition = script.Definition;
             visit.Client = new StoreClient
             {
@@ -163,6 +166,14 @@ internal static class ConversationRuntime
     }
     private static void BuildDialogue(Visit v)
     {
+        if (v.Supplier != null)
+        {
+            var menu = Line(v, v.Supplier.FailureText);
+            menu.isMainDialog = true;
+            v.Client!.mainDialogue = menu;
+            FillSupplierMenu(v, menu);
+            return;
+        }
         var d = v.Script.Definition;
         var root = Line(v, d.Body);
         root.isMainDialog = true;
@@ -186,6 +197,48 @@ internal static class ConversationRuntime
         Choice(v, root, d.LaterLabel, null, () => Leave(v));
     }
 
+    private static ForgeDialogueContext SupplierContext(Visit v, string choice) =>
+        new(v.Generation, v.Run, v.Slot, v.Owner, v.Request, v.Supplier!.Id, choice);
+
+    private static void FillSupplierMenu(Visit v, Dialogue menu)
+    {
+        var d = v.Supplier!;
+        ForgeSupplierPage page;
+        try
+        {
+            page = SupplierContract.FreezePage(d.Capture(SupplierContext(v, "capture")));
+        }
+        catch (Exception ex) { Log(ex); page = new(d.FailureText, []); }
+        menu.SetText(d.Speaker, page.Body);
+        // One menu represents one quote opportunity. Continue builds a new menu;
+        // it never clears an old gate or gives an old callback another chance.
+        var selection = new ConversationSelection();
+        foreach (var offer in page.Offers.ToArray())
+        {
+            var preview = Line(v, offer.Preview);
+            var response = Line(v, d.FailureText);
+            Choice(v, preview, offer.ConfirmLabel ?? d.ConfirmLabel, response, () =>
+            {
+                if (!selection.TryEnter(v.Generation, _generation, IsCurrent(v))) return;
+                string text;
+                try { text = offer.Purchase(SupplierContext(v, offer.Id)); }
+                catch (Exception ex) { Log(ex); text = d.FailureText; }
+                if (IsCurrent(v)) response.SetText(d.Speaker, text ?? d.FailureText);
+            });
+            var resume = Line(v, d.FailureText);
+            var refresh = new ConversationSelection();
+            Choice(v, response, d.ContinueLabel, resume, () =>
+            {
+                if (!refresh.TryEnter(v.Generation, _generation, IsCurrent(v))) return;
+                FillSupplierMenu(v, resume);
+            });
+            Choice(v, response, d.LeaveLabel, null, () => Leave(v));
+            Choice(v, preview, d.BackLabel, menu, null);
+            Choice(v, menu, offer.Label, preview, null);
+        }
+        Choice(v, menu, d.LeaveLabel, null, () => Leave(v));
+    }
+
     private static void Choice(Visit v, Dialogue parent, string text, Dialogue? next, Action? action)
     {
         var item = DirectoryMaster.Item("handnote", true) ?? throw new InvalidOperationException("Choice template unavailable");
@@ -200,7 +253,7 @@ internal static class ConversationRuntime
             })) ?? throw new InvalidOperationException("Choice callback unavailable");
             v.Callbacks.Add(callback);
         }
-        parent.AddChoice(item, text, "", next, callback);
+        v.Dialogues.Add(NativeDialogueChoice.Add(parent, item, text, next, callback));
     }
 
     private static bool IsCurrent(Visit v)
@@ -212,7 +265,9 @@ internal static class ConversationRuntime
     }
     private static void Leave(Visit v)
     {
-        if (!IsCurrent(v)) return;
+        if (!IsCurrent(v) || v.DismissRequested) return;
+        v.DismissRequested = true;
+        v.Supplier?.Dismiss(SupplierContext(v, "dismiss"));
         v.Client!.CompleteBusiness();
         var dialog = DialogUIManager.Instance;
         if (dialog != null) dialog.CurrentClientLeave();

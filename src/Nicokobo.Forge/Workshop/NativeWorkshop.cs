@@ -20,7 +20,7 @@ internal static class NativeWorkshop
     private static readonly List<IDisposable> Leases = [];
     private static readonly ForgeWorkshopGroup[] Groups =
     [new("产业成果", "Industry", 4), new("收藏与装备", "Collection & Gear", 2),
-     new("经营与声望", "Business & Reputation", 3), new("原版通关", "Native Victory", 1)];
+     new("经营与声望", "Business & Reputation", 3), new("原版通关", "Store Victory", 1)];
     private static PlayerStore? _store;
     private static AchievementState? _state, _confirmed;
     private static string? _json, _confirmedJson;
@@ -158,7 +158,7 @@ internal static class NativeWorkshop
             catch (Exception ex) { Block("成就记录无法读取：" + ex.Message); return; }
             Confirm();
         }
-        else { Block("成就记录适配不可用：" + read.Reason); return; }
+        else { Block("暂时无法读取成就记录：" + read.Reason); return; }
         // Refresh this provider's own cards. A granted card lost later is not replaced.
         foreach (var item in ForgeInventoryApi.CaptureRunItems(store))
             if (item.identifier == AchievementRules.CardId && ForgeInventoryApi.IsPlayerOwned(item)) RefreshCard(item);
@@ -416,22 +416,24 @@ internal static class NativeWorkshop
             bool claimed = _confirmed?.Claimed.Contains(definition.Id) == true;
             bool pending = _state?.Pending != null || _json != _confirmedJson;
             bool rewardAvailable = definition.Id != AchievementRules.VictoryNode || NativeVictoryBudget.Installed;
-            string progress = _evidence.GetValueOrDefault(definition.Id)?.Progress ?? (english ? "Checking native state" : "读取原生状态");
+            string progress = _evidence.GetValueOrDefault(definition.Id)?.Progress ?? (english ? "Checking progress" : "正在读取进度");
             string state = claimed ? (english ? "Claimed" : "已领取") : completed ? (english ? "Completed · unclaimed" : "已达成 · 未领取") : (english ? "In progress" : "未达成");
             if (definition.Id == AchievementRules.VictoryNode && claimed)
                 state = english ? "Victory badge awarded · NPC purchase budgets x2" : "通关纪念徽章已领取 · NPC收购预算×2";
             if (_blocked) state = english ? "Achievement record unavailable" : "成就记录不可用";
             else if (!rewardAvailable) state = english ? "Purchase budget reward unavailable" : "收购预算奖励暂不可用";
             else if (pending) state += english ? " · save pending" : " · 等待保存";
-            else if (!completed && Unavailable.ContainsKey(definition.Id)) state = english ? "Native progress temporarily unavailable" : "原生进度暂不可读取";
-            string cost = (english ? "Progress: " : "当前进度：") + progress;
+            else if (!completed && Unavailable.ContainsKey(definition.Id)) state = english ? "Progress temporarily unavailable" : "进度暂时无法读取";
+            string progressLabel = definition.Id is "pure_water_jug" or "quality_overload"
+                ? (english ? "Requirement: " : "达成要求：") : (english ? "Progress: " : "当前进度：");
+            string cost = progressLabel + progress;
             if (definition.Id == AchievementRules.VictoryNode) cost += english
                 ? "\nReward: Victory commemorative badge + all NPC purchase budgets x2\nActive after claiming for this run; no inventory space"
                 : "\n奖励：通关纪念徽章＋所有NPC收购预算×2\n领取后本周目持续生效，不占库存";
             return new ForgeWorkshopEntry(definition.Id, english ? definition.English : definition.Chinese,
-                definition.Id == "workshop_master" ? (english ? "Native victory" : "原版通关") : (english ? "Native achievement" : "原版成就"),
+                definition.Id == "workshop_master" ? (english ? "Store victory" : "原版通关") : (english ? "Base-game achievement" : "原版成就"),
                 english ? definition.ConditionEnglish : definition.ConditionChinese,
-                english ? "Independent goal" : "独立判定", cost, completed ? (english ? "CLAIM" : "可领奖") : progress,
+                english ? "No prerequisite achievements" : "无需完成其他成就", cost, completed ? (english ? "CLAIM" : "可领奖") : progress,
                 state, claimed ? (english ? "Claimed" : "已领取") : (english ? "Claim reward" : "领取奖励"),
                 claimed, true, completed && !claimed && !pending && !_blocked && rewardAvailable && _state?.Claimed.Contains(definition.Id) != true)
             {

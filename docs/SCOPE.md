@@ -7,6 +7,7 @@
 | 能力 | 公共入口与契约 |
 | --- | --- |
 | 分支对话、具名来访与阅读窗 | `ForgeDialogueApi`、`ForgeClientVisitApi`、`ForgeReadingApi`；owner／请求隔离、原生对象与委托生命周期。内容方管理剧情条件、文本和交易；不新增文件或主动保存。见[契约](CONVERSATION_API.md) |
+| 电话联系人及多笔供应商会面 | `ForgePhoneApi`、`ForgeSupplierApi`；原生电话簿、号码所有权和每笔预览／继续挑选。内容方持有解锁、预约、货单、扣款和交付收据；不重写原生供货库存或主动保存。见[契约](CONVERSATION_API.md) |
 | 内容声明、所有者与冲突诊断 | `ForgeApi`、`ForgeItemApi`、`ForgeEffectApi`、`ForgeContentApi`；通过快照分别检查 `Staged / Applied / Conflict / Failed` |
 | 普通物品、设施、节点与机器模组 | `RegisterItem`、`RegisterAmenity`、`RegisterNode`、`RegisterModule`；内容方提供工厂和稳定 ID，框架持有委托并适配目录 |
 | 原版 UI 机器模板与资源事务 | `ForgeMachineRegistrationApi` 声明输入、输出、电池、模组及手册；运行时处理材料、液体、电量、容量、逐项读回和恢复 |

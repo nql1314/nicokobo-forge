@@ -38,6 +38,9 @@ try {
         Assert-InventoryPowerMethod "Il2Cpp.$inventoryPowerTypeName" 'Expel' 'System.Boolean' @('Il2Cpp.GameItem')
     }
     Assert-InventoryPowerMethod 'Il2Cpp.GameItemElement' 'Destroy' 'System.Void' @()
+    Assert-InventoryPowerMethod 'Il2Cpp.GeneralHelper' 'SetItemOwned' 'System.Void' @('Il2Cpp.GameItem', 'System.Boolean')
+    Assert-InventoryPowerMethod 'Il2Cpp.PlayerStore' 'BuyItem' 'System.Void' @('Il2Cpp.GameItem')
+    Assert-InventoryPowerMethod 'Il2Cpp.PlayerStore' 'SellItem' 'System.Void' @('Il2Cpp.GameItem')
     Assert-InventoryPowerMethod 'Il2Cpp.GameItem' 'GetIncompleteSlotInInventory' 'Il2Cpp.SlotMarker' @()
     Assert-InventoryPowerMethod 'Il2Cpp.GameInventory' 'TryInventorySlot' 'Il2Cpp.SlotMarker' @('Il2Cpp.GameItem', 'System.Int32', 'Il2Cpp.GridShape', 'Il2Cpp.TagSystem')
     Assert-InventoryPowerMethod 'Il2Cpp.GameGridInventory' 'TryInventorySlot' 'Il2Cpp.SlotMarker' @('Il2Cpp.GameItem', 'System.Int32', 'UnityEngine.Vector2', 'Il2Cpp.GridShape', 'Il2Cpp.TagSystem')

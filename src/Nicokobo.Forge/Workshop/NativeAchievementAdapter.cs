@@ -14,8 +14,7 @@ internal static class NativeAchievementAdapter
         if (id == "water_jug" && item.IsTag("LIQUID_CONTAINER_TAG"))
         {
             int capacity = RequiredInt(item, "LIQUID_CONTAINER_CAPACITY");
-            water = capacity > 0 && WaterHelper.IsFull(item) &&
-                WaterHelper.GetTotalVolume(item) == capacity &&
+            water = AchievementRules.IsFullWaterJug(WaterHelper.GetTotalVolume(item), capacity) &&
                 WaterFeatureHelper.GetPurityArrayIndex(WaterHelper.GetWaterPurity(item)) == 0;
         }
         bool rat = id == "rat" && !HusbandryHelper.IsAnimalDead(item);

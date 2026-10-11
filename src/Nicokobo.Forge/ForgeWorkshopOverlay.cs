@@ -17,6 +17,8 @@ internal static class ForgeWorkshopOverlay
 {
     internal const string WebsiteUrl = "https://nicokobo.com";
     private const string WebsiteLabel = "nicokobo.com";
+    private static readonly string ForgeVersionLabel =
+        $"Forge v{typeof(Plugin).Assembly.GetName().Version!.ToString(3)}";
     private const string WebsiteLogoResource =
         "Nicokobo.Forge.Assets.Brand.nicokobo_logo.png";
     private const float DesignWidth = ForgeNumbers.Workshop.DesignWidth;
@@ -187,8 +189,13 @@ internal static class ForgeWorkshopOverlay
                 window.width - 6f, 52f);
             Fill(header, _headerTexture!);
             DrawWebsiteLogo(new Rect(header.x + 16f, header.y + 7f, 42f, 38f));
-            GUI.Label(new Rect(header.x + 62f, header.y + 7f, 480f, 38f),
-                english ? "NICO WORKSHOP" : "Nico工坊", _titleStyle!);
+            string title = english ? "NICO WORKSHOP" : "Nico工坊";
+            float titleWidth = _titleStyle!.CalcSize(new GUIContent(title)).x;
+            var titleRect = new Rect(header.x + 62f, header.y + 7f,
+                titleWidth, 38f);
+            GUI.Label(titleRect, title, _titleStyle);
+            GUI.Label(new Rect(titleRect.xMax + 14f, titleRect.y,
+                180f, titleRect.height), ForgeVersionLabel, _mutedStyle!);
             var website = WebsiteRect(header);
             var pointer = Input.mousePosition;
             bool websiteHovered = website.Contains(new Vector2(pointer.x / scale,

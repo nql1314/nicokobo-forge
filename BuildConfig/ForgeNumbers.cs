@@ -29,6 +29,8 @@ internal static class ForgeNumbers
     {
         // 工坊名片在原生日用品掉落表内的相对权重。
         internal const float CardLootWeight = 0.05f;
+        // 纯水桶满容量判定允许 ±1 毫升误差；液体量使用每毫升 1000 组分单位。
+        internal const int WaterJugVolumeTolerance = NativeUnits.LiquidPartsPerMillilitre;
         internal const float RatGrams = 800f;
         internal const int WineDays = 10;
         internal const int WineTopTier = 5;
@@ -94,6 +96,8 @@ internal static class ForgeNumbers
     // 档案箱尺寸及库存遍历、估价的保护上限；不开放库存搬运能力。
     internal static class Inventory
     {
+        // 只读持有数量快照的最长复用秒数；原生库存变更会立即使其失效。
+        internal const double OwnedCountCacheSeconds = 0.25;
         // 原版档案箱内部网格的宽度和高度（格）。
         internal const int DossierGridSide = 16;
         // 一次直接库存快照允许读取的物品数量上限。

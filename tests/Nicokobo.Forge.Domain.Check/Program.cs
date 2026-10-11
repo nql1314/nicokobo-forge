@@ -3,7 +3,21 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+if (args is ["inventory-reads"])
+{
+    InventoryReadChecks.Run();
+    return;
+}
+
+if (args is ["achievements"])
+{
+    AchievementChecks.Run();
+    return;
+}
+
 ConversationChecks.Run();
+
+if (args is ["conversations"]) return;
 
 if (args is ["npc-stock"])
 {

@@ -22,6 +22,18 @@ internal static class AchievementChecks
         Expect(!Goals(new AchievementItem(1, "water_jug", false, FullPureWater: true))["pure_water_jug"].Met, "Unowned proof qualified");
         Expect(!Goals(new AchievementItem(1, "water_jug", true))["pure_water_jug"].Met, "Water identifier alone qualified");
         Expect(Goals(new AchievementItem(1, "water_jug", true, FullPureWater: true))["pure_water_jug"].Met, "Native full pure water did not qualify");
+        Expect(Goals(new AchievementItem(13893, "water_jug", true,
+            FullPureWater: AchievementRules.IsFullWaterJug(5_999_999, 6_000_000)))["pure_water_jug"].Met,
+            "Pure water from save_25 was rejected for a one-microlitre shortfall");
+        foreach (var (volume, met) in new[]
+        {
+            (6_000_000, true), (5_999_000, true), (5_998_999, false),
+            (6_000_001, true), (6_001_000, true), (6_001_001, false), (0, false)
+        })
+            Expect(AchievementRules.IsFullWaterJug(volume, 6_000_000) == met,
+                $"Incorrect one-millilitre capacity tolerance at volume {volume}");
+        Expect(!AchievementRules.IsFullWaterJug(1, 0) && !AchievementRules.IsFullWaterJug(0, 1000),
+            "Invalid capacity or an empty container qualified within the volume tolerance");
         Expect(!Goals(new AchievementItem(1, "rat", true, LiveRat: true, RatGrams: 799.999f))["rat_800g"].Met, "Rounded rat weight qualified");
         Expect(!Goals(new AchievementItem(1, "rat", true, LiveRat: true, RatGrams: 400), new(2, "rat", true, LiveRat: true, RatGrams: 400))["rat_800g"].Met, "Rat weights were summed");
         Expect(!Goals(new AchievementItem(1, "rat", true, LiveRat: false, RatGrams: 800))["rat_800g"].Met, "Dead rat qualified");

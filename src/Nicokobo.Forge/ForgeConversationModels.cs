@@ -17,6 +17,38 @@ public sealed record ForgeDialogueDefinition(string Id, string Speaker, string B
     IReadOnlyList<ForgeDialogueChoice> Choices, string ConfirmLabel, string BackLabel,
     string LeaveLabel, string LaterLabel, string FailureText);
 
+/// <summary>A freshly quoted purchase. Content owns resources and persistence.</summary>
+public sealed record ForgeSupplierOffer(string Id, string Label, string Preview,
+    Func<ForgeDialogueContext, string> Purchase, string? ConfirmLabel = null);
+public sealed record ForgeSupplierPage(string Body, IReadOnlyList<ForgeSupplierOffer> Offers);
+public sealed record ForgeSupplierDefinition(string Id, string Speaker,
+    Func<ForgeDialogueContext, ForgeSupplierPage> Capture,
+    Action<ForgeDialogueContext> Dismiss, string ConfirmLabel, string BackLabel,
+    string ContinueLabel, string LeaveLabel, string FailureText);
+
+internal static class SupplierContract
+{
+    internal static void Validate(string owner, ForgeSupplierDefinition definition)
+    {
+        if (definition == null || !ConversationContract.Owned(owner, definition.Id) ||
+            string.IsNullOrWhiteSpace(definition.Speaker) || definition.Capture == null || definition.Dismiss == null ||
+            new[] { definition.ConfirmLabel, definition.BackLabel, definition.ContinueLabel,
+                definition.LeaveLabel, definition.FailureText }.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("Invalid owned supplier definition");
+    }
+    internal static ForgeSupplierPage FreezePage(ForgeSupplierPage page)
+    {
+        if (page == null || page.Body == null || page.Offers == null) throw new ArgumentException("Invalid supplier quote page");
+        var offers = page.Offers.ToArray();
+        if (offers.Any(x => x == null || !ConversationContract.Request(x.Id) ||
+                string.IsNullOrWhiteSpace(x.Label) || x.Preview == null || x.Purchase == null ||
+                x.ConfirmLabel != null && string.IsNullOrWhiteSpace(x.ConfirmLabel)) ||
+            offers.Select(x => x.Id).Distinct(StringComparer.Ordinal).Count() != offers.Length)
+            throw new ArgumentException("Invalid supplier quote offers");
+        return page with { Offers = Array.AsReadOnly(offers) };
+    }
+}
+
 /// <summary>A frozen managed definition. Native objects are owned by the queued visit.</summary>
 public sealed class ForgeDialogueScript
 {

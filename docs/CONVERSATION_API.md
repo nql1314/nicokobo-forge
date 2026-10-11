@@ -1,6 +1,6 @@
 # 剧情来访、分支对话与阅读窗 API
 
-更新：2026-10-09。Forge 0.6.34 本地候选；伪人 Mod 0.1.58 为首个调用者。离线检查与编译通过，原生交互、生命周期及备份恢复仍待实机验收。
+更新：2026-10-10。Forge 0.6.35 本地候选；伪人 Mod 为首个调用者。离线检查与编译通过，新增电话及供货的原生交互、生命周期与存读档仍待实机验收。
 
 ## 职责
 
@@ -18,6 +18,8 @@ Forge 创建具名原生顾客、后果预览与选择菜单，持有原生委�
 - `ConfirmLabel`、`BackLabel`、`LeaveLabel`、`LaterLabel`、`FailureText`：通用导航及异常提示的内容方文案。
 
 选项列表在创建时冻结；原列表后续修改不会改变这次定义。原生流程为“开场 → 后果预览 → 确认 → 回应 → 离开”，也支持从预览返回以及稍后再说。当前不提供任意图结构的通用剧情引擎。
+
+商店、供应商与电话的每个按钮都持有 `PLAYER` 选项节点：短标签写入该节点，`nextDialogue` 指向真正的预览／回复／返回菜单。原生选择后先前进到下一节点；不能把预览直接当成选项节点，否则会跳过预览并结束对话。离开按钮同样保留可显示的非空节点，其下一句为空。
 
 `Confirm(ForgeDialogueContext)` 在游戏线程同步执行，返回回应正文；上下文包含 `Generation`、`RunId`、`SlotId`、`OwnerId`、`RequestId`、`DialogueId`、`ChoiceId`。只对当前会话、当前到访者分派，每次来访最多调用一次确认；即使回调抛异常也不自动重做。内容方必须在回调中重新验证进度、钱款和物品归属。失败后需要新的一次预约，不在同一次会面反复执行交易。
 
@@ -47,6 +49,14 @@ ForgePresentationResult current = ForgeClientVisitApi.Status(ownerId, requestId)
 
 原生队列没有被此 API 序列化。加载、开新周目、返回菜单使旧请求与回调失效；内容方从自己的存档恢复事件，并按需要重新预约。会面结束后仅在原生对话也不再引用该图时释放选择物品及委托；场景／加载边界交由原生销毁旧对象，不能用旧包装对象重新写入世界。
 
+## 电话联系人与多笔供货（2026-10-10 本地源码）
+
+`ForgePhoneApi.IsAvailable`／`ForgeCapabilities.Current.PhoneContacts` 表示原生电话钩子集合已安装。`ForgePhoneApi.Register(owner, ForgePhoneContact)` 声明 owned 稳定 ID、电话号码、`Visible`、`DisplayName` 和 `Call` 回调，按 Mod 安装生命周期登记一次；同 owner／ID 重复登记返回 `Conflict`，不替换回调。当前成功登记返回 `Queued`，这里只表示声明被接受；联系人进入当前 `PlayerStore.PhoneClientDict`、电话簿显示和实际拨通仍须分别观察。号码冲突保留原联系人，并停用冲突声明。内容方在 `Visible` 中核对周目与解锁事实；`Call` 返回现有 `ForgeDialogueScript`，通过原生拨号、预览和挂断流程执行，每次电话最多一次确认。加载、新周目、菜单使旧回调失效；原生联系人使用 `None` 类型、`Regular` 状态，不接入原生供应商的库存或冷却服务。
+
+`ForgeSupplierApi.Queue(owner, request, run, slot, actor, sprite, definition)` 创建可以多次挑选的独立来访，不改变 `ForgeDialogueApi` 每场仅一次提交的契约。`ForgeSupplierDefinition.Capture` 返回当前正文与 `ForgeSupplierOffer` 列表，后者包含 stable ID、标签、数量／总价预览与 `Purchase` 回调；内容方持有库存、价格、空间校验、扣款、交付和保存。购买流程为“货单 → 预览 → 确认 → 回应 → 继续挑选／送客”；继续挑选重新捕获新货单，每个旧货单只接受一次确认，旧按钮与双击不能再次执行购买。`Dismiss` 在明确送客时调用，内容方也应观察 `Dismissed` 处理其他离店方式。通用框架不刷新货量、不扣钱、不写 Mod 数据。
+
+预约日期及营业调度由内容方使用原生日历和上述队列组合，原生队列仍不序列化；加载后从保存预约恢复，并在新会话重新排队。新接口尚未原生验收，不能以编译替代电话簿、连购、日夜边界与存读档验证。
+
 ## 阅读窗
 
 ```csharp
@@ -65,7 +75,7 @@ ForgePresentationResult closed = ForgeReadingApi.Close(ownerId, documentId);
 
 ## 验证范围
 
-- 新增 24 项托管契约检查：定义冻结、owner 隔离、请求去重、未确认请求防重做、旧会话与双击回调、阅读窗占用。
-- 原生适配元数据检查扩展至 173 项；`Build-P0.ps1` 的领域、生命周期、钩子保护和核心／样例编译通过。
+- 当前 68 项离线契约与跳转检查：定义冻结、owner 隔离、请求去重、未确认请求防重做、旧会话与双击、阅读窗占用、选项预览／确认／回复／返回／离开及供货继续。跳转端口依据本地商店与电话反汇编。
+- 原生适配元数据检查扩展至 186 项；`Build-P0.ps1` 的领域、生命周期、钩子保护和核心／样例编译通过。
 - Aug 原有剧情领域检查与相关编译、菜单静态检查继续运行。
 - 待原生验收：多内容 Mod 同时预约／阅读、真实人物呈现、确认回调、窗口替换、加载及菜单时旧回调失效、关闭后的原生引用释放、原版保存与备份恢复。离线检查不能代替这些结果。

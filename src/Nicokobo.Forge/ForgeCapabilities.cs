@@ -15,6 +15,8 @@ public sealed record ForgeCapabilitySnapshot(bool KnownGameBuild,
     public bool BranchingDialogue { get; init; }
     public bool ClientVisits { get; init; }
     public bool ReadingWindow { get; init; }
+    public bool PhoneContacts { get; init; }
+    public bool SupplierVisits { get; init; }
 }
 
 /// <summary>Read-only capability report for content Mods. A true gate means the
