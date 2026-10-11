@@ -61,9 +61,10 @@ namespace Il2Cpp
         public string runID = "lifecycle-run";
         public int saveSlotId = 2;
         public int BodyCalls;
+        public Exception? NightFailure;
         public List<GameItem> Items = [];
         public void LoadGame() => BodyCalls++;
-        public void EndNight() => BodyCalls++;
+        public void EndNight() { BodyCalls++; if (NightFailure != null) throw NightFailure; }
         public void EndDay() => BodyCalls++;
     }
     public static class StoreStation { public static int GetDayCounter() => 7; }
@@ -74,6 +75,15 @@ namespace Il2Cpp
         public static void FireOnHandlingNightlyServicesLate() => BodyCalls++;
         public static void FireOnGoingSleepLate() => BodyCalls++;
         public static void FireOnGameLoadedLate() => BodyCalls++;
+    }
+}
+
+namespace UnityEngine
+{
+    public static class Debug
+    {
+        public static readonly List<string> Errors = [];
+        public static void LogError(object message) => Errors.Add(message.ToString()!);
     }
 }
 
@@ -113,16 +123,27 @@ namespace Nicokobo.Forge.Runtime
             var hooks = NativeHookSet.Installed.Values.SelectMany(x => x)
                 .Where(h => h.TargetType == type && h.Method == name).ToArray();
             foreach (var hook in hooks) Invoke(hook, hook.Prefix, store, runOriginal);
-            if (runOriginal) target.Invoke(target.IsStatic ? null : store, null);
-            foreach (var hook in hooks) Invoke(hook, hook.Postfix, store, runOriginal);
+            Exception? failure = null;
+            try
+            {
+                if (runOriginal) target.Invoke(target.IsStatic ? null : store, null);
+                foreach (var hook in hooks) Invoke(hook, hook.Postfix, store, runOriginal);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null) { failure = ex.InnerException; }
+            finally
+            {
+                foreach (var hook in hooks) Invoke(hook, hook.Finalizer, store, runOriginal, failure);
+            }
+            if (failure != null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
-        private static void Invoke(NativeHook hook, string? callback, PlayerStore store, bool runOriginal)
+        private static void Invoke(NativeHook hook, string? callback, PlayerStore store, bool runOriginal, Exception? failure = null)
         {
             if (callback == null) return;
             var method = hook.CallbackType.GetMethod(callback, BindingFlags.Static | BindingFlags.NonPublic)
                 ?? throw new MissingMethodException(callback);
             var args = method.GetParameters().Select(p => p.ParameterType == typeof(PlayerStore)
                 ? (object)store : p.ParameterType == typeof(bool) && p.Name == "__runOriginal" ? runOriginal
+                : p.ParameterType == typeof(Exception) && p.Name == "__exception" ? failure
                 : throw new InvalidOperationException("Unexpected hook parameter: " + p.Name)).ToArray();
             method.Invoke(null, args);
         }

@@ -44,11 +44,12 @@ internal sealed class NativeSpriteAtlasPort(string key, Assembly assembly,
         texture.filterMode = filter == ForgeSpriteFilter.Point ? FilterMode.Point : FilterMode.Bilinear;
         texture.wrapMode = TextureWrapMode.Clamp;
         texture.hideFlags = HideFlags.HideAndDontSave;
-        if (!ImageConversion.LoadImage(texture, new Il2CppStructArray<byte>(bytes), false) ||
+        if (!ImageConversion.LoadImage(texture, new Il2CppStructArray<byte>(bytes), !definition.KeepReadable) ||
             texture.width != definition.Width || texture.height != definition.Height)
             throw new InvalidOperationException($"Icon decode or size contract failed: {definition.Key}; " +
                 $"expected={definition.Width}x{definition.Height}; actual={texture.width}x{texture.height}");
-        var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0, 1), 100);
+        var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
+            new Vector2(definition.PivotX, definition.PivotY), 100);
         if (sprite == null || sprite.Pointer == IntPtr.Zero)
             throw new InvalidOperationException("Sprite creation failed: " + definition.Key);
         atlas.Sprites.Add(sprite);

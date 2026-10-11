@@ -180,25 +180,37 @@ internal static class ConversationRuntime
         v.Client!.mainDialogue = root;
         foreach (var option in d.Choices)
         {
-            var preview = Line(v, option.Preview);
             var response = Line(v, d.FailureText);
-            Choice(v, preview, d.ConfirmLabel, response, () =>
+            void Commit()
             {
                 if (!v.Selection.TryEnter(v.Generation, _generation, IsCurrent(v))) return;
                 string result;
                 try { result = option.Confirm(new(v.Generation, v.Run, v.Slot, v.Owner, v.Request, d.Id, option.Id)); }
                 catch (Exception ex) { Log(ex); result = d.FailureText; }
                 if (IsCurrent(v)) response.SetText(d.Speaker, result ?? d.FailureText);
-            });
+            }
             Choice(v, response, d.LeaveLabel, null, () => Leave(v));
-            Choice(v, preview, d.BackLabel, root, null);
-            Choice(v, root, option.Label, preview, null);
+            if (d.RequireConfirmation)
+            {
+                var preview = Line(v, option.Preview);
+                Choice(v, preview, d.ConfirmLabel, response, Commit);
+                Choice(v, preview, d.BackLabel, root, null);
+                Choice(v, root, option.Label, preview, null);
+            }
+            else Choice(v, root, option.Label, response, Commit);
         }
-        Choice(v, root, d.LaterLabel, null, () => Leave(v));
+        if (d.AllowLater) Choice(v, root, d.LaterLabel, null, () => Leave(v));
+        Paginate(v, root, d.NextPageLabel, d.PreviousPageLabel);
     }
 
     private static ForgeDialogueContext SupplierContext(Visit v, string choice) =>
         new(v.Generation, v.Run, v.Slot, v.Owner, v.Request, v.Supplier!.Id, choice);
+
+    private static bool SupplierCanContinue(Visit v)
+    {
+        try { return v.Supplier!.CanContinue?.Invoke(SupplierContext(v, "continue")) ?? true; }
+        catch (Exception ex) { Log(ex); return false; }
+    }
 
     private static void FillSupplierMenu(Visit v, Dialogue menu)
     {
@@ -215,28 +227,83 @@ internal static class ConversationRuntime
         var selection = new ConversationSelection();
         foreach (var offer in page.Offers.ToArray())
         {
-            var preview = Line(v, offer.Preview);
             var response = Line(v, d.FailureText);
-            Choice(v, preview, offer.ConfirmLabel ?? d.ConfirmLabel, response, () =>
+            void Commit()
             {
                 if (!selection.TryEnter(v.Generation, _generation, IsCurrent(v))) return;
                 string text;
                 try { text = offer.Purchase(SupplierContext(v, offer.Id)); }
                 catch (Exception ex) { Log(ex); text = d.FailureText; }
-                if (IsCurrent(v)) response.SetText(d.Speaker, text ?? d.FailureText);
-            });
+                if (IsCurrent(v))
+                {
+                    response.SetText(d.Speaker, text ?? d.FailureText);
+                    if (!SupplierCanContinue(v))
+                    {
+                        // Keep the prebuilt leave choice; no new native allocation after settlement.
+                        response.choices.RemoveAt(0);
+                    }
+                }
+            }
             var resume = Line(v, d.FailureText);
             var refresh = new ConversationSelection();
             Choice(v, response, d.ContinueLabel, resume, () =>
             {
                 if (!refresh.TryEnter(v.Generation, _generation, IsCurrent(v))) return;
+                if (!SupplierCanContinue(v)) { Leave(v); return; }
                 FillSupplierMenu(v, resume);
             });
             Choice(v, response, d.LeaveLabel, null, () => Leave(v));
-            Choice(v, preview, d.BackLabel, menu, null);
-            Choice(v, menu, offer.Label, preview, null);
+            if (d.RequireConfirmation)
+            {
+                var preview = Line(v, offer.Preview);
+                Choice(v, preview, offer.ConfirmLabel ?? d.ConfirmLabel, response, Commit);
+                Choice(v, preview, d.BackLabel, menu, null);
+                Choice(v, menu, offer.Label, preview, null);
+            }
+            else Choice(v, menu, offer.Label, response, Commit);
+        }
+        if (d.AllowMenuRefresh && SupplierCanContinue(v))
+        {
+            var resume = Line(v, d.FailureText);
+            Choice(v, menu, d.ContinueLabel, resume, () =>
+            {
+                if (!selection.TryEnter(v.Generation, _generation, IsCurrent(v))) return;
+                if (!SupplierCanContinue(v)) { Leave(v); return; }
+                FillSupplierMenu(v, resume);
+            });
         }
         Choice(v, menu, d.LeaveLabel, null, () => Leave(v));
+        Paginate(v, menu, d.NextPageLabel, d.PreviousPageLabel);
+    }
+
+    private static void Paginate(Visit v, Dialogue menu, string nextLabel, string previousLabel)
+    {
+        // DisplayChoice indexes this fixed native list for every offered choice.
+        // Only reshape Forge-owned menus; preserve their nodes and callbacks.
+        var dialog = DialogUIManager.Instance;
+        int capacity = dialog?.dialogChoiceBubbles?.Count ?? 0;
+        if (capacity == 0) throw new InvalidOperationException("Native dialogue choice buttons are unavailable");
+        if (capacity == 3 && menu.choices.Count > 3)
+        {
+            // Clone the native bubble, including its self-targeted click event.
+            // DisplayChoice and HideChoiceBubble both use this same list.
+            var bubbles = dialog!.dialogChoiceBubbles;
+            var template = bubbles[2];
+            var clone = UnityEngine.Object.Instantiate(template.gameObject, template.transform.parent, false);
+            clone.name = "ForgeFourthDialogueChoice";
+            clone.SetActive(false);
+            var bubble = clone.GetComponent<DialogChoiceBubble>();
+            if (bubble == null) { UnityEngine.Object.Destroy(clone); throw new InvalidOperationException("Native choice clone is missing its controller"); }
+            bubble.index = 3;
+            var rect = clone.GetComponent<UnityEngine.RectTransform>();
+            var last = template.GetComponent<UnityEngine.RectTransform>();
+            var previous = bubbles[1].GetComponent<UnityEngine.RectTransform>();
+            rect.anchoredPosition = last.anchoredPosition + (last.anchoredPosition - previous.anchoredPosition);
+            bubbles.Add(bubble);
+            capacity = bubbles.Count;
+        }
+        NativeDialogueChoice.Paginate(menu, Math.Min(4, capacity), nextLabel, previousLabel,
+            body => Line(v, body), (page, label, next) => Choice(v, page, label, next, null));
     }
 
     private static void Choice(Visit v, Dialogue parent, string text, Dialogue? next, Action? action)

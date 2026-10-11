@@ -10,6 +10,9 @@ internal static class ConversationChecks
         var definition = new ForgeDialogueDefinition("test.one.dialogue", "Visitor", "Hello", choices,
             "Confirm", "Back", "Leave", "Later", "Failed");
         var script = ConversationContract.Freeze("test.one", definition);
+        Expect(script.Definition.RequireConfirmation, "existing dialogue definitions lost confirmation by default");
+        Expect(!ConversationContract.Freeze("test.one", definition with { RequireConfirmation = false })
+            .Definition.RequireConfirmation, "freezing a direct-choice dialogue re-enabled confirmation");
         choices[0] = new("changed", "Changed", "", _ => "Wrong");
         Expect(script.Definition.Choices[0].Id == "pay", "caller mutation changed queued choices");
         bool Invalid(ForgeDialogueDefinition d, string owner = "test.one")
@@ -63,6 +66,10 @@ internal static class ConversationChecks
         bool InvalidSupplier(ForgeSupplierDefinition d, string owner = "test.one")
         { try { SupplierContract.Validate(owner, d); return false; } catch (ArgumentException) { return true; } }
         Expect(!InvalidSupplier(supplier), "valid supplier was rejected");
+        Expect(supplier.RequireConfirmation && !InvalidSupplier(supplier with { RequireConfirmation = false }),
+            "supplier confirmation default or direct-choice definition rejected");
+        Expect(!supplier.AllowMenuRefresh && supplier.CanContinue == null && !InvalidSupplier(supplier with { AllowMenuRefresh = true }),
+            "external item refresh must be opt-in and accept the existing supplier constructor");
         Expect(InvalidSupplier(supplier, "test.two"), "another owner claimed a supplier");
         Expect(InvalidSupplier(supplier with { Capture = null! }) && InvalidSupplier(supplier with { Dismiss = null! }),
             "supplier omitted stock capture or dismissal");
@@ -82,7 +89,102 @@ internal static class ConversationChecks
         Expect(!firstMenu.TryEnter(3, 3, true) && !continueGate.TryEnter(3, 3, true) && !secondMenu.TryEnter(3, 3, true),
             "stale purchase or duplicate continuation regenerated a gate");
         CheckNativeNavigation(Expect);
+        CheckExternalItemRefresh(Expect);
+        CheckPagedChoices(Expect);
         Console.WriteLine($"Conversation contracts: {checks} checks passed.");
+    }
+
+    private static void CheckPagedChoices(Action<bool, string> expect)
+    {
+        foreach (int count in new[] { 3, 4, 5, 8 })
+        {
+            var root = new Il2Cpp.Dialogue().SetText("Visitor", "Body");
+            var reply = new Il2Cpp.Dialogue().SetText("Visitor", "Done");
+            var gate = new ConversationSelection();
+            int commits = 0;
+            for (int i = 0; i < count; i++)
+                NativeDialogueChoice.Add(root, new(), "Option " + i, reply,
+                    new(() => { if (gate.TryEnter(7, 7, true)) commits++; }));
+            // Forge expands the native three-bubble list to four choices.
+            var bubbles = new int[4];
+            bool overflow = false;
+            try { for (int i = 0; i < root.choices.Count; i++) _ = bubbles[i]; }
+            catch (IndexOutOfRangeException) { overflow = true; }
+            expect(overflow == (count > 4), "fixture did not reproduce the four-choice limit");
+
+            var pages = new List<Il2Cpp.Dialogue> { root };
+            NativeDialogueChoice.Paginate(root, bubbles.Length, "More", "Previous",
+                text => { var page = new Il2Cpp.Dialogue().SetText("Visitor", text); pages.Add(page); return page; },
+                (page, label, next) => NativeDialogueChoice.Add(page, new(), label, next, null));
+            expect(count > 4 || pages.Count == 1 && root.choices.Count == count,
+                "four or fewer choices must stay on one page");
+            var reached = new HashSet<Il2Cpp.Dialogue> { root };
+            var found = new HashSet<string>();
+            var waiting = new Queue<Il2Cpp.Dialogue>(); waiting.Enqueue(root);
+            while (waiting.TryDequeue(out var page))
+            {
+                expect(page.choices.Count <= bubbles.Length && page.plainText == "Body",
+                    "paged choices exceed native capacity or lose the dialogue body");
+                foreach (var choice in page.choices)
+                {
+                    string label = choice.Node!.plainText;
+                    var next = choice.Node.nextDialogue;
+                    if (label is "More" or "Previous")
+                    {
+                        expect(choice.Action == null && next != null && pages.Contains(next),
+                            "page navigation invokes a transaction or loses its target");
+                        if (reached.Add(next!)) waiting.Enqueue(next!);
+                    }
+                    else
+                    {
+                        found.Add(label);
+                        expect(next == reply, "pagination changed an option's response target");
+                        choice.Action!.Invoke();
+                    }
+                }
+            }
+            expect(found.SetEquals(Enumerable.Range(0, count).Select(i => "Option " + i)) && reached.Count == pages.Count,
+                "a later option or page is unreachable through native selection");
+            expect(commits == 1, "changing pages bypassed the once-per-visit transaction gate");
+            expect(pages.Count == 1 || pages.Skip(1).All(p => p.choices.Any(c => c.Node!.plainText == "Previous")),
+                "a later page cannot return to previous choices");
+        }
+    }
+
+    private static void CheckExternalItemRefresh(Action<bool, string> expect)
+    {
+        bool repaired = false;
+        int captures = 0, commits = 0;
+        long generation = 9;
+        var definition = new ForgeSupplierDefinition("test.one.external_item", "Visitor", _ =>
+        {
+            captures++;
+            return repaired ? new("Repaired recording", [new("admit", "Discuss recording", "", _ => { commits++; return "Recorded"; })])
+                : new("Repair the physical carrier", []);
+        }, _ => { }, "Confirm", "Back", "Continue", "Leave", "Failed") { AllowMenuRefresh = true };
+        var initial = SupplierContract.FreezePage(definition.Capture(new(9, "run", 1, "test.one", "request", definition.Id, "capture")));
+        var root = new Il2Cpp.Dialogue().SetText(definition.Speaker, initial.Body);
+        var resume = new Il2Cpp.Dialogue().SetText(definition.Speaker, definition.FailureText);
+        var selection = new ConversationSelection();
+        NativeDialogueChoice.Add(root, new(), definition.ContinueLabel, resume, new(() =>
+        {
+            if (!selection.TryEnter(9, generation, true)) return;
+            var page = SupplierContract.FreezePage(definition.Capture(new(9, "run", 1, "test.one", "request", definition.Id, "capture")));
+            resume.SetText(definition.Speaker, page.Body);
+            foreach (var offer in page.Offers) NativeDialogueChoice.Add(resume, new(), offer.Label, null, null);
+        }));
+        expect(initial.Offers.Count == 0 && captures == 1, "external repair begins without a dialogue transaction");
+        repaired = true;
+        var option = root.choices[0];
+        option.Action!.Invoke();
+        expect(option.Node!.nextDialogue == resume && resume.plainText == "Repaired recording" &&
+            resume.choices.Count == 1 && captures == 2 && commits == 0,
+            "continuing after physical repair must recapture the current page without purchasing");
+        option.Action.Invoke();
+        expect(captures == 2 && !selection.TryEnter(9, generation, true), "old refresh or purchase actions cannot reuse the previous menu");
+        var stale = new ConversationSelection();
+        generation++;
+        expect(!stale.TryEnter(9, generation, true) && commits == 0, "an external item refresh cannot enter an old run generation");
     }
 
     private static void CheckNativeNavigation(Action<bool, string> expect)
@@ -135,6 +237,38 @@ internal static class ConversationChecks
             currentGeneration++;
             Select(root, 1);
             expect(commits == 1, flow + " old-generation confirm reached content");
+
+            var directRoot = new Il2Cpp.Dialogue().SetText("Visitor", "Hello");
+            var directResponse = new Il2Cpp.Dialogue().SetText("Visitor", "Failed");
+            var directSelection = new ConversationSelection();
+            int directCash = 1000, directItems = 0, directCommits = 0, directLeaves = 0;
+            long directGeneration = 7;
+            var directOption = NativeDialogueChoice.Add(directRoot, new(), "Refund", directResponse, new(() =>
+            {
+                if (!directSelection.TryEnter(7, directGeneration, true)) return;
+                directCash -= 100; directItems++; directCommits++;
+                directResponse.SetText("Visitor", "Delivered");
+            }));
+            NativeDialogueChoice.Add(directResponse, new(), "Leave", null, new(() => directLeaves++));
+            expect(directOption.title == "PLAYER" && directOption.plainText == "Refund" &&
+                Select(directRoot, 0) == directResponse && directResponse.plainText == "Delivered",
+                flow + " direct choice skipped its label, callback or reply");
+            expect(directCash == 900 && directItems == 1 && directCommits == 1,
+                flow + " direct choice did not settle on first selection");
+            Select(directRoot, 0);
+            NativeDialogueChoice.Add(directRoot, new(), "Other option", directResponse, new(() =>
+            { if (directSelection.TryEnter(7, directGeneration, true)) { directCash -= 100; directItems++; directCommits++; } }));
+            Select(directRoot, 1);
+            expect(directCash == 900 && directItems == 1 && directCommits == 1,
+                flow + " repeated or alternate direct choice settled twice");
+            var staleDirect = new ConversationSelection();
+            NativeDialogueChoice.Add(directRoot, new(), "Old option", directResponse, new(() =>
+            { if (staleDirect.TryEnter(7, directGeneration, true)) directCommits++; }));
+            directGeneration++;
+            Select(directRoot, 2);
+            expect(directCommits == 1, flow + " old-generation direct choice reached content");
+            expect(Select(directResponse, 0) == null && directLeaves == 1,
+                flow + " direct reply could not end the conversation");
         }
 
         var result = new Il2Cpp.Dialogue().SetText("Supplier", "Delivered");

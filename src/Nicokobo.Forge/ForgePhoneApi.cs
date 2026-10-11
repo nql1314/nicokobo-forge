@@ -207,8 +207,8 @@ internal static class PhoneContactRuntime
         var root = Line(call, d.Body);
         foreach (var option in d.Choices)
         {
-            var preview = Line(call, option.Preview); var response = Line(call, d.FailureText);
-            Choice(call, preview, d.ConfirmLabel, response, () =>
+            var response = Line(call, d.FailureText);
+            void Commit()
             {
                 if (!call.Selection.TryEnter(call.Generation, _generation, Current(call))) return;
                 string text;
@@ -216,12 +216,18 @@ internal static class PhoneContactRuntime
                     "phone:" + call.Contact.Definition.Id, d.Id, option.Id)); }
                 catch (Exception ex) { Log(ex); text = d.FailureText; }
                 if (Current(call)) response.SetText(d.Speaker, text ?? d.FailureText);
-            });
+            }
             Choice(call, response, d.LeaveLabel, null, () => Leave(call));
-            Choice(call, preview, d.BackLabel, root, null);
-            Choice(call, root, option.Label, preview, null);
+            if (d.RequireConfirmation)
+            {
+                var preview = Line(call, option.Preview);
+                Choice(call, preview, d.ConfirmLabel, response, Commit);
+                Choice(call, preview, d.BackLabel, root, null);
+                Choice(call, root, option.Label, preview, null);
+            }
+            else Choice(call, root, option.Label, response, Commit);
         }
-        Choice(call, root, d.LaterLabel, null, () => Leave(call));
+        if (d.AllowLater) Choice(call, root, d.LaterLabel, null, () => Leave(call));
         return root;
     }
     private static void Choice(Call call, Dialogue parent, string label, Dialogue? next, Action? action)

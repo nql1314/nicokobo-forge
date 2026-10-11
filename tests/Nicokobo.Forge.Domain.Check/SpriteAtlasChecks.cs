@@ -66,6 +66,7 @@ internal static class SpriteAtlasChecks
         Check(item.spriteAtlasPath == "test/atlas" && item.spritePath == "one" && item.SpriteAssignments == 0,
             "Staged icon invoked native sprite assignment");
         Throws(() => atlas.Assign(item, "unknown", allowStaging: true), "Unknown sprite staged");
+        Throws(() => atlas.GetSprite("one"), "Uninstalled UI sprite escaped");
         port = new AtlasFixture(); NativeSpriteAtlasPort.Next = port;
         Check(atlas.TryInstall(() => throw new Exception("logger")) && atlas.Installed && !atlas.Failed && atlas.Count == 2,
             "Throwing notification changed installed state");
@@ -73,6 +74,27 @@ internal static class SpriteAtlasChecks
             "Repeated installation decoded the atlas again");
         atlas.Assign(item, "one");
         Check(item.SpriteAssignments == 1, "Installed sprite was not assigned");
+        Throws(() => atlas.GetSprite("unknown"), "Undeclared UI sprite escaped");
+        Check(ReferenceEquals(atlas.GetSprite("one"), port.Current!.Atlas["one"]), "UI sprite was decoded again");
+        Il2Cpp.SpriteDict.Instance = new();
+        Check(atlas.RegisterPortrait("one") == "one" && atlas.RegisterPortrait("one") == "one",
+            "Owned portrait publication was not idempotent");
+        var foreignPortrait = new UnityEngine.Sprite();
+        Il2Cpp.SpriteDict.Instance.spriteDictionary!["two"] = foreignPortrait;
+        Throws(() => atlas.RegisterPortrait("two"), "Foreign portrait was overwritten");
+        Check(ReferenceEquals(Il2Cpp.SpriteDict.Instance.spriteDictionary["two"], foreignPortrait), "Foreign portrait changed");
+        Il2Cpp.SpriteDict.Instance.spriteDictionary.Remove("two");
+        Il2Cpp.SpriteDict.Instance.FailReadback = true;
+        Throws(() => atlas.RegisterPortrait("two"), "Failed portrait readback succeeded");
+        Check(!Il2Cpp.SpriteDict.Instance.spriteDictionary.ContainsKey("two"), "Failed portrait publication was not recalled");
+        Il2Cpp.SpriteDict.Instance = null;
+        Throws(() => atlas.RegisterPortrait("one"), "Unavailable native portrait dictionary accepted");
+        Throws(() => ForgeAssetsApi.CreateEmbeddedSpriteAtlas("test.assets", "test/pivot", assembly,
+            [original[0] with { PivotX = float.NaN }]), "Nonfinite pivot accepted");
+        Throws(() => ForgeAssetsApi.CreateEmbeddedSpriteAtlas("test.assets", "test/readable", assembly,
+            [original[0] with { PivotY = 2 }]), "Out-of-range pivot accepted");
+        Throws(() => ForgeAssetsApi.CreateEmbeddedSpriteAtlas("test.assets", "test/atlas", assembly,
+            [original[0] with { KeepReadable = false }, original[1]]), "Readability changed a frozen atlas");
         var failed = ForgeAssetsApi.CreateEmbeddedSpriteAtlas("test.assets", "test/failed", assembly, original);
         NativeSpriteAtlasPort.Next = new AtlasFixture { Fault = "verify" };
         int failures = 0;
@@ -102,6 +124,7 @@ internal sealed class AtlasFixture : ISpriteAtlasPort<NativeSpriteAtlas>
         Loaded++;
         if (ClaimDuringLoad) Current = new();
         if (Fault == "load") throw new Exception("decode");
+        atlas.Atlas.Add(definition.Key, new UnityEngine.Sprite());
     }
     public void Publish(NativeSpriteAtlas atlas)
     {

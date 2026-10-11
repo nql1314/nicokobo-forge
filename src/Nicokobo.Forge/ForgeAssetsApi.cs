@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Il2Cpp;
 using Nicokobo.Forge.Runtime;
+using UnityEngine;
 
 namespace Nicokobo.Forge;
 
@@ -24,7 +25,9 @@ public static class ForgeAssetsApi
             throw new ArgumentException("An owner, atlas key, resource assembly and sprite definitions are required");
         var frozen = definitions.ToArray();
         if (frozen.Any(d => d == null || string.IsNullOrWhiteSpace(d.Key) ||
-                string.IsNullOrWhiteSpace(d.ResourceName) || d.Width <= 0 || d.Height <= 0) ||
+                string.IsNullOrWhiteSpace(d.ResourceName) || d.Width <= 0 || d.Height <= 0 ||
+                !float.IsFinite(d.PivotX) || d.PivotX is < 0 or > 1 ||
+                !float.IsFinite(d.PivotY) || d.PivotY is < 0 or > 1) ||
             frozen.Select(d => d.Key).Distinct(StringComparer.Ordinal).Count() != frozen.Length)
             throw new ArgumentException("Sprite keys must be unique and dimensions must be positive");
         lock (Gate)
@@ -68,6 +71,49 @@ public sealed class ForgeSpriteAtlas
     internal bool Matches(string ownerId, Assembly assembly, ForgeSpriteDefinition[] definitions,
         ForgeSpriteFilter filter) => OwnerId == ownerId && _assembly == assembly &&
         _filter == filter && _definitions.SequenceEqual(definitions);
+
+    /// <summary>Returns a declared, installed sprite for content-owned UI.
+    /// Forge retains it for the process lifetime; callers must not destroy it.</summary>
+    public Sprite GetSprite(string spriteKey)
+    {
+        if (!_keys.Contains(spriteKey)) throw new ArgumentException("Undeclared sprite: " + spriteKey);
+        if (!Installed || _resources == null)
+            throw new InvalidOperationException("Sprite atlas is not installed: " + AtlasKey);
+        var sprite = _resources.Atlas[spriteKey];
+        if (sprite == null || sprite.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("Installed sprite is unavailable: " + spriteKey);
+        return sprite;
+    }
+
+    /// <summary>Publishes a declared sprite to the native named portrait dictionary.
+    /// Preserves foreign entries and verifies publication. Does not add random NPCs.</summary>
+    public string RegisterPortrait(string spriteKey)
+    {
+        var sprite = GetSprite(spriteKey);
+        var dictionary = SpriteDict.Instance;
+        if (dictionary == null || dictionary.spriteDictionary == null)
+            throw new InvalidOperationException("Native portrait dictionary is unavailable");
+        var entries = dictionary.spriteDictionary;
+        bool added = false;
+        try
+        {
+            if (entries.ContainsKey(spriteKey))
+            {
+                if (entries[spriteKey]?.Pointer != sprite.Pointer)
+                    throw new InvalidOperationException("Portrait key is already occupied: " + spriteKey);
+            }
+            else { entries.Add(spriteKey, sprite); added = true; }
+            if (dictionary.GetSprite(spriteKey)?.Pointer != sprite.Pointer)
+                throw new InvalidOperationException("Portrait readback failed: " + spriteKey);
+            return spriteKey;
+        }
+        catch
+        {
+            if (added && entries.ContainsKey(spriteKey) && entries[spriteKey]?.Pointer == sprite.Pointer)
+                entries.Remove(spriteKey);
+            throw;
+        }
+    }
 
     /// <summary>False while the native cache is not ready; retry is throttled.
     /// A conflict or failed publication is terminal. Notifications fire once

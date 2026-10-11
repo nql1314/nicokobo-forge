@@ -21,11 +21,15 @@ Icons.Assign(item, "example_card"); // 仅在安装成功后赋图。
 - `Installed` 表示完整发布且逐张读回得到同一个 Sprite，`Count` 是安装成功后的图片数；它们不证明某件物品已显示图片。
 - 缓存未就绪时返回 `false`，默认每 250 ms 可重试一次。资源缺失、尺寸错误、冲突和发布失败会进入终止的 `Failed` 状态。
 - 写入后抛错同样进入恢复路径，只撤销本次发布。无法确认撤销时保留资源，避免缓存指向已销毁图片。通知回调抛错不会改变安装结果。
-- 默认 `Point`，可显式指定 `Bilinear`。像素尺寸与物品占格独立，保持左上角锚点和 100 pixels-per-unit。
+- 默认 `Point`，可显式指定 `Bilinear`。像素尺寸与物品占格独立，默认左上角锚点和 100 pixels-per-unit。
+- `ForgeSpriteDefinition` 可选 `PivotX`／`PivotY`（0～1，默认 0／1）和 `KeepReadable`（默认 `true`）；库存透明度点击须保留可读像素，纯展示图片可设为 `false` 释放 CPU 像素缓存。运行 PNG 应预先缩到声明尺寸，Forge 不在运行时缩图。
+- 安装后 `GetSprite(key)` 可用于内容 UI；`RegisterPortrait(key)` 把同一 Sprite 发布到原生人物字典，按声明 key 验证和去重，冲突保留他人立绘，读回失败撤销本次写入。不会创建随机顾客或接管人物规则，调用方不能销毁返回的资源。
 - `Assign(..., allowStaging: true)` 允许安装前暂存路径，失败状态仍拒绝赋图。暂存不证明解码或显示成功；不要跨周目缓存原生物品句柄。
 - 图集按游戏进程持有，没有公开卸载接口，已发出的物品可能仍引用它们。
 
 已迁移 Forge 名片、机械飞升的义体成品／神经接口／Jackson 纸条，以及矩阵和合成扩展图标，共六处。旧 `mods-melonloader/shared/EmbeddedSpriteAtlas.cs` 和 `UsesEmbeddedSpriteAtlas` 编译分支已移除。图片、路径、Sprite key、尺寸和各处滤镜保留原定义。
+
+伪人剧情库存图标、按需解码的两张放大镜图片与四个人物立绘也使用本接口；角色选择、细图需求和 PNG 留在 Aug。
 
 矩阵与神经接口保留原有的可选图片策略：公共安装失败后由内容侧保留声明路径／原版缺图表现，玩法继续；合成扩展等要求图集成功的工厂仍拒绝缺图。公共 API 不替内容方决定这一取舍。
 

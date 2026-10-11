@@ -65,6 +65,18 @@ try
             Require(observed[ForgeLifecyclePhase.AfterGameLoadedLate] == 0,
                 "LoadGame body return fabricated the precise native game-loaded-late event");
     }
+    Require(UnityEngine.Debug.Errors.Count == 0, "Successful or skipped nights logged a failure");
+    var nativeFailure = new InvalidOperationException("native sleep interrupted");
+    store.NightFailure = nativeFailure;
+    Exception? observedFailure = null;
+    int completedNights = observed[ForgeLifecyclePhase.AfterNight];
+    try { Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, true); }
+    catch (Exception ex) { observedFailure = ex; }
+    finally { store.NightFailure = null; }
+    Require(ReferenceEquals(observedFailure, nativeFailure), "Night diagnostics suppressed or replaced the native exception");
+    Require(observed[ForgeLifecyclePhase.AfterNight] == completedNights, "Failed night dispatched a completed-night event");
+    Require(UnityEngine.Debug.Errors.Count == 1 && UnityEngine.Debug.Errors[0].Contains("native sleep interrupted"),
+        "The night failure was not retained in the Unity log");
     foreach (var lease in leases) lease.Dispose();
     int standaloneCleanup = 0;
     using (var cleanup = ForgeLifecycleApi.Subscribe("nicokobo.lifecycle.check", "nicokobo.lifecycle.check.cleanup_only",

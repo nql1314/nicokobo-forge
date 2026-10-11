@@ -15,7 +15,16 @@ public sealed record ForgeDialogueChoice(string Id, string Label, string Preview
     Func<ForgeDialogueContext, string> Confirm);
 public sealed record ForgeDialogueDefinition(string Id, string Speaker, string Body,
     IReadOnlyList<ForgeDialogueChoice> Choices, string ConfirmLabel, string BackLabel,
-    string LeaveLabel, string LaterLabel, string FailureText);
+    string LeaveLabel, string LaterLabel, string FailureText)
+{
+    /// <summary>When false, choosing an option invokes Confirm and shows its response directly.</summary>
+    public bool RequireConfirmation { get; init; } = true;
+    /// <summary>Whether the initial choice menu offers deferring the conversation.</summary>
+    public bool AllowLater { get; init; } = true;
+    /// <summary>Navigation labels when a visitor menu exceeds the native button count.</summary>
+    public string NextPageLabel { get; init; } = "More choices";
+    public string PreviousPageLabel { get; init; } = "Previous choices";
+}
 
 /// <summary>A freshly quoted purchase. Content owns resources and persistence.</summary>
 public sealed record ForgeSupplierOffer(string Id, string Label, string Preview,
@@ -24,7 +33,18 @@ public sealed record ForgeSupplierPage(string Body, IReadOnlyList<ForgeSupplierO
 public sealed record ForgeSupplierDefinition(string Id, string Speaker,
     Func<ForgeDialogueContext, ForgeSupplierPage> Capture,
     Action<ForgeDialogueContext> Dismiss, string ConfirmLabel, string BackLabel,
-    string ContinueLabel, string LeaveLabel, string FailureText);
+    string ContinueLabel, string LeaveLabel, string FailureText)
+{
+    /// <summary>When false, choosing an offer invokes Purchase and shows its response directly.</summary>
+    public bool RequireConfirmation { get; init; } = true;
+    /// <summary>Adds Continue to the menu itself, recapturing after an external item interaction.</summary>
+    public bool AllowMenuRefresh { get; init; }
+    /// <summary>Optional content condition for continuing menus and purchase replies.
+    /// Null preserves the repeatable supplier flow.</summary>
+    public Func<ForgeDialogueContext, bool>? CanContinue { get; init; }
+    public string NextPageLabel { get; init; } = "More choices";
+    public string PreviousPageLabel { get; init; } = "Previous choices";
+}
 
 internal static class SupplierContract
 {
@@ -33,7 +53,8 @@ internal static class SupplierContract
         if (definition == null || !ConversationContract.Owned(owner, definition.Id) ||
             string.IsNullOrWhiteSpace(definition.Speaker) || definition.Capture == null || definition.Dismiss == null ||
             new[] { definition.ConfirmLabel, definition.BackLabel, definition.ContinueLabel,
-                definition.LeaveLabel, definition.FailureText }.Any(string.IsNullOrWhiteSpace))
+                definition.LeaveLabel, definition.FailureText, definition.NextPageLabel,
+                definition.PreviousPageLabel }.Any(string.IsNullOrWhiteSpace))
             throw new ArgumentException("Invalid owned supplier definition");
     }
     internal static ForgeSupplierPage FreezePage(ForgeSupplierPage page)
@@ -74,7 +95,8 @@ internal static class ConversationContract
         if (definition == null || !Owned(owner, definition.Id) || string.IsNullOrWhiteSpace(definition.Speaker) ||
             definition.Body == null || definition.Choices == null || definition.Choices.Count == 0 ||
             new[] { definition.ConfirmLabel, definition.BackLabel, definition.LeaveLabel,
-                definition.LaterLabel, definition.FailureText }.Any(string.IsNullOrWhiteSpace))
+                definition.LaterLabel, definition.FailureText, definition.NextPageLabel,
+                definition.PreviousPageLabel }.Any(string.IsNullOrWhiteSpace))
             throw new ArgumentException("Invalid owned dialogue definition");
         var choices = definition.Choices.ToArray();
         if (choices.Any(c => c == null || !Request(c.Id) || string.IsNullOrWhiteSpace(c.Label) ||

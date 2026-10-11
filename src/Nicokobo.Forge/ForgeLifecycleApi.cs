@@ -88,7 +88,8 @@ public static class ForgeLifecycleApi
         };
         string id = HookId(phase);
         if (Installed.Contains(id)) return true;
-        if (!NativeHookSet.Install(id, [new(type, method, [], typeof(void), typeof(ForgeLifecycleApi), prefix, postfix)], _log)) return false;
+        string? finalizer = method == nameof(PlayerStore.EndNight) ? nameof(LogNightException) : null;
+        if (!NativeHookSet.Install(id, [new(type, method, [], typeof(void), typeof(ForgeLifecycleApi), prefix, postfix, finalizer)], _log)) return false;
         Installed.Add(id);
         return true;
     }
@@ -106,6 +107,15 @@ public static class ForgeLifecycleApi
     {
         if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterNight, __instance);
         Dispatch(ForgeLifecyclePhase.NightAttemptFinished, __instance);
+    }
+    private static void LogNightException(Exception? __exception)
+    {
+        if (__exception == null) return;
+        // The interop trampoline logs only to MelonLoader. Also retain the failure
+        // in Player-prev.log after a restart; do not suppress or resume the night.
+        string message = "[ERROR] [NicokoboForge/Lifecycle] EndNight failed: " + __exception;
+        try { UnityEngine.Debug.LogError(message); } catch { }
+        try { _log?.Invoke(message); } catch { }
     }
     private static void BeforeServices() => Dispatch(ForgeLifecyclePhase.BeforeNightServices, PlayerStore.Instance);
     private static void AfterServices(bool __runOriginal)
