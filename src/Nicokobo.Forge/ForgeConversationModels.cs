@@ -29,7 +29,13 @@ public sealed record ForgeDialogueDefinition(string Id, string Speaker, string B
 /// <summary>A freshly quoted purchase. Content owns resources and persistence.</summary>
 public sealed record ForgeSupplierOffer(string Id, string Label, string Preview,
     Func<ForgeDialogueContext, string> Purchase, string? ConfirmLabel = null);
-public sealed record ForgeSupplierPage(string Body, IReadOnlyList<ForgeSupplierOffer> Offers);
+public sealed record ForgeSupplierPage(string Body, IReadOnlyList<ForgeSupplierOffer> Offers)
+{
+    /// <summary>Optional direct offer selected by the character after its native choices
+    /// become visible. Manual selection on that page is held until it runs.</summary>
+    public string? AutomaticOfferId { get; init; }
+    public double AutomaticDelaySeconds { get; init; } = 0.6;
+}
 public sealed record ForgeSupplierDefinition(string Id, string Speaker,
     Func<ForgeDialogueContext, ForgeSupplierPage> Capture,
     Action<ForgeDialogueContext> Dismiss, string ConfirmLabel, string BackLabel,
@@ -66,6 +72,10 @@ internal static class SupplierContract
                 x.ConfirmLabel != null && string.IsNullOrWhiteSpace(x.ConfirmLabel)) ||
             offers.Select(x => x.Id).Distinct(StringComparer.Ordinal).Count() != offers.Length)
             throw new ArgumentException("Invalid supplier quote offers");
+        if (page.AutomaticOfferId != null &&
+            (!offers.Any(x => x.Id == page.AutomaticOfferId) ||
+             !double.IsFinite(page.AutomaticDelaySeconds) || page.AutomaticDelaySeconds <= 0))
+            throw new ArgumentException("Automatic selection needs an offered ID and a positive finite delay");
         return page with { Offers = Array.AsReadOnly(offers) };
     }
 }
@@ -137,5 +147,28 @@ internal sealed class ConversationSelection
     {
         if (_used || captured != current || !currentVisitor) return false;
         _used = true; return true;
+    }
+}
+
+// DisplayChoice arms the timer; merely capturing/queuing a page does not.
+internal sealed class ConversationAutomaticSelection(double delaySeconds)
+{
+    private bool _displayed, _used;
+    private DateTime? _visibleSince;
+    internal bool Pending => !_used;
+    internal void Displayed(DateTime now)
+    {
+        if (_used) return;
+        _displayed = true;
+        _visibleSince ??= now;
+    }
+    internal bool TryEnter(bool visible, DateTime now)
+    {
+        if (_used || !_displayed) return false;
+        if (!visible) { _visibleSince = null; return false; }
+        _visibleSince ??= now;
+        if ((now - _visibleSince.Value).TotalSeconds < delaySeconds) return false;
+        _used = true;
+        return true;
     }
 }

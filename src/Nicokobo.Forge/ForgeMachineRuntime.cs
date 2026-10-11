@@ -172,6 +172,8 @@ internal static partial class ForgeMachineRuntime
         plan = null; status = "input-short-or-condition";
         try
         {
+            if (recipe.MachineCondition?.Invoke(machine) == false)
+            { status = "machine-condition"; return false; }
             if (!SelectItems(inventory.ItemInput, recipe, out var takes)) return false;
             var containers = new Dictionary<string, GameItem>(StringComparer.Ordinal);
             var changes = new List<LiquidChange>();
@@ -269,6 +271,7 @@ internal static partial class ForgeMachineRuntime
 
     private static bool Unchanged(BatchPlan plan)
     {
+        if (plan.Recipe.MachineCondition?.Invoke(plan.Context.Machine) == false) return false;
         foreach (var ingredient in plan.Recipe.ItemInputs)
             if (plan.Takes.Where(take => MatchesIngredient(ingredient, take.Item) &&
                     (ingredient.Condition?.Invoke(take.Item) ?? true)).Sum(take => take.Count) < ingredient.Count)

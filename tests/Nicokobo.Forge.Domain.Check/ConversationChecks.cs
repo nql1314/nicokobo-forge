@@ -82,6 +82,15 @@ internal static class ConversationChecks
         Expect(InvalidPage(new("Stock", [offers[0], offers[0]])), "duplicate quote IDs accepted");
         Expect(InvalidPage(new("Stock", [new("buy", "Buy", "", null!)])), "purchase callback absent");
         Expect(SupplierContract.FreezePage(new("Sold out", [])).Offers.Count == 0, "sold-out visitor could not reach dismissal");
+        Expect(page.AutomaticOfferId == null, "ordinary suppliers unexpectedly select purchases themselves");
+        var automatic = SupplierContract.FreezePage(page with { AutomaticOfferId = "buy", AutomaticDelaySeconds = 0.6 });
+        Expect(automatic.AutomaticOfferId == "buy" && automatic.AutomaticDelaySeconds == 0.6,
+            "freezing a page lost its explicit automatic choice");
+        Expect(InvalidPage(page with { AutomaticOfferId = "missing" }), "automatic choice targets an absent offer");
+        foreach (double delay in new[] { 0, -1, double.NaN, double.PositiveInfinity })
+            Expect(InvalidPage(automatic with { AutomaticDelaySeconds = delay }), "invalid automatic delay accepted");
+        CheckAutomaticSelection(Expect);
+        ConversationRuntime.CheckAutomaticOfferAdapter(Expect);
         var firstMenu = new ConversationSelection(); var continueGate = new ConversationSelection();
         var secondMenu = new ConversationSelection();
         Expect(firstMenu.TryEnter(3, 3, true) && continueGate.TryEnter(3, 3, true) && secondMenu.TryEnter(3, 3, true),
@@ -92,6 +101,25 @@ internal static class ConversationChecks
         CheckExternalItemRefresh(Expect);
         CheckPagedChoices(Expect);
         Console.WriteLine($"Conversation contracts: {checks} checks passed.");
+    }
+
+    private static void CheckAutomaticSelection(Action<bool, string> expect)
+    {
+        var now = new DateTime(2026, 10, 11, 0, 0, 0, DateTimeKind.Utc);
+        var automatic = new ConversationAutomaticSelection(0.6);
+        expect(!automatic.TryEnter(true, now.AddHours(1)), "queuing a page started automatic execution before DisplayChoice");
+        automatic.Displayed(now);
+        expect(automatic.Pending && !automatic.TryEnter(true, now.AddMilliseconds(599)), "automatic choice skipped its visible pause");
+        automatic.Displayed(now.AddMilliseconds(500));
+        expect(automatic.TryEnter(true, now.AddMilliseconds(600)), "redisplaying choices postponed the character's answer");
+        expect(!automatic.Pending && !automatic.TryEnter(true, now.AddSeconds(2)), "automatic selection repeated or kept holding native input");
+
+        var interrupted = new ConversationAutomaticSelection(0.6);
+        interrupted.Displayed(now);
+        expect(!interrupted.TryEnter(false, now.AddSeconds(1)), "a hidden menu committed its automatic choice");
+        expect(!interrupted.TryEnter(true, now.AddSeconds(3)), "returning to the menu committed an expired background timer");
+        expect(!interrupted.TryEnter(true, now.AddSeconds(3.5)) && interrupted.TryEnter(true, now.AddSeconds(3.6)),
+            "returning to visible choices did not wait a fresh delay");
     }
 
     private static void CheckPagedChoices(Action<bool, string> expect)

@@ -114,6 +114,8 @@ internal static partial class ForgeMachineRuntime
             }));
         steps.Add(new("commit-readback", () =>
         {
+            if (plan.Recipe.MachineCondition?.Invoke(plan.Context.Machine) == false)
+                throw new InvalidOperationException("machine condition changed during batch");
             foreach (var take in plan.Takes)
                 if (take.Item.GetUniqueID() != take.Id || take.Item.identifier != take.Identifier ||
                     (take.Count == take.Units ? take.Item.parentInventory != null :

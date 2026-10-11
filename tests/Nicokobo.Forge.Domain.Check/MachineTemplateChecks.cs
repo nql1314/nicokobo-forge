@@ -201,6 +201,7 @@ internal static class MachineCatalogChecks
                 Guide = new(Name: new("随机产物", "Random product"))
             })
         {
+            MachineCondition = _ => { guideCallbacks++; return true; },
             LiquidInputs = [new("water", 50, Condition: _ => { guideCallbacks++; return true; })
                 { Guide = new("water_illustration", new("水", "Water")) }]
         };
@@ -217,6 +218,7 @@ internal static class MachineCatalogChecks
         Expect(guideCallbacks == 0 && guideEntry.Inputs.Count == 3 && guideEntry.Inputs[0].Amount == 3 &&
             guideEntry.Output.Amount == 2, "handbook evaluated callbacks or lost frozen input quantities");
         Expect(guides.TryGet(guideMachine.MachineId, out var randomProfile) &&
+            randomProfile!.Recipes.Single().Value.MachineCondition == guideRecipe.MachineCondition &&
             ((ForgeMachineItemOutput)randomProfile!.Recipes.Single().Value.Output).ResolveItemId ==
                 ((ForgeMachineItemOutput)guideRecipe.Output).ResolveItemId &&
             guideEntry.Output.Name?.English == "Random product" && guideEntry.Output.ItemId == "product",

@@ -5,7 +5,7 @@ using Nicokobo.Forge.Runtime;
 namespace Nicokobo.Forge;
 
 // Shared native lifetime, not a story engine. No file IO, modData or SaveGame calls.
-internal static class ConversationRuntime
+internal static partial class ConversationRuntime
 {
     private const string HookId = "nicokobo.forge.conversations";
     private static Action<string>? _log;
@@ -31,6 +31,7 @@ internal static class ConversationRuntime
         internal readonly ForgeSupplierDefinition? Supplier = supplier;
         internal StoreClient? Client;
         internal bool ArrivalRequested, Retired, Observed, DismissRequested;
+        internal AutomaticOffer? Automatic;
         internal readonly ConversationSelection Selection = new();
         internal readonly List<GameItem> Items = [];
         internal readonly List<Dialogue> Dialogues = [];
@@ -55,6 +56,8 @@ internal static class ConversationRuntime
                 new(typeof(PlayerStore), nameof(PlayerStore.LoadGame), [], typeof(void), typeof(ConversationRuntime), nameof(BeforeReset), nameof(AfterReset)),
                 new(typeof(PlayerStore), nameof(PlayerStore.StartNewGame), [], typeof(void), typeof(ConversationRuntime), nameof(BeforeReset), nameof(AfterReset)),
                 new(typeof(MainMenuUIController), nameof(MainMenuUIController.Awake), [], typeof(void), typeof(ConversationRuntime), nameof(BeforeReset)),
+                new(typeof(DialogUIManager), nameof(DialogUIManager.DisplayChoice), [], typeof(void), typeof(ConversationRuntime), Postfix: nameof(AfterChoicesDisplayed)),
+                new(typeof(DialogUIManager), nameof(DialogUIManager.SelectChoice), [typeof(int)], typeof(void), typeof(ConversationRuntime), nameof(BeforeAutomaticChoiceInput)),
                 new(typeof(HandnoteUIManager), nameof(HandnoteUIManager.OpenPanel), [typeof(GameItem)], typeof(void), typeof(ConversationRuntime), Postfix: nameof(AfterReaderOpen)),
                 new(typeof(HandnoteUIManager), nameof(HandnoteUIManager.ClosePanel), [], typeof(void), typeof(ConversationRuntime), Postfix: nameof(AfterReaderClose))
             ], log);
@@ -219,18 +222,23 @@ internal static class ConversationRuntime
         try
         {
             page = SupplierContract.FreezePage(d.Capture(SupplierContext(v, "capture")));
+            if (page.AutomaticOfferId != null && d.RequireConfirmation)
+                throw new ArgumentException("Automatic supplier offers require direct selection");
         }
         catch (Exception ex) { Log(ex); page = new(d.FailureText, []); }
         menu.SetText(d.Speaker, page.Body);
         // One menu represents one quote opportunity. Continue builds a new menu;
         // it never clears an old gate or gives an old callback another chance.
         var selection = new ConversationSelection();
+        Dialogue? automaticChoice = null;
+        v.Automatic = null;
         foreach (var offer in page.Offers.ToArray())
         {
             var response = Line(v, d.FailureText);
             void Commit()
             {
                 if (!selection.TryEnter(v.Generation, _generation, IsCurrent(v))) return;
+                v.Automatic = null;
                 string text;
                 try { text = offer.Purchase(SupplierContext(v, offer.Id)); }
                 catch (Exception ex) { Log(ex); text = d.FailureText; }
@@ -260,7 +268,11 @@ internal static class ConversationRuntime
                 Choice(v, preview, d.BackLabel, menu, null);
                 Choice(v, menu, offer.Label, preview, null);
             }
-            else Choice(v, menu, offer.Label, response, Commit);
+            else
+            {
+                var choice = Choice(v, menu, offer.Label, response, Commit);
+                if (offer.Id == page.AutomaticOfferId) automaticChoice = choice;
+            }
         }
         if (d.AllowMenuRefresh && SupplierCanContinue(v))
         {
@@ -274,6 +286,12 @@ internal static class ConversationRuntime
         }
         Choice(v, menu, d.LeaveLabel, null, () => Leave(v));
         Paginate(v, menu, d.NextPageLabel, d.PreviousPageLabel);
+        if (automaticChoice != null)
+        {
+            // Pagination may have moved the offer. Bind by native node identity, never label text.
+            var pageWithChoice = v.Dialogues.First(x => x.choices.ToArray().Any(c => c.Item2?.Pointer == automaticChoice.Pointer));
+            v.Automatic = new(pageWithChoice, automaticChoice, page.AutomaticDelaySeconds);
+        }
     }
 
     private static void Paginate(Visit v, Dialogue menu, string nextLabel, string previousLabel)
@@ -306,7 +324,7 @@ internal static class ConversationRuntime
             body => Line(v, body), (page, label, next) => Choice(v, page, label, next, null));
     }
 
-    private static void Choice(Visit v, Dialogue parent, string text, Dialogue? next, Action? action)
+    private static Dialogue Choice(Visit v, Dialogue parent, string text, Dialogue? next, Action? action)
     {
         var item = DirectoryMaster.Item("handnote", true) ?? throw new InvalidOperationException("Choice template unavailable");
         v.Items.Add(item);
@@ -320,7 +338,9 @@ internal static class ConversationRuntime
             })) ?? throw new InvalidOperationException("Choice callback unavailable");
             v.Callbacks.Add(callback);
         }
-        v.Dialogues.Add(NativeDialogueChoice.Add(parent, item, text, next, callback));
+        var choice = NativeDialogueChoice.Add(parent, item, text, next, callback);
+        v.Dialogues.Add(choice);
+        return choice;
     }
 
     private static bool IsCurrent(Visit v)
@@ -350,6 +370,7 @@ internal static class ConversationRuntime
         {
             if (Store() == null) return;
             RefreshVisits(true);
+            UpdateAutomaticOffers();
             var reader = HandnoteUIManager.Instance;
             if (_reading != null && (reader == null || reader.panel == null || !reader.panel.activeInHierarchy || _displayedNote != _reading.Item.Pointer))
                 ReleaseReading();

@@ -45,7 +45,9 @@ public sealed record ForgeMachineIngredient(string ItemId, int Count,
 {
     public ForgeRecipeGuideDisplay? Guide { get; init; }
     /// <summary>An alternative to ItemId: accept any item carrying this native
-    /// tag. A read-only Condition can narrow the category at batch selection.</summary>
+    /// tag. A read-only Condition can narrow the category at batch selection.
+    /// It must also work while the candidate is outside the machine; use the
+    /// recipe's MachineCondition for module or other machine state.</summary>
     public string? ItemTag { get; init; }
     /// <summary>Select a whole matching stack, largest unit value first. Its
     /// actual selected count is available in the batch context.</summary>
@@ -95,6 +97,10 @@ public sealed record ForgeMachineContainerOutput(
 public sealed record ForgeMachineRecipe(string RecipeId,
     IReadOnlyList<ForgeMachineIngredient> ItemInputs, ForgeMachineOutput Output)
 {
+    /// <summary>Optional read-only predicate on the target machine, independent
+    /// of ingredient custody. Automation checks it before filling; processing
+    /// checks it before planning and again before committing resources.</summary>
+    public Func<GameItem, bool>? MachineCondition { get; init; }
     /// <summary>Stable semantic revision supplied by the recipe owner. Include
     /// configured predicate thresholds and dynamic quantity/output rules; update
     /// it when those rules change. Delegate assembly identity cannot describe

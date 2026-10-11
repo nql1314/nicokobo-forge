@@ -57,6 +57,10 @@ ForgePresentationResult current = ForgeClientVisitApi.Status(ownerId, requestId)
 
 ## 电话联系人与多笔供货（2026-10-10 本地源码）
 
+`ForgeSupplierPage.AutomaticOfferId` 是默认 `null` 的可选声明。仅适用于 `RequireConfirmation = false` 的直接选择页，ID 必须属于本页的 `Offers`；`AutomaticDelaySeconds` 默认 `0.6`，须为有限正数。内容方按当前剧情与资源决定是否声明，`Capture` 本身不执行交易。
+
+自动选择从原生 `DisplayChoice` 实际显示目标所在页及按钮之后开始计时。可见性核对当前页、目标按钮与遮挡窗口，不依赖原生未维护的 `isConversationActiveFlag`。等待期间，仅该 owned 页面拦截 `SelectChoice` 的手动输入；到时调用原生 `SelectChoice`，沿用同一 `Purchase` 回调与一次性提交门控，自动展示回复。排队、构建页面、其他顾客、其他菜单、阅读窗或日历遮挡期间不执行；隐藏后重新显示须重新等待。加载、新周目和返回菜单清除原生会话及计时。一次尝试结束后不会自动重试；失败的资源处理和是否允许继续仍由内容方决定。其他供应商与默认页面不受影响。新增接口须使用配套编译的 Forge 与内容 Mod；原生演出节奏仍待实机验收。
+
 `ForgeSupplierDefinition.AllowMenuRefresh` 是默认 `false` 的可选 init 属性。设为 `true` 后，当前菜单增加 `ContinueLabel` 按钮，即使没有可选交易也能重新调用 `Capture`；适合玩家在库存中修好实物后继续同次会面。刷新不执行 `Purchase`，与该页交易共用一次性选择门控；旧页刷新、旧交易与重复点击不能重建第二次菜单或执行资源操作。构造函数与其他供应商的默认导航保持不变。
 
 `ForgeSupplierDefinition.CanContinue` 是可选的内容状态判断，默认 `null` 沿用可重复挑选流程。提供回调后，菜单刷新、交易回复与继续点击都会重检；返回 `false` 时，回复保留已经建立的离开选项，移除继续入口。回调只判断当前会面是否还能继续，不执行交易；终止条件由内容 Mod 持有。伪人 E07 在选择确认后停止继续，未修复或交付失败时仍可继续。

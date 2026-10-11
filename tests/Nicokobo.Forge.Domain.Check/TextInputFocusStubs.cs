@@ -25,6 +25,7 @@ namespace UnityEngine
     }
     public class GameObject : Object
     {
+        public bool activeInHierarchy { get; set; }
         public Component? Field { get; set; }
         public Component? GetComponentInParent(Type type)
         {
