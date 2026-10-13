@@ -87,6 +87,8 @@ internal static class ConversationChecks
         Expect(automatic.AutomaticOfferId == "buy" && automatic.AutomaticDelaySeconds == 0.6,
             "freezing a page lost its explicit automatic choice");
         Expect(InvalidPage(page with { AutomaticOfferId = "missing" }), "automatic choice targets an absent offer");
+        Expect(InvalidPage(automatic with { Offers = [automatic.Offers[0] with { Enabled = false }] }),
+            "automatic choice targets a disabled offer");
         foreach (double delay in new[] { 0, -1, double.NaN, double.PositiveInfinity })
             Expect(InvalidPage(automatic with { AutomaticDelaySeconds = delay }), "invalid automatic delay accepted");
         CheckAutomaticSelection(Expect);

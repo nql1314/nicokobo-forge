@@ -35,6 +35,7 @@ internal static partial class ConversationRuntime
         internal readonly ConversationSelection Selection = new();
         internal readonly List<GameItem> Items = [];
         internal readonly List<Dialogue> Dialogues = [];
+        internal readonly HashSet<IntPtr> DisabledChoices = [];
         internal readonly List<Il2CppSystem.Action> Callbacks = [];
     }
 
@@ -237,6 +238,7 @@ internal static partial class ConversationRuntime
             var response = Line(v, d.FailureText);
             void Commit()
             {
+                if (!offer.Enabled) return;
                 if (!selection.TryEnter(v.Generation, _generation, IsCurrent(v))) return;
                 v.Automatic = null;
                 string text;
@@ -266,11 +268,11 @@ internal static partial class ConversationRuntime
                 var preview = Line(v, offer.Preview);
                 Choice(v, preview, offer.ConfirmLabel ?? d.ConfirmLabel, response, Commit);
                 Choice(v, preview, d.BackLabel, menu, null);
-                Choice(v, menu, offer.Label, preview, null);
+                Choice(v, menu, offer.Label, preview, null, offer.Enabled);
             }
             else
             {
-                var choice = Choice(v, menu, offer.Label, response, Commit);
+                var choice = Choice(v, menu, offer.Label, response, Commit, offer.Enabled);
                 if (offer.Id == page.AutomaticOfferId) automaticChoice = choice;
             }
         }
@@ -324,7 +326,7 @@ internal static partial class ConversationRuntime
             body => Line(v, body), (page, label, next) => Choice(v, page, label, next, null));
     }
 
-    private static Dialogue Choice(Visit v, Dialogue parent, string text, Dialogue? next, Action? action)
+    private static Dialogue Choice(Visit v, Dialogue parent, string text, Dialogue? next, Action? action, bool enabled = true)
     {
         var item = DirectoryMaster.Item("handnote", true) ?? throw new InvalidOperationException("Choice template unavailable");
         v.Items.Add(item);
@@ -338,8 +340,9 @@ internal static partial class ConversationRuntime
             })) ?? throw new InvalidOperationException("Choice callback unavailable");
             v.Callbacks.Add(callback);
         }
-        var choice = NativeDialogueChoice.Add(parent, item, text, next, callback);
+        var choice = NativeDialogueChoice.Add(parent, item, text, next, callback, enabled);
         v.Dialogues.Add(choice);
+        if (!enabled) v.DisabledChoices.Add(choice.Pointer);
         return choice;
     }
 

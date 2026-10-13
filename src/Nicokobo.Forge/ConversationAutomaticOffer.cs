@@ -30,11 +30,17 @@ internal static partial class ConversationRuntime
         catch (Exception ex) { Log(ex); }
     }
 
-    private static bool BeforeAutomaticChoiceInput(DialogUIManager __instance)
+    private static bool BeforeAutomaticChoiceInput(DialogUIManager __instance, int __0)
     {
-        // Only this owned automatic page holds input. The timer spends its gate
-        // before invoking native SelectChoice, so the automatic call passes through.
-        try { return CurrentAutomaticOffer(__instance) == null; }
+        // Disabled choices hold only their own input. An automatic page holds all
+        // input until its timer spends the gate and invokes native SelectChoice.
+        try
+        {
+            var menu = __instance.currentDialog;
+            if (menu != null && __0 >= 0 && __0 < menu.choices.Count && menu.choices[__0].Item2 is { } choice &&
+                Visits.Any(v => IsCurrent(v) && v.DisabledChoices.Contains(choice.Pointer))) return false;
+            return CurrentAutomaticOffer(__instance) == null;
+        }
         catch (Exception ex) { Log(ex); return true; }
     }
 

@@ -1,5 +1,17 @@
 # Nicokobo Forge 当前进度
 
+## 2026-10-13 深空装机供货回调递归（本地源码）
+
+用户报告游戏 0.46D、Unity 2021.3.45f2、MelonLoader 0.7.3 公开测试版在第 4 天江白到店后崩溃，堆栈循环为 `PCExpansion.NpcStockOffers.Stock → GameItem.SetUnitCount → NativeWorkshop.ObserveItem → Current → PlayerStore.get_Instance`。工坊在物品数量观察中先调用原生单例 getter，之后才设置观察标记；getter 上的供货回调因此可以再次进入数量观察。`Bind`、`Current` 和 `Snapshot` 三处改为只读 `PlayerStore.instance`，避免调用 getter 或创建临时实例，保留既有实例指针、周目和槽位校验。
+
+一次性离线夹具直接抽取生产观察方法并模拟 getter 供货回调：修复前触发 13 次有界递归，修复后 17 项检查通过，覆盖无关供货物品、数量变化前后证据、观察重入及无效周目。现有 83 项成就检查通过，Forge Release 编译零警告／零错误；编译产物确认上述三处读取现有实例，整个 `NativeWorkshop` 不再调用原生单例 getter。检查工程保留既有 net6.0 支持周期警告。本机没有安装 PCExpansion，尚未复测第 4 天江白到店；未打包、安装或执行本次原生测试。
+
+## 2026-10-12 供应商禁用选项（本地源码）
+
+`ForgeSupplierOffer.Enabled` 默认开启。关闭时选项保留并灰显，当前会话按原生节点身份拦截选择，交易和菜单跳转均不执行；其他选项仍可选择。自动选择不接受禁用目标，内容方在下一次捕获页面时重新判断资源。Aug E07 使用此字段显示缺元件的亲自修复选项，玩法资源校验仍由 Aug 持有。
+
+180 项对话契约检查通过，包含禁用点击不执行购买、不影响其他选项及会话失效；Forge Release 编译零警告／零错误。Aug 配套领域 1570 项、生产剧情结算 1500 项离线检查和 Release 编译通过。未打包、安装或执行原生测试；本次未运行 Build-P0 的其他模块与样例。
+
 ## 2026-10-11 自动结局选项卡住修复（本地源码）
 
 用户的 E10 页面能显示并收到 `DialogChoiceBubble` 点击，但既不跳转也不自动发送。已安装的 Forge 0.6.36 在 `VisibleAutomaticChoice` 首先检查 `isConversationActiveFlag`；本地原生元数据将该字段定位于 `DialogUIManager +0x60`，原生显示与选择流程并未维护它。字段为零会让可见按钮被判为不可见，无法启动自动计时，而待处理页面仍拦截手动输入。现改为只核对当前会话、所属菜单、目标按钮实际可见性及遮挡窗口，不依赖这个字段。存档格式与 Aug 剧情数据未改，不要求重开周目。

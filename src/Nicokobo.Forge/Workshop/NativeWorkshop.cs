@@ -142,7 +142,7 @@ internal static class NativeWorkshop
 
     private static void Bind()
     {
-        var store = PlayerStore.Instance;
+        var store = PlayerStore.instance;
         var inventory = EmporiumEntry.Instance?.invElement;
         if (store == null || store.Pointer == IntPtr.Zero || inventory == null || inventory.Pointer == IntPtr.Zero ||
             string.IsNullOrWhiteSpace(store.runID) || store.saveSlotId < 0 || store.modData == null) return;
@@ -169,7 +169,9 @@ internal static class NativeWorkshop
         if (_state?.Pending != null) Recover();
     }
 
-    private static bool Current() => _store != null && _state != null && PlayerStore.Instance?.Pointer == _store.Pointer &&
+    // The native singleton getter can run another Mod's stock callbacks and re-enter
+    // item mutation hooks. Context checks must only read the existing store field.
+    private static bool Current() => _store != null && _state != null && PlayerStore.instance?.Pointer == _store.Pointer &&
         _store.runID == _state.RunId && _store.saveSlotId == _state.SlotId;
 
     private static void ResetPrefix() => Reset();
@@ -406,7 +408,7 @@ internal static class NativeWorkshop
 
     private static ForgeWorkshopSnapshot? Snapshot()
     {
-        if (!_enabled || _store == null || PlayerStore.Instance?.Pointer != _store.Pointer || string.IsNullOrWhiteSpace(_store.runID)) return null;
+        if (!_enabled || _store == null || PlayerStore.instance?.Pointer != _store.Pointer || string.IsNullOrWhiteSpace(_store.runID)) return null;
         bool english = English();
         if (_dirty && !_busy && !ForgeWorkshopApi.IsVisible && Idle.Ready(ForgeInventoryApi.IsItemDragActive, DateTime.UtcNow))
             try { Observe(); } catch (Exception ex) { Warn("Snapshot evidence deferred: " + ex.Message); }

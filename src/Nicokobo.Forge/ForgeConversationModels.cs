@@ -28,7 +28,11 @@ public sealed record ForgeDialogueDefinition(string Id, string Speaker, string B
 
 /// <summary>A freshly quoted purchase. Content owns resources and persistence.</summary>
 public sealed record ForgeSupplierOffer(string Id, string Label, string Preview,
-    Func<ForgeDialogueContext, string> Purchase, string? ConfirmLabel = null);
+    Func<ForgeDialogueContext, string> Purchase, string? ConfirmLabel = null)
+{
+    /// <summary>False keeps the quoted option visible but blocks native selection.</summary>
+    public bool Enabled { get; init; } = true;
+}
 public sealed record ForgeSupplierPage(string Body, IReadOnlyList<ForgeSupplierOffer> Offers)
 {
     /// <summary>Optional direct offer selected by the character after its native choices
@@ -73,9 +77,9 @@ internal static class SupplierContract
             offers.Select(x => x.Id).Distinct(StringComparer.Ordinal).Count() != offers.Length)
             throw new ArgumentException("Invalid supplier quote offers");
         if (page.AutomaticOfferId != null &&
-            (!offers.Any(x => x.Id == page.AutomaticOfferId) ||
+            (!offers.Any(x => x.Id == page.AutomaticOfferId && x.Enabled) ||
              !double.IsFinite(page.AutomaticDelaySeconds) || page.AutomaticDelaySeconds <= 0))
-            throw new ArgumentException("Automatic selection needs an offered ID and a positive finite delay");
+            throw new ArgumentException("Automatic selection needs an enabled offered ID and a positive finite delay");
         return page with { Offers = Array.AsReadOnly(offers) };
     }
 }

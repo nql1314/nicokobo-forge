@@ -27,11 +27,11 @@ public sealed class DialogUIManager
     public int isConversationActiveFlag = 0;
     public Dialogue? currentDialog;
     public List<DialogChoiceBubble> dialogChoiceBubbles = [];
-    public Func<bool> BeforeSelect = () => true;
+    public Func<int, bool> BeforeSelect = _ => true;
     public readonly List<int> Selected = [];
     public void SelectChoice(int index)
     {
-        if (!BeforeSelect()) return;
+        if (!BeforeSelect(index)) return;
         Selected.Add(index);
         currentDialog!.choices[index].Action?.Invoke();
     }

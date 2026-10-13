@@ -57,6 +57,8 @@ ForgePresentationResult current = ForgeClientVisitApi.Status(ownerId, requestId)
 
 ## 电话联系人与多笔供货（2026-10-10 本地源码）
 
+`ForgeSupplierOffer.Enabled` 默认 `true`。内容方在 `Capture` 时设为 `false`，选项仍显示，文字灰显；当前 owned 会话按原生选项节点拦截选择，不跳转、不调用 `Purchase`，也不占用该页的一次性提交资格。下一次捕获页面重新判断资源。自动选择不能指向禁用选项；交易回调仍须重新核对资源。伪人 E07 缺少元件或现金时使用此属性，须使用配套编译的 Forge。
+
 `ForgeSupplierPage.AutomaticOfferId` 是默认 `null` 的可选声明。仅适用于 `RequireConfirmation = false` 的直接选择页，ID 必须属于本页的 `Offers`；`AutomaticDelaySeconds` 默认 `0.6`，须为有限正数。内容方按当前剧情与资源决定是否声明，`Capture` 本身不执行交易。
 
 自动选择从原生 `DisplayChoice` 实际显示目标所在页及按钮之后开始计时。可见性核对当前页、目标按钮与遮挡窗口，不依赖原生未维护的 `isConversationActiveFlag`。等待期间，仅该 owned 页面拦截 `SelectChoice` 的手动输入；到时调用原生 `SelectChoice`，沿用同一 `Purchase` 回调与一次性提交门控，自动展示回复。排队、构建页面、其他顾客、其他菜单、阅读窗或日历遮挡期间不执行；隐藏后重新显示须重新等待。加载、新周目和返回菜单清除原生会话及计时。一次尝试结束后不会自动重试；失败的资源处理和是否允许继续仍由内容方决定。其他供应商与默认页面不受影响。新增接口须使用配套编译的 Forge 与内容 Mod；原生演出节奏仍待实机验收。

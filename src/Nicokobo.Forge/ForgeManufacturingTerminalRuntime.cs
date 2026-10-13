@@ -13,8 +13,8 @@ internal static class ForgeManufacturingTerminalRuntime
         "用于合成原版及附属模组物品，制造范围由配方决定。\n效率：降低每批电耗。\n性能：无影响，每晚 1 批。\n质量：无影响。\n原料、电量与产物空间充足才加工。",
         "Crafts items from the base game and add-on mods according to available recipes.\nEfficiency: Lowers power use per batch.\nPerformance: No effect; 1 batch per night.\nQuality: No effect.\nRequires ingredients, power and output space.");
     private static readonly LocalizedItemText Flavor = new(
-        "每一份配方，都能在这里变成实物。",
-        "Every recipe can take physical form here.");
+        "造什么都用不着模具，好像这座城里的一切，本来就只是一份图纸。",
+        "It needs no mold for anything, as if everything in this city were only ever a blueprint.");
     private static readonly ForgeSpriteAtlas Atlas = ForgeAssetsApi.CreateEmbeddedSpriteAtlas(
         ForgeManufacturingTerminal.OwnerId, ForgeManufacturingTerminal.AtlasKey,
         typeof(ForgeManufacturingTerminalRuntime).Assembly,
