@@ -4,6 +4,34 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.37 — 2026-10-14
+
+- 将当前源码的程序集版本与 MelonLoader 声明统一更新为 0.6.37，同步源码文档版本。此次版本更新不新增功能；历史原生测试记录仍对应其注明的 0.6.36 候选。
+- 本次不打包、安装或执行原生测试。
+
+### English
+
+- Bump the current source assembly and MelonLoader versions to 0.6.37 and update source documentation. This version bump adds no functionality; historical native test records remain scoped to their stated 0.6.36 candidates.
+- No packaging, installation or native testing in this update.
+
+## 0.6.36 — 2026-10-14
+
+- 配套机核协议合集 1.0.0：合成扩展 0.9.65、机械飞升 0.1.62、模组矩阵 1.1.7；Forge 继续使用独立版本号。
+- 汇总 0.6.34—0.6.36 的对话／具名来访／阅读窗、原生电话联系人、多笔供应商会面与自动选项；修复可见选项被未维护的原生标志误判为不可见。剧情资格、钱款、物品和保存继续由内容方负责。
+- 新增图集 Sprite 读取与原生立绘发布，支持中心 pivot 和只读展示图释放 CPU 像素；机器配方独立核对目标机器条件，提交前变化时回滚资源，修复 K01 仓库填料被原料归属条件阻断。
+- 库存保存图读取仅沿根节点可达索引取物，拒绝循环、越界与重复 UID，忽略孤立／存储节点；业务归属与保存字段由调用者核对。
+- 2026-10-14 隔离打包候选最终七组 217 项通过，覆盖六台机器实际 EndNight、指定价格／回滚组合、完整存档新进程恢复、伪人开局与灰线周二来访／柜台购买／供货重载。早期失败保留；正式安装、完整人工鼠键／视觉、全部模组组合、旧终端迁移与卸载恢复仍未验收。
+- 本次更新发布文档与 Wiki，不重新编译、生成发布包或更新正式安装。
+
+### English
+
+- Matches Mechcore Protocol 1.0.0: Synthesis 0.9.65, Aug 0.1.62 and Matrix 1.1.7. Forge retains its independent version.
+- Summarizes dialogue, named visits, reading windows, native phone contacts, multi-purchase supplier meetings and automatic choices added through 0.6.34–0.6.36. Visible choices no longer depend on an unmaintained native flag; eligibility, transactions and persistence remain content-owned.
+- Added shared atlas Sprite access and native portrait publication, with configurable pivots and optional CPU-pixel release. Recipe machine conditions are checked separately and rechecked before commit, fixing warehouse feeding into K01 with resource rollback on changed conditions.
+- Inventory save-graph reading follows reachable root indices, rejects cycles, out-of-range links and duplicate UIDs, and ignores orphan/storage nodes. Callers verify business ownership and save fields.
+- Seven final October 14 isolated packaged groups passed 217 checks for actual six-machine EndNight processing, selected pricing/rollback cases, complete saves restored in a new process, Aug opening grants and Grayline's Tuesday arrival, purchases and supply reload. Earlier failures remain recorded; formal installation, full mouse/keyboard/visual use, all module combinations, legacy-terminal migration and missing-mod recovery remain unvalidated.
+- Release documentation and Wiki update only; no new compilation, release packaging or formal installation.
+
 ## 0.6.33 — 2026-10-08
 
 - N／G 快捷键输入焦点检测在访问 EventSystem 和选中对象前使用 Unity 判空，避免对已销毁但仍有托管包装的对象调用原生方法。

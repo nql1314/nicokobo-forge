@@ -4,9 +4,9 @@ Forge 的职责与事件契约见 [API_BOUNDARIES.md](API_BOUNDARIES.md)。核�
 
 ## 职责与数值入口
 
-Forge 持有通用声明、能力门控、原生适配和事件分派。物品内容、配方数值、奖励交易和资源由内容 Mod 持有。图集加载、ES3 文件读取和原生入口检查已提取为 Forge API，接入见 [SHARED_SERVICES.md](SHARED_SERVICES.md)。旧图集共享源码及编译开关已移除，图片仍嵌入内容程序集。
+Forge 持有通用声明、能力门控、原生适配和事件分派。物品内容、配方数值、奖励交易和资源由内容 Mod 持有。图集加载、ES3 文件读取和原生入口检查已提取为 Forge API，接入见 [SHARED_SERVICES.md](SHARED_SERVICES.md)。图片嵌入其所属内容程序集。
 
-框架可调整数值集中在 [`BuildConfig/ForgeNumbers.cs`](../BuildConfig/ForgeNumbers.cs)，四个内容 Mod 的内置数值集中在关联仓库的 `mods-melonloader/BuildConfig/`。这些源码随所属 DLL 编译，无新增运行时设置；分类、单位与构建方式见[编译内置数值](../BuildConfig/README.md)。
+框架可调整数值集中在 [`BuildConfig/ForgeNumbers.cs`](../BuildConfig/ForgeNumbers.cs)，机核三个组件的内置数值集中在关联仓库的 `mods-melonloader/BuildConfig/`；食品加工数值在其 `Definitions/FoodNumbers.cs`，小偷规则与目录在其 `Domain/` 和 `Data/`。这些源码随所属 DLL 编译，无新增运行时设置；分类、单位与构建方式见[编译内置数值](../BuildConfig/README.md)。
 
 ## 机器职责
 
@@ -31,15 +31,15 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 
 ## 关联检查、打包与安装
 
-在关联 `probably-stolen` 仓库根目录执行，仅生成本地产物：
+普通源码改动只编译相关项目并执行必要检查。明确要求完整打包时，在关联 `probably-stolen` 仓库根目录执行，仅生成本地产物：
 
 ```powershell
 .\mods-melonloader\Build-ForgeMods.ps1 -NoInstall
 ```
 
-入口先运行 Forge 签名与领域检查，再用一个 MSBuild 会话编译核心和六个示例，核心只构建一次。随后执行四个内容 Mod 的领域检查，并调用 `Build-MechcoreProtocol.ps1` 完成 Release／Obfuscar 打包。统一机核包、独立物流包和 Forge 独立包使用同一份 Forge。
+入口先运行 Forge 签名与领域检查，再用一个 MSBuild 会话编译核心和六个示例，核心只构建一次。随后执行六个内容 Mod 的相关检查，并调用 `Build-MechcoreProtocol.ps1` 完成 Release／Obfuscar 打包。统一机核包、食品加工包、小偷包、独立物流包和 Forge 独立包使用同一份 Forge。
 
-`Build-ForgeMods.ps1` 默认安装 Forge 与四个内容 Mod 的 DLL 到 `<游戏目录>\Mods\`，随后删除同程序集旧版本文件；`-NoInstall` 跳过这一步。脚本没有 `-Install` 参数。`Build-MechcoreProtocol.ps1` 单独运行只生成本地包；安装不代表原生验收。
+`Build-ForgeMods.ps1` 默认安装 Forge 与六个内容 Mod 的 DLL 到 `<游戏目录>\Mods\`，随后删除同程序集旧版本文件；`-NoInstall` 跳过这一步。脚本没有 `-Install` 参数。`Build-MechcoreProtocol.ps1` 单独运行只生成本地包；安装不代表原生验收。
 
 `-GameDir` 指定目标游戏，`-DistRoot` 指定内容发布目录，`-DefaultLogLevel` 显式选择日志级别。未覆盖时 Forge、合成扩展和物流使用 `INFO`，机械飞升与矩阵使用 `WARN`。参数或环境变量 `ModDefaultLogLevel` 显式覆盖本轮各项目；`DEBUG` 必须显式启用，用户偏好仍优先。
 
@@ -53,6 +53,6 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 
 该入口同时在关联 `probably-stolen` 仓库的 `mods-melonloader/dist/` 放置相同的 `nicokobo-forge/` 目录及 `nicokobo-forge.zip`，可用 `-ModDistRoot` 指定内容发布根目录。`Build-MechcoreProtocol.ps1` 正常打包成功后调用同一入口，将本轮 `-DistRoot` 作为 Forge 独立包的同步位置；`Build-ForgeMods.ps1` 通过该流程同步更新，无需再手动打包 Forge。`-OnlyProject` 沿用该行为，`-ValidateExistingBinaries` 只检查混淆，不写发布目录。
 
-四个内容工程从 `mods-melonloader/Directory.Build.targets` 统一引用本地 Forge 构建产物。单项目构建前先构建 Forge，也可以用 `-p:ForgeAssemblyPath=<配套DLL>` 选择明确的依赖；兼容旧参数 `ForgeDll`，同时传入不同依赖会报错。内容项目不再通过 `ProjectReference` 重建 Forge。
+内容工程从 `mods-melonloader/Directory.Build.targets` 统一引用本地 Forge 构建产物。单项目构建前先构建 Forge，也可以用 `-p:ForgeAssemblyPath=<配套DLL>` 选择明确的依赖；兼容旧参数 `ForgeDll`，同时传入不同依赖会报错。内容项目不再通过 `ProjectReference` 重建 Forge。
 
 公共 API 签名兼容、领域检查、Release 编译和混淆产物只能验证对应层次。图集发布、原生钩子、夜间加工、失败回滚与存档重载仍须用当前产物在新进程及可丢弃档中验证。

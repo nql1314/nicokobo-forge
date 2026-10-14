@@ -11,6 +11,21 @@ internal static class SaveReadbackChecks
         { checks++; if (!condition) throw new Exception(message); }
         void Throws(Action action, string message)
         { bool threw = false; try { action(); } catch { threw = true; } Check(threw, message); }
+        const string connected = "{\"saveItems\":[{\"childItems\":[1]},{\"childItems\":[2]},{\"identifier\":\"item\",\"uniqueId\":42,\"unitCount\":3},{\"identifier\":\"orphan\",\"uniqueId\":43,\"unitCount\":1}]}";
+        using (var graph = JsonDocument.Parse(connected))
+        {
+            var items = ForgeSaveReadbackApi.ReadInventoryItems(graph.RootElement);
+            Check(items.Count == 1 && items[0].GetProperty("uniqueId").GetInt32() == 42 && items[0].GetProperty("unitCount").GetInt32() == 3,
+                "Only reachable items through storage nodes can prove delivery; stacks remain intact");
+            Throws(() => ForgeSaveReadbackApi.ReadInventoryItems(graph.RootElement, 2), "Graph node limit is enforced");
+        }
+        foreach (var badGraph in new[] { connected.Replace("[2]", "[0]"), connected.Replace("[2]", "[99]"),
+                     connected.Replace("[2]", "[2,2]"), connected.Replace("[2]", "[2,3]").Replace("43", "42"),
+                     connected.Replace("\"uniqueId\":42", "\"uniqueId\":42,\"uniqueId\":44") })
+        {
+            using var graph = JsonDocument.Parse(badGraph);
+            Throws(() => ForgeSaveReadbackApi.ReadInventoryItems(graph.RootElement), "Corrupt edges or duplicate item identities cannot prove delivery");
+        }
         using (var read = ForgeSaveReadbackApi.ReadBytes(Encoding.UTF8.GetBytes("\uFEFF{12:\"literal\\q\nline\",-3:7}")))
         {
             Check(read.Status == ForgeSaveReadStatus.Readable, "Native numeric keys, BOM and legacy strings were not read");

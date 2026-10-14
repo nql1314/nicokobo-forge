@@ -113,6 +113,47 @@ public static class ForgeSaveReadbackApi
         TryGetUniqueProperty(parent, name, out var value, out bool present) && present
             ? value : throw new InvalidDataException("Missing, duplicate or invalid property: " + name);
 
+    /// <summary>Read actual item nodes reachable from a native inventory's index-zero
+    /// root. Detached nodes are not delivery evidence. Returned elements borrow the
+    /// caller's document; this does not validate ownership tags or business receipts.</summary>
+    public static IReadOnlyList<JsonElement> ReadInventoryItems(JsonElement graph,
+        int maxNodes = ForgeNumbers.Inventory.MaxRunItems)
+    {
+        var nodes = RequireProperty(graph, "saveItems");
+        if (maxNodes <= 0 || nodes.ValueKind != JsonValueKind.Array || nodes.GetArrayLength() <= 0 || nodes.GetArrayLength() > maxNodes)
+            throw new InvalidDataException("Invalid saved inventory graph");
+        var result = new List<JsonElement>();
+        var visited = new HashSet<int>();
+        var ids = new HashSet<int>();
+        var pending = new Stack<int>(); pending.Push(0);
+        while (pending.TryPop(out int index))
+        {
+            if (index < 0 || index >= nodes.GetArrayLength() || !visited.Add(index))
+                throw new InvalidDataException("Invalid saved inventory edge");
+            var node = nodes[index];
+            if (!TryGetUniqueProperty(node, "unitCount", out var units, out bool hasUnits) ||
+                !TryGetUniqueProperty(node, "uniqueId", out var uid, out bool hasId))
+                throw new InvalidDataException("Invalid saved inventory identity");
+            if (index > 0 && hasUnits && units.GetInt32() > 0 && hasId && uid.GetInt32() > 0)
+            {
+                if (!ids.Add(uid.GetInt32()) || string.IsNullOrWhiteSpace(RequireProperty(node, "identifier").GetString()))
+                    throw new InvalidDataException("Duplicate or invalid saved item identity");
+                result.Add(node);
+            }
+            if (!TryGetUniqueProperty(node, "childItems", out var children, out bool hasChildren))
+                throw new InvalidDataException("Invalid saved inventory children");
+            if (!hasChildren) continue;
+            if (children.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Invalid saved inventory children");
+            foreach (var child in children.EnumerateArray())
+            {
+                int next = child.GetInt32();
+                if (next <= 0) throw new InvalidDataException("Invalid saved inventory child index");
+                pending.Push(next);
+            }
+        }
+        return result;
+    }
+
     /// <summary>Normalize ES3 numeric dictionary keys, raw string controls and
     /// legacy backslashes only. Do not use this on ordinary mod-owned JSON.</summary>
     public static string Normalize(string source)

@@ -78,10 +78,13 @@ return ForgeSaveReadbackApi.RequireProperty(data, ownedKey).GetString() == expec
 | `Parse` / `Normalize` | 兼容 ES3 数字键、字符串内原始控制字符及旧反斜线；保留值，不应用于普通 Mod JSON |
 | `TryGetUniqueProperty` | `false` 表示非对象或重复字段；`true` 且 `present=false` 表示可选字段不存在 |
 | `RequireProperty` | 缺失、重复或非对象时抛出 `InvalidDataException`，不会默默采用最后一个值 |
+| `ReadInventoryItems(JsonElement graph, int maxNodes = 8192)` | 从 `saveItems[0]` 库存根沿 `childItems` 整数索引返回可达的实际物品；排除根／存储节点与孤立项，拒绝越界、重复边／循环和重复有效 UID。返回元素借用调用者文档，须在其释放前读取 |
 | `Readable` | 仅表示读取文本可解析；周目、槽位、业务 JSON、库存可达性与奖励凭据仍由调用者验证 |
 | 其他状态 | `Missing`、`TooLarge`、`ChangedDuringRead`、`Malformed`、`Unavailable`、`Invalid` 分开报告 |
 
 公共默认上限位于 `BuildConfig/ForgeNumbers.cs` 的 `SaveReadback`。Forge 成就显式保持 64 MiB／64 层，机械飞升保持 16 MiB／256 层；其业务比较规则未迁入公共层。文件读取不证明持久刷盘或新进程可以成功读档。
+
+`ReadInventoryItems` 只读取传入的库存图，不自行选择玩家库存字段、不判断所有权或业务收据。Forge 成就和小偷归还检查共用该遍历；调用者须明确选择真实库存，继续检查数量、标识、状态与自有标签。`soldInvJSON`、其他非库存字段或未从根可达的节点不能作为持有／交付证据。
 
 ## 原生补丁目标检查
 

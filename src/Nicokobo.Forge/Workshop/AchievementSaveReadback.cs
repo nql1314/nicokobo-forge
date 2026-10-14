@@ -55,29 +55,9 @@ internal static class AchievementSaveReadback
                 string? encoded = property.Value.GetString();
                 if (string.IsNullOrWhiteSpace(encoded)) continue;
                 using var inventory = ForgeSaveReadbackApi.Parse(encoded, ForgeNumbers.RunData.MaxJsonDepth);
-                var items = Unique(inventory.RootElement, "saveItems");
-                if (items.ValueKind != JsonValueKind.Array || items.GetArrayLength() is <= 0 or > ForgeNumbers.Inventory.MaxRunItems)
-                    throw new InvalidDataException("Invalid saved item graph");
-                var visited = new HashSet<int>();
-                var pending = new Stack<int>(); pending.Push(0);
-                while (pending.TryPop(out int index))
-                {
-                    if (index < 0 || index >= items.GetArrayLength() || !visited.Add(index))
-                        throw new InvalidDataException("Invalid saved graph edge");
-                    var item = items[index];
-                    // Inventory nodes also appear in saveItems. Only actual positive unit items are receipts.
-                    if (index > 0 && Optional(item, "unitCount", out var unitValue) && unitValue.TryGetInt32(out int units) && units > 0 &&
-                        Optional(item, "uniqueId", out var uidValue) && uidValue.TryGetInt32(out int uid) && uid > 0)
-                        owned.Add(new(Unique(item, "identifier").GetString()!, uid, units));
-                    if (!Optional(item, "childItems", out var children)) continue;
-                    if (children.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Invalid saved children");
-                    foreach (var child in children.EnumerateArray())
-                    {
-                        int next = child.GetInt32();
-                        if (next <= 0) throw new InvalidDataException("Invalid child index");
-                        pending.Push(next);
-                    }
-                }
+                foreach (var item in ForgeSaveReadbackApi.ReadInventoryItems(inventory.RootElement))
+                    owned.Add(new(Unique(item, "identifier").GetString()!, Unique(item, "uniqueId").GetInt32(),
+                        Unique(item, "unitCount").GetInt32()));
             }
             bool matched = AchievementRules.ReceiptsMatch(reward, owned);
             return new(matched, matched ? "State and reward identities matched" : "Reward identities not matched", owned.ToArray());
@@ -89,10 +69,4 @@ internal static class AchievementSaveReadback
 
     private static JsonElement Unique(JsonElement parent, string name) =>
         ForgeSaveReadbackApi.RequireProperty(parent, name);
-    private static bool Optional(JsonElement parent, string name, out JsonElement value)
-    {
-        if (!ForgeSaveReadbackApi.TryGetUniqueProperty(parent, name, out value, out bool present))
-            throw new InvalidDataException("Invalid or duplicate property: " + name);
-        return present;
-    }
 }

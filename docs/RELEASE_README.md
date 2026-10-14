@@ -6,6 +6,8 @@
 
 Author: Nicokobo · Version: **@FORGE_VERSION@** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
+Mechcore Protocol 1.0.0 uses Forge 0.6.36 with Synthesis 0.9.65, Aug 0.1.62 and Matrix 1.1.7. Install one matching Forge DLL across these packages.
+
 Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
 
 ### Installation and updates
@@ -63,6 +65,8 @@ Inventory, balance and recovery data persist together on the next native normal 
 - Handbooks read current machines/additional recipes, counts, categories and bilingual conditions, refreshing after changes.
 - Dynamic output selection runs once per batch. Matrix owns K02's random Rare pool, tiers and prices; reading recipes does not draw an output.
 - Single-item transfers and pours verify both ends; batch rewards preflight placement. Content mods implement full resource/power networks.
+- Native dialogue, named visits, phone contacts, multi-purchase supplier meetings and reading windows support content stories. Forge handles UI dispatch and invalidates old callbacks on load; content mods retain prices, stock, choices and transactions.
+- Shared atlases and portrait publication supply story images. Recipes can declare a separate target-machine condition, rechecked before commit. Read-only ES3 inventory graphs support save verification without writing files.
 
 #### Supply rules
 
@@ -72,7 +76,9 @@ Daytime supply and opted-in Jackson night-module slots filter by NPC, category, 
 
 Default logging is `INFO`; existing `UserData/MelonPreferences.cfg` settings take precedence. Set `DEBUG` explicitly and restart for diagnostics. Framework defaults are compiled into the DLL; content mods document their runtime configuration.
 
-The 2026-10-06 candidate records machine processing, selected local logistics and save readback across processes. Mouse/keyboard UI, stock weights, built-in workshop rewards, two full nightly settlements, real legacy-terminal migration and missing-mod recovery/save-reload remain unvalidated. Recovery has offline checks and Release-build evidence. Later source does not inherit earlier binary results; check source, package and loaded versions separately. See source `docs/FORGE_PROGRESS.md` for scope and [CHANGELOG](RELEASE_CHANGELOG.md) for changes.
+The 2026-10-14 isolated packaged candidate used Forge 0.6.36 with Mechcore's matching components and Food Processing 0.0.3. Seven final groups passed 217 checks covering actual six-machine EndNight processing, selected rollback/pricing cases, complete saves restored in a new process, opening grants and Grayline's Tuesday visit, delayed delivery, six native purchases and stock reload. Earlier failed attempts remain recorded. The October 11 story/ending results apply to that day's candidate.
+
+Formal installation, full mouse/keyboard and visual use, stock odds, built-in workshop rewards, every module combination, real legacy-terminal migration and missing-mod recovery/save-reload remain outside that coverage. Check source, package and loaded versions separately. See source `docs/FORGE_PROGRESS.md` for evidence and the packaged `change.log` for changes.
 
 Released under the MIT License.
 
@@ -81,6 +87,8 @@ Released under the MIT License.
 ## 中文
 
 作者：Nicokobo · 配套版本：**@FORGE_VERSION@** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+
+机核协议 1.0.0 配套 Forge 0.6.36、合成扩展 0.9.65、机械飞升 0.1.62 与模组矩阵 1.1.7。多个包附带 Forge 时只安装一份配套 DLL。
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
 
@@ -139,6 +147,8 @@ Forge 0.6.32 起仅清理通过 Forge 注册且存档已有提供者记录的普
 - 手册读取当前机器和追加配方、数量、分类与双语条件，随内容更新刷新。
 - 每批动态选择一次产物；模组矩阵维护 K02 随机稀有池、分类和价格，阅读配方不触发抽取。
 - 单件搬运和倒液核对两端变化，整批奖励预检占格；完整资源／电力网络由内容 Mod 实现。
+- 原生对话、具名来访、电话联系人、多笔供应商会面和阅读窗支持内容剧情；Forge 分派界面事件，并在读档时清除旧回调，内容方负责价格、货量、选择和交易。
+- 公共图集与立绘发布提供剧情图片。配方可声明独立目标机器条件，提交前复核；只读 ES3 库存图用于核对保存结果，不写存档文件。
 
 #### 供货规则
 
@@ -148,6 +158,8 @@ Forge 0.6.32 起仅清理通过 Forge 注册且存档已有提供者记录的普
 
 默认日志为 `INFO`，已有 `UserData/MelonPreferences.cfg` 设置优先；详细诊断需显式设为 `DEBUG` 并重启。框架默认数值随 DLL 编译，内容 Mod 运行时配置见各自说明。
 
-2026-10-06 候选记录了机器加工、部分本地物流与跨进程保存读回。鼠键 UI、供货权重、内置工坊奖励、完整两晚结算、真实旧终端迁移和卸载 Mod 后的返还／保存重载仍待验收；返还流程已有离线检查和 Release 编译证据。后续源码不继承旧二进制结论，源码、包内与实际加载版本分别核对。范围见源码 `docs/FORGE_PROGRESS.md`，版本变化见 [CHANGELOG](RELEASE_CHANGELOG.md)。
+2026-10-14 隔离打包候选使用 Forge 0.6.36、机核配套组件与食品加工 0.0.3，最终七组 217 项通过，覆盖六台机器实际 EndNight、指定回滚／价格组合、完整存档新进程恢复、开局发放及灰线周二来访、柜台延期、六次原生购买与货量重载。早期失败保留；10 月 11 日剧情与结局结果仅适用于当日候选。
+
+正式安装、完整人工鼠键与视觉、供货概率、内置工坊奖励、全部模组组合、真实旧终端迁移及卸载 Mod 后的返还／保存重载仍不在上述验收范围内。源码、包内与实际加载版本分别核对。证据见源码 `docs/FORGE_PROGRESS.md`，版本变化见包内 `change.log`。
 
 本项目以 MIT 许可证发布。

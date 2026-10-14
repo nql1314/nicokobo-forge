@@ -4,236 +4,177 @@
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.36** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Source version: **0.6.37** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
-Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
+Matching Mechcore Protocol bundle: **1.0.0** (Synthesis 0.9.65, Aug 0.1.62, Matrix 1.1.7).
 
-0.6.36 adds `ForgeMachineRecipe.MachineCondition` for machine state such as installed modules. Automation can check it before moving ingredients; the shared batch transaction rechecks it before committing. See [Machine API](docs/MACHINE_API.md).
+Forge provides native registration, lifecycle events, machine templates and transactions, dialogue, visits, reading windows, Nico Workshop, image resources and save inspection for content mods. It also owns the Universal Manufacturing Terminal, workshop cards and ten base-game achievements. Content mods own their items, recipes, prices, rewards and story rules.
 
-0.6.34 adds shared dialogue, named client visits and reading windows. See [Conversation API](docs/CONVERSATION_API.md).
+Install MelonLoader, close the game and copy the matching `Nicokobo.Forge-<version>.dll` into `Mods/`. Keep one DLL per assembly when several packages include Forge. The separate Wage's Perks 1.3.4 compatibility DLL is optional; see [compatibility](compatibility/README.md).
 
-0.6.35 adds native phone-book contacts and supplier visits with repeatable purchases. Content Mods own unlocks, scheduling, stock, payment and persistence. Aug's Grayline booking, repeated native purchases, payment boundaries and full save/reload passed isolated regression on 0.6.36 on 2026-10-11; see [progress](docs/FORGE_PROGRESS.md) for scope.
+- [Player features and installation template](docs/RELEASE_README.md)
+- [Documentation index](docs/README.md), [scope](docs/SCOPE.md) and [API responsibilities](docs/API_BOUNDARIES.md)
+- [Current source and validation boundaries](docs/FORGE_PROGRESS.md)
+- [Development and build commands](docs/DEVELOPMENT.md)
+- [Developer and AI integration guide (中文)](#开发者与-ai-接入指南): feature selection, setup, lifecycle, persistence and examples.
 
-### Installation and updates
+For integrations, use the public `Forge*Api` classes in the current source. Register declarations before native directory initialization, then inspect application snapshots before using factories. Keep gameplay rules and save schemas in the content mod. `ForgeApi.Register` declares metadata; native items require `ForgeItemApi` factories. Machine recipes use `ForgeMachineRegistrationApi`, including `RegisterAdditionalRecipes` for the shared terminal. Read the linked contracts and sample source before implementing; historical API names and validation reports are not current signatures or runtime guarantees.
 
-1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
-2. Copy `Nicokobo.Forge-0.6.36.dll` and required content mod DLLs into `Mods/`.
-3. Remove older DLLs of the same assemblies. Keep one matching Forge DLL when multiple packages include it; versioned filenames can stay unchanged.
-
-Forge can run alone for its workshop and native achievements.
-
-#### Optional compatibility patches
-
-`Nicokobo.CompatibilityPatches-*.dll` is optional and separate from Forge. It defers Wage's Perks **1.3.4** startup mounts until localization is initialized, preventing early text-read crashes. Copy it to `Mods/` only for that version; remove it to disable. Forge does not install or load it automatically. Missing or mismatched targets disable the patch and log the reason without affecting other mods. See `compatibility/README.md`.
-
-### In-game tools
-
-#### Universal Manufacturing Terminal
-
-Forge owns K05: 3×3 footprint, separate 9×6 input/output grids, a 7×5 ring-shaped module bay, base value 400 and base power 25. It processes one batch per night. Synthesis, Aug and Logistics Nexus add recipes; Forge alone has none.
-
-Night-shop stock has a 40% listing chance, including while owned. Purchases do not restock immediately; full shelves skip it, and daytime NPC supply excludes it.
-
-Two known legacy Synthesis terminal IDs migrate on loading, preserving identity, state, shape and internal item relationships. The next normal save uses the current ID.
-
-#### G recipe browser
-
-Hover an item and press **G** to view recipes that produce or consume it; machines also show their processing recipes. Press G over another item to switch queries, or over the same kind, window or empty space to close. With no target, browse the registered catalog at the last scene-local page. Typing or an open workshop suppresses the shortcut.
-
-Machine and additional recipes appear automatically. Content mods may declare native-machine extension recipes while retaining processing logic and physical guides. Forge alone can open its registered catalog.
-
-#### Nico Workshop
-
-Every start receives a workshop card. Press `N` or double-click the card to open ten base-game achievements, tracking progress, completion and one reward per run. A full backpack delays card delivery or retains reward eligibility; the final badge uses no inventory slot. Aug adds its own page for the Aug start.
-
-Claiming and confirming Established Proprietor doubles NPC purchase budgets for current and future customers in that run; sales still deduct remaining funds. This stacks with the Aug ×2 budget for ×4 total. Confirmed old reward records apply after loading; new runs must qualify again.
-
-### Save recovery after uninstalling a mod
-
-From Forge 0.6.32, cleanup covers ordinary items registered through Forge with a saved provider record. It requires missing native registration, no current Forge declaration and a confirmed absent provider DLL. Unregistered third-party items, saves without records, installed providers that fail to load/register and uncertain provider status retain their items.
-
-Before uninstalling a content mod, save normally with that mod and the newer Forge installed to record its provider, then keep Forge installed. Legacy manufacturing terminals still use their ID migration.
-
-Eligible player-owned missing items refund saved unit value × count. Normal contents of missing machines/containers retain identity, state, count, charge, quality and nested contents. Available factories and space return them to the shop, backroom or storage; otherwise recovery data keeps them for later loading or before a normal save. Normal items are not converted to money. Sold, unowned and unreachable items grant no refund.
-
-Inventory, balance and recovery data persist together on the next native normal save. Forge does not directly rewrite save files, and repeated loading does not accumulate refunds.
-
-### Shared features
-
-- Native Dossier capacity expands to 16×16 (256 cells), preserving contents and admission rules.
-- Compact new-game rows support wheel scrolling and a scrollbar.
-- Disposable/advanced accelerators process one immediate Forge batch, consuming the tool or charge only on success; missing inputs, power or space keep the tool.
-- Handbooks read current machines/additional recipes, counts, categories and bilingual conditions, refreshing after changes.
-- Dynamic output selection runs once per batch. Matrix owns K02's random Rare pool, tiers and prices; reading recipes does not draw an output.
-- Single-item transfers and pours verify both ends; batch rewards preflight placement. Content mods implement full resource/power networks.
-
-#### Supply rules
-
-Daytime supply and opted-in Jackson night-module slots filter by NPC, category, day, ownership and enabled content, then share total Mod weight `0.25` equally across eligible kinds. Direct native results have weight `1`, giving about `20%` combined Mod chance; native tables keep their other weights. Mods may retain original native-table weights instead of sharing that budget. Separate night-shop conditions remain, and Mechcore miners draw one batch type at native ore 70%, Quartz 15%, Titanium Ore 15%.
-
-### Development
-
-Framework defaults are compiled from [BuildConfig](BuildConfig/README.md); content-mod values live in the [companion BuildConfig](../probably-stolen/mods-melonloader/BuildConfig/README.md). Check `ForgeCapabilities.Current` before actions: `Accepted` registration and `Applied` native directories are separate states. `InventoryTransfer` remains `false`; single-item move/pour APIs have narrower contracts.
-
-Forge also provides stable IDs/owners/conflict diagnostics, lifecycle/localization hooks, run data, module descriptions, liquid/value ledgers, workshop tabs/unlock graphs, embedded atlases, read-only ES3 access and native patch-target checks. `NpcTrade.Suppliers` restricts daytime suppliers; `IncludeInNightShop` opts modules into Jackson's native night slots.
-
-Run in the Forge repository:
-
-```powershell
-.\scripts\Build-P0.ps1 -GameDir 'F:\SteamLibrary\steamapps\common\Probably Stolen Demo'
-```
-
-This checks/builds Forge and four examples; `-IncludeProbes` adds workshop/effect probes. Run in the companion `probably-stolen` repository:
-
-```powershell
-.\mods-melonloader\Build-ForgeMods.ps1 -NoInstall
-```
-
-Without `-NoInstall`, `Build-ForgeMods.ps1` also installs Forge and four content mods and removes older copies; `Build-P0.ps1` only checks/builds. See [development](docs/DEVELOPMENT.md) for environment, output, logs and dependency selection.
-
-#### Documentation
-
-- [Index](docs/README.md): APIs, examples and historical evidence.
-- [API responsibilities](docs/API_BOUNDARIES.md) and [scope](docs/SCOPE.md).
-- [Machine API](docs/MACHINE_API.md), [shared services](docs/SHARED_SERVICES.md), [workshop graph](docs/WORKSHOP_GRAPH.md) and [achievement design](docs/WORKSHOP_ACHIEVEMENT_DESIGN.md).
-- [Logistics boundaries](docs/LOGISTICS_API_PROGRESS.md) and [progress](docs/FORGE_PROGRESS.md).
-
-### Configuration and validation
-
-Default logging is `INFO`; existing `UserData/MelonPreferences.cfg` settings take precedence. Set `DEBUG` explicitly and restart for diagnostics. Framework defaults are compiled into the DLL; content mods document their runtime configuration.
-
-The 2026-10-06 candidate records machine processing, selected local logistics and save readback across processes. Mouse/keyboard UI, stock weights, built-in workshop rewards, two full nightly settlements, real legacy-terminal migration and missing-mod recovery/save-reload remain unvalidated. Recovery has offline checks and Release-build evidence. Later source does not inherit earlier binary results; check source, package and loaded versions separately. See source [progress](docs/FORGE_PROGRESS.md) for scope and [CHANGELOG](docs/RELEASE_CHANGELOG.md) for changes.
-
-Released under the MIT License.
-
----
+Registration acceptance, native application and successful game/save behavior are separate results. `ForgeCapabilities.Current` reports installed adapters; `InventoryTransfer` remains `false`, with narrower contracts for individual move/pour APIs. Historical tests only apply to their recorded binaries.
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.36** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 源码版本：**0.6.37** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
 
-Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
+配套机核协议合集：**1.0.0**（合成扩展 0.9.65、机械飞升 0.1.62、模组矩阵 1.1.7）。
 
-0.6.36 新增 `ForgeMachineRecipe.MachineCondition`，单独读取模组等目标机器状态，供自动填料提前检查，并由共享批次事务在提交前复核。见[机器 API](docs/MACHINE_API.md)。
+Forge 为内容 Mod 提供原生注册、生命周期、机器模板与资源事务、对话／来访／阅读窗、Nico 工坊、图片资源及存档读取，内置全域制造终端、全开局工坊名片与十项原版成就。内容 Mod 维护物品、配方、价格、奖励和剧情规则。
 
-0.6.35 新增原生电话簿联系人与可多次购买的供应商会面。内容 Mod 持有解锁、预约日期、货量、扣款和保存。Aug 灰线预约、连续原生购买、扣款边界及完整存读档已在 2026-10-11 的 0.6.36 隔离回归中通过，范围见[当前进度](docs/FORGE_PROGRESS.md)及[对话 API](docs/CONVERSATION_API.md)。
+安装 MelonLoader，关闭游戏后将配套 `Nicokobo.Forge-<版本>.dll` 放入 `Mods/`。多个包附带 Forge 时只保留一份同次构建的 DLL。Wage's Perks 1.3.4 的独立兼容补丁按需安装，见[兼容补丁说明](compatibility/README.md)。玩家功能与完整安装说明维护在[发布 README 模板](docs/RELEASE_README.md)，打包时填写实际 DLL 版本。
 
-### 安装与更新
-
-1. 安装 [MelonLoader](https://melonwiki.xyz/)，关闭游戏。
-2. 将 `Nicokobo.Forge-0.6.36.dll` 和所需内容 Mod DLL 放入 `Mods/`。
-3. 移出同程序集旧 DLL。多个包附带 Forge 时只保留一份配套文件，版本号文件名可保留。
-
-Forge 可单独使用内置工坊与原版成就。
-
-#### 可选兼容补丁
-
-`Nicokobo.CompatibilityPatches-*.dll` 为独立可选组件，将 Wage's Perks **1.3.4** 的启动挂载延后至本地化初始化完成，避免过早读取文本导致崩溃。使用该版本时才复制到 `Mods/`，移出即可停用；Forge 不会自动安装或加载。目标缺失或版本不符时补丁自行停用并记录原因，不影响其他 Mod。 详见 `compatibility/README.md`。
-
-### 游戏内功能
-
-#### 全域制造终端
-
-K05 全域制造终端由 Forge 提供：外部 3×3，输入／输出仓各 9×6，模组仓为 7×5 环形；基础价值 400、基础耗电 25，每晚一批。合成扩展、机械飞升和物流网络追加配方；仅装 Forge 时没有制造配方。
-
-夜店每次生成库存有 40% 上架机会，持有后仍可出现；购买不即时补货，货架满时跳过，不参加白天 NPC 供货。
-
-读档迁移两个已知旧合成扩展终端 ID，保留身份、状态、占格和内部物品关系，下次正常保存使用当前 ID。
-
-#### G 键合成表
-
-指向物品按 **G** 查看其作为产物和材料的配方，指向机器另列自身加工配方。指向另一件物品按 G 切换；同种物品、窗口或空白处按 G 关闭。无目标时浏览完整登记目录，保留本场景阅读页；输入文字或打开工坊时不触发。
-
-机器和追加配方自动进入目录；原版机器扩展由内容 Mod 提交展示，实际加工和实体手册仍由其负责。仅装 Forge 也能打开已登记目录。
-
-#### Nico 工坊
-
-所有开局获赠工坊名片，按 `N` 或双击打开。原版页有十项成就，分别记录进度、达成和领奖，每项每周目领取一次。背包满时延迟名片发放或保留领奖资格；通关徽章不占库存。机械飞升另有专属页，仅对应开局开放。
-
-领取并确认“立业有成”后，本周目当前和后续 NPC 收购预算×2，成交仍正常扣减资金；与伪人预算×2叠加为×4。有效旧领奖记录载入后生效，新周目需重新达成。
-
-### 卸载 Mod 后的存档恢复
-
-Forge 0.6.32 起仅清理通过 Forge 注册且存档已有提供者记录的普通物品；须同时满足原生登记缺失、当前无 Forge 声明、确认提供者 DLL 已移除。未登记的第三方物品、无记录旧档、仍安装但加载／注册失败或来源无法确认的项均保留。
-
-卸载内容 Mod 前，先在该 Mod 与新版 Forge 仍安装时正常保存，建立提供者记录；卸载后继续保留 Forge。旧制造终端仍按原有 ID 迁移。
-
-玩家持有的合格缺失项按存档单价×数量返还信用点。缺失机器／容器内的正常物品保留身份、数量、状态、充能、品质和嵌套内容；工厂与空间可用时放回店内、后房或储物容器，否则留在周目待返还数据中，下次读档或正常保存前重试，不折算成钱。已售、未持有或不可达物品不返款。
-
-库存、余额和待返还数据随下一次原版正常保存一并写入，不直接改写存档；重复读档不累计返款。
-
-### 公共功能
-
-- 原版档案箱扩为 16×16（256 格），保留内容与收纳规则。
-- 新游戏选择栏使用紧凑行高，支持滚轮与滚动条。
-- 一次性／高级加速器可立即加工一批，成功才消耗工具或充能；缺料、缺电或空间不足时保留工具。
-- 手册读取当前机器和追加配方、数量、分类与双语条件，随内容更新刷新。
-- 每批动态选择一次产物；模组矩阵维护 K02 随机稀有池、分类和价格，阅读配方不触发抽取。
-- 单件搬运和倒液核对两端变化，整批奖励预检占格；完整资源／电力网络由内容 Mod 实现。
-
-#### 供货规则
-
-白天供货与显式加入的杰克逊夜间模组名额按 NPC、类别、天数、持有和启用状态筛选，合格 Mod 种类均分总权重 `0.25`。直接供货原版结果权重为 `1`，Mod 合计概率约 `20%`；原生表保留其他条目权重，内容 Mod 可选择保留原权重、不分摊该预算。独立夜店条件继续生效，机核矿工每批按原版矿石 70%、石英 15%、钛矿料 15% 选矿。
-
-### 开发与接入
-
-框架默认值、限制、重试与工坊参数集中在 [BuildConfig](BuildConfig/README.md)，随 `Nicokobo.Forge.dll` 编译；内容 Mod 数值见[关联仓库 BuildConfig](../probably-stolen/mods-melonloader/BuildConfig/README.md)。动作前查看 `ForgeCapabilities.Current`，注册 `Accepted` 与目录 `Applied` 分开确认。
-
-#### API 能力
-
-| 能力 | 范围 |
+| 入口 | 用途 |
 | --- | --- |
-| 注册与生命周期 | 物品、设施、节点、机器模组、效果；稳定 ID、所有者、冲突诊断、模组观察、文本接入、开局 ID 与周目数据。 |
-| 机器模板 | 原版 UI、物品／液体输入、物品／容器输出、电池／模组／手册槽、额外批次与失败恢复。 |
-| 价值与液体 | 液体组分、价值账本、生产材料价值及内容方机器生产倍率透传。 |
-| 工坊与资源 | 独立标签、解锁星图、条件与回调；嵌入式图集发布／恢复、只读 ES3 解析、原生补丁目标检查。 |
-| 库存 | 只读快照、单件搬运预检及单次搬运／倒液；`InventoryTransfer` 总能力仍为 `false`。 |
+| [文档索引](docs/README.md) | 当前 API、内容边界、示例与历史证据 |
+| [能力与扩展边界](docs/SCOPE.md) | 框架和内容方各自持有的规则 |
+| [API 职责](docs/API_BOUNDARIES.md) | 按功能选择接口，核对事件和原生门控 |
+| [当前进度](docs/FORGE_PROGRESS.md) | 当前实现、当轮修复与待原生验收范围 |
+| [开发说明](docs/DEVELOPMENT.md) | 构建、关联项目及明确请求后的打包／安装 |
 
-动态模组说明在原位置临时替换显示标签，绘制完成或异常时恢复，不改保存用基础说明；认知涡轮上限需 Forge 0.6.31。档案箱扩容适用新旧档，原位置保留；紧凑选择栏适用原版与内容 Mod 卡片。
-
-终端稳定 ID 为 `nicokobo.forge.machines.universal_manufacturing_terminal`，迁移旧 `universal_manufacturing_terminal` 与 `mechanical_manufacturer`。正常保存将来源写入 `modData["nicokobo.forge.save.item_providers_v1"]`，缺失项返款为 `unitValue × unitCount`；待返还物品图位于 `modData["nicokobo.forge.save.recovered_items_v1"]`。返还离线检查包含原版读档顺序核对、物品图与空间预检。
-
-G 查询支持真实 ID、材料类别、跨 Mod／分类、提供者备注及无结果提示；Forge 管理分页、拖动与释放保护。原版机器扩展通过 `ForgeRecipeGuideApi.RegisterRecipes` 提交，合成扩展提交四条玻璃回收展示。工坊只拦截窗口内下层输入，打开时清理名片拖拽选中，关闭保护至释放帧；窗口外开始的拖拽保留释放事件。
-
-#### 供货接入
-
-`NativeItemOptions.NpcTrade` 声明类别与最早天数，`Suppliers` 可限制小偷／杰克逊，默认不限制白天供货人；`IncludeInNightShop` 加入杰克逊原版随机模组／节点名额。`NpcTradeStock` 表示供货钩子已安装，`NativeItemOptions.NightShop` 保留独立上架条件。
-
-28 条入口共同抽取原版与合格 Mod 商品，不保底追加、不改全局拾荒表，直接供货保留类别与堆叠数量。杰克逊只替换随机模组／节点名额；设备、钥匙卡、具名专用模组、大存储区、武器、工具、容器和文件保留。老拾荒客固定枪弹、加工肉商、固定供血者、阴谋论顾客与三类退休专业人员的指定供货保留原版。
-
-名片 `nicokobo.forge.nico_card` 加入原生日用品掉落表并保留开局赠送；供货前检查柜台、背包和嵌套容器中的自有名片，持有时不刷新。内容 Mod 自行声明物品掉落与机器夜店上架；十二种最终义体只由所属 Mod 制造。
-
-#### 编译与本地产物
-
-在 Forge 仓库执行：
+普通源码改动默认只完成相关项目编译和必要检查。在 Forge 仓库运行完整既有检查与示例构建：
 
 ```powershell
 .\scripts\Build-P0.ps1 -GameDir 'F:\SteamLibrary\steamapps\common\Probably Stolen Demo'
 ```
 
-默认检查并编译核心与四个示例，`-IncludeProbes` 加入工坊／效果探针。在 `probably-stolen` 仓库执行：
+加 `-IncludeProbes` 才包含工坊和效果探针。该入口不打包或安装；发布入口和内容调用者见开发说明。框架内置数值在 [BuildConfig](BuildConfig/README.md)，玩法数值由所属内容 Mod 维护。
+
+`Accepted` 只表示登记接受，`Applied` 才表示进入原生目录。`ForgeCapabilities.Current` 表示适配器安装状态，`InventoryTransfer` 总能力仍为 `false`；单件搬运／倒液使用各自的窄契约。编译、打包、安装、实际游戏操作和存档重载分别验收，旧候选结果不自动覆盖当前源码。
+
+## 开发者与 AI 接入指南
+
+本指南按当前 **0.6.37 源码**组织，面向内容 Mod 作者和协助开发的 AI。先按功能找到公共入口，再阅读对应契约与示例；参数、返回状态和模型以 [src/Nicokobo.Forge](src/Nicokobo.Forge/) 为准。当前构建及实机证据见[进度](docs/FORGE_PROGRESS.md)，不根据版本号推定某项玩法已验收。
+
+### 1. 按需求选择已有能力
+
+| 要实现什么 | 使用入口 | 接入要点与详细说明 |
+| --- | --- | --- |
+| 声明 Mod、内容依赖 | `ForgeApi.Register` | 元数据声明不创建原生物品；见[API 职责](docs/API_BOUNDARIES.md) |
+| 新物品、设施、节点、机器模组或效果 | `ForgeItemApi`、`ForgeEffectApi` | 提供稳定 ID 和原生工厂，检查注册结果与应用快照；名称和说明用 `ForgePresentationApi` |
+| 夜店上架、NPC 供货 | `NativeItemOptions.NightShop` / `.NpcTrade` | 声明类别、条件及供货人；由框架适配原生库存生成，购买后不自动补货；见[范围与供货规则](docs/SCOPE.md) |
+| 游戏加载、日夜规则、模组效果观察 | `ForgeLifecycleApi`、`ForgeModuleApi`、`ForgeContentApi` | 订阅已有事件，按 owner 注销；事件顺序及原生门控见[事件契约](docs/API_BOUNDARIES.md#事件契约) |
+| 自定义机器与物品／液体配方 | `ForgeMachineRegistrationApi.RegisterMachine` | 模板提供真实槽位、原版 UI 和批次资源事务；配方及数值由内容方提供；见[机器 API](docs/MACHINE_API.md) |
+| 给现有机器或全域制造终端追加配方 | `ForgeMachineRegistrationApi.RegisterAdditionalRecipes`、`ForgeManufacturingTerminal` | 复用目标机器的配置与批次规则，不重复注册终端本体；见[机器 API](docs/MACHINE_API.md) |
+| 原版机器扩展、显式处理一批 | `ForgeMachineRuntimeApi.CreateBatchProcessor` | 调用方负责触发时机、实时槽位及同夜去重；复用资源事务不等于自动获得夜间调度 |
+| 配方手册、G 键查询、自动化 | `GuideSnapshot()`、`ForgeRecipeGuideApi`、`ForgeMachineAutomationApi` | 已登记机器配方自动进入手册目录；原版扩展用 `RegisterRecipes` 提交只读展示；自动化边界不增加加工次数 |
+| 电量、液体、制造价值 | `ForgePowerApi`、`ForgeLiquidApi`、`ForgeProductionValueApi` | 使用实际资源与批次价值，不用虚拟余额替代真实电池；见[机器 API](docs/MACHINE_API.md) |
+| 剧情选择、顾客来访、阅读窗口 | `ForgeDialogueApi`、`ForgeClientVisitApi`、`ForgeReadingApi` | 内容方负责条件、剧情状态及交易；见[对话 API](docs/CONVERSATION_API.md) |
+| 电话联系人与多笔供应商会面 | `ForgePhoneApi`、`ForgeSupplierApi` | 内容方负责排期、货单、付款、交付及收据；见[对话 API](docs/CONVERSATION_API.md) |
+| 独立工坊页与解锁图谱 | `ForgeWorkshopApi.RegisterTab / RegisterChain` | 条件／奖励声明用于展示，解锁回调重新验资并完成交易；见[工坊图谱](docs/WORKSHOP_GRAPH.md) |
+| 读取库存、规划整批奖励落点 | `ForgeInventoryApi`、`ForgeInventoryPlacementApi` | 快照与预检不提交、不预留库存；见[库存契约](docs/INVENTORY_POWER_TRANSACTIONS.md) |
+| 搬运一件物品、倒一次液体 | `ForgeItemTransferApi.Move`、`ForgeLiquidTransferApi.Pour` | 检查实际转移量及不确定结果，不把多次独立操作视作整体原子事务 |
+| 隐藏库存、完整物品图、列表承载 | `ForgeInventoryEndpointApi`、`ForgeSaveGraphApi`、`ForgeListInventoryApi` | 工厂维护固定拓扑，未知图停止处理；临时锁用 `ForgeInventoryFreezeApi`，附加准入用 `ForgeInventoryAdmissionApi` |
+| 多源供电、内容状态参与批次事务 | `ForgeExternalPowerApi`、`IForgePowerTransaction`、`IForgeBatchTransaction` | 网络范围、唯一额度及业务状态由内容方持有；见[库存与供电事务](docs/INVENTORY_POWER_TRANSACTIONS.md) |
+| 原生付款、物品价格与提示 | `ForgeRunPurchaseApi`、`ForgeItemInspectionApi` | 按公共契约接入付款和只读展示，交付及业务收据仍由内容方管理 |
+| 开局身份与周目 JSON | `ForgeStartApi`、`ForgeRunDataApi.Read / Stage` | 身份认领不创建完整开局；`Stage` 只修改内存中的所属数据 |
+| 图集、立绘、存档读回、Hook 入口检查 | `ForgeAssetsApi`、`ForgeSaveReadbackApi`、`ForgeHookApi` | 使用所属资源和有界只读解析；见[公共服务](docs/SHARED_SERVICES.md) |
+
+Forge 自带全域制造终端、Nico 名片与十项原版成就、开局选择栏滚动、16×16 档案箱及 G 键合成表。内容 Mod 通过扩展入口接入，具体内置行为见[玩家功能](docs/RELEASE_README.md)。缺失物品恢复仅覆盖已有来源记录且确认提供者 DLL 移除的合格 Forge 物品，不能代替内容 Mod 自己的存档迁移。
+
+### 2. 建立项目与依赖
+
+需要能编译 `net6.0` 的 .NET SDK、.NET 6 运行时，以及安装 MelonLoader 并已有互操作程序集的目标游戏。示例工程继承仓库根目录的 [Directory.Build.props](Directory.Build.props)；复制到其他仓库时也要显式配置目标框架、可空性和所需游戏引用。
+
+在 Forge 仓库仅编译核心：
 
 ```powershell
-.\mods-melonloader\Build-ForgeMods.ps1 -NoInstall
+dotnet build .\src\Nicokobo.Forge\Nicokobo.Forge.csproj -c Release '-p:GameDir=F:\SteamLibrary\steamapps\common\Probably Stolen Demo'
 ```
 
-`Build-ForgeMods.ps1` 不带 `-NoInstall` 时还会安装配套 Forge 与四个内容 Mod，清理旧 DLL；`Build-P0.ps1` 仅检查编译。环境、输出、日志和依赖见[开发说明](docs/DEVELOPMENT.md)。
+输出为 `src/Nicokobo.Forge/bin/Release/Nicokobo.Forge.dll`。内容 Mod 引用与运行时配套的这份 DLL；外部工程可添加以下引用片段，`ForgeAssemblyPath` 由调用方指定：
 
-#### 工坊素材
+```xml
+<ItemGroup>
+  <Reference Include="Nicokobo.Forge">
+    <HintPath>$(ForgeAssemblyPath)</HintPath>
+    <Private>false</Private>
+  </Reference>
+</ItemGroup>
+```
 
-名片为深底铜框大 N、2×1 占格；标题栏使用 `nicokobo.com` 齿轮 Logo，下划线网址由默认浏览器打开。Logo 位于 `src/Nicokobo.Forge/Assets/Brand/nicokobo_logo.png`，名片源图与提示在 `src/Nicokobo.Forge/Assets/IconSources/`；`py scripts/export_workshop_card.py` 导出库存图标和设计预览。
+该片段只配置 Forge 引用；完整 MelonLoader 和游戏引用可参考[基础示例工程](samples/Nicokobo.Forge.ExampleOne/Nicokobo.Forge.ExampleOne.csproj)。关联 `probably-stolen` 内容工程已有统一引用配置，通过 `-p:ForgeAssemblyPath=<配套DLL路径>` 选择依赖，不再额外添加重复引用。部署时 Forge DLL 独立放在 `Mods/`，不要把框架源码复制进内容程序集。
 
-#### 文档
+### 3. 从声明到游戏运行
 
-- [文档索引](docs/README.md)：API、示例与历史证据。
-- [API 职责](docs/API_BOUNDARIES.md)与[能力范围](docs/SCOPE.md)。
-- [机器 API](docs/MACHINE_API.md)、[公共服务](docs/SHARED_SERVICES.md)、[工坊图谱](docs/WORKSHOP_GRAPH.md)与[成就方案](docs/WORKSHOP_ACHIEVEMENT_DESIGN.md)。
-- [物流接入边界](docs/LOGISTICS_API_PROGRESS.md)与[当前进度](docs/FORGE_PROGRESS.md)。
+1. 确定稳定 owner，例如 `example.my_mod`；物品、回调、配方和存档键使用所属命名空间，发布后不随显示名修改 ID。
+2. 在 Mod 初始化阶段提交声明和工厂，在原生目录初始化前完成注册。此时保留工厂回调，不提前创建依赖原生目录的实例，也不强取尚未就绪的 `PlayerStore`。
+3. 检查每次注册的返回状态与原因。`ForgeApi.Register` 的 `Define` 只登记元数据；实际物品另走 `ForgeItemApi.RegisterItem / RegisterAmenity / RegisterNode / RegisterModule`，效果走 `ForgeEffectApi`。
+4. 通过 `ForgeContentApi` 通知或对应 `Snapshot()` 确认原生应用状态，再使用工厂。冲突时保留已有原生对象，停用本功能；当前不保证目录初始化后的迟到注册立即生效。
+5. 在动作发生时读取 `ForgeCapabilities.Current` 的相关门控及实时对象。生命周期上下文只用于本次回调；不把原生句柄跨周目缓存，写入前重检归属、容量和资源。
+6. 保存订阅返回的 `IDisposable`，在功能退出或初始化失败时释放。优先复用公共生命周期和模块观察入口，新增专用 Hook 前确认现有 API 无法覆盖需求。
 
-### 配置与验证
+最小元数据声明可直接参考 [ExampleOne](samples/Nicokobo.Forge.ExampleOne/Plugin.cs)：
 
-默认日志为 `INFO`，已有 `UserData/MelonPreferences.cfg` 设置优先；详细诊断需显式设为 `DEBUG` 并重启。框架默认数值随 DLL 编译，内容 Mod 运行时配置见各自说明。
+```csharp
+using Nicokobo.Forge;
+using Nicokobo.Forge.Registration;
 
-2026-10-06 候选记录了机器加工、部分本地物流与跨进程保存读回。鼠键 UI、供货权重、内置工坊奖励、完整两晚结算、真实旧终端迁移和卸载 Mod 后的返还／保存重载仍待验收；返还流程已有离线检查和 Release 编译证据。后续源码不继承旧二进制结论，源码、包内与实际加载版本分别核对。范围见源码 [当前进度](docs/FORGE_PROGRESS.md)，版本变化见 [CHANGELOG](docs/RELEASE_CHANGELOG.md)。
+// 放在内容 Mod 的初始化方法内；本例不生成原生物品。
+var result = ForgeApi.Register("example.my_mod", "0.1.0", batch =>
+{
+    batch.Define(DefinitionKind.Item, "starter", "demo=metadata-only");
+});
+// 在 MelonMod 中记录结果，并处理被拒绝的声明。
+LoggerInstance.Msg($"registration={result.Status}; {result.Reason}");
+```
 
-本项目以 MIT 许可证发布。
+需要真实机器时，从 [MachineExamples.cs](samples/Nicokobo.Forge.MachineTemplates/MachineExamples.cs) 的声明接入 `RegisterMachine`，由自己的插件入口调用。追加配方使用当前 `RegisterAdditionalRecipes` 签名；历史记录中的 `ForgeMachineApi`、`ForgeNativeApi` 等名称不能直接当作当前公共类名使用。
+
+### 4. 资源提交与保存
+
+机器模板共用材料、液体、电量和产物的批次提交／补偿。配方条件用于当前机器及资源判定，不能在展示或条件查询里偷偷扣费、抽奖励或修改库存。内容方自定义工坊、剧情和供应商交易时，负责检查重复请求、重新验资、交付、失败恢复与持久化。
+
+| 观察到的结果 | 可以说明什么 |
+| --- | --- |
+| 注册 `Accepted` | 声明已接受；尚不证明原生目录已有工厂 |
+| 应用快照 `Applied` | 已观察到对应声明进入原生目录 |
+| 相关能力门控为 `true` | 适配器已安装；不证明单个请求或存档成功 |
+| 库存预检通过 | 当时可放置；并未预留位置或实际交付 |
+| `Stage` 返回 `StagedInMemory` | 所属 JSON 已暂存于当前周目内存，尚未落盘 |
+| 生命周期 After 触发 | 原方法主体执行过；不保证保存文件成功 |
+| ES3 读回并核对业务字段 | 指定文件含预期结果；新进程恢复仍需单独验证 |
+
+`Stage` 应使用读取到的旧 JSON 做比较，同时绑定当前 run ID 与槽位；遇 `Conflict` 或 `Indeterminate` 先核实实际状态，不盲目重复扣款或发奖。物品搬运及倒液同样按返回状态与两端实际量处理。`InventoryTransfer` 总能力仍为 `false`，不能据单次转移 API 推断任意整箱或整网事务已支持。
+
+存档读取用 `ForgeSaveReadbackApi`，内容方核对目标文件、周目、槽位、业务收据及实际物品归属。`ReadInventoryItems` 读取指定原生库存图中从根可达的物品；调用方先选真实库存字段，排除 `soldInvJSON` 等非持有记录。不能用“在存档任意位置搜到 UID”作为仍持有物品的证据。完整约束见[公共服务](docs/SHARED_SERVICES.md)。
+
+### 5. 选择示例与验证范围
+
+| 示例 | 学习内容 | 运行方式 |
+| --- | --- | --- |
+| [ExampleOne](samples/Nicokobo.Forge.ExampleOne/Plugin.cs) / [ExampleTwo](samples/Nicokobo.Forge.ExampleTwo/Plugin.cs) | 元数据声明、跨 Mod 依赖 | MelonLoader 示例；不会生成示例原生物品 |
+| [MachineTemplates](samples/Nicokobo.Forge.MachineTemplates/README.md) | 物品与液体混合输入、纯液体输入、容器输出 | 可编译库，无插件入口，由内容方调用 |
+| [LogisticsExtension](samples/Nicokobo.Forge.LogisticsExtension/) | 路由、配方目录与配置接入 | 内容侧示例库，不安装到游戏 |
+| [WorkshopProbe](samples/Nicokobo.Forge.WorkshopProbe/README.md) | 工坊页面与图谱回调 | 诊断插件，构建需 `-IncludeProbes` |
+| [EffectRegistrationProbe](samples/Nicokobo.Forge.EffectRegistrationProbe/README.md) | 原生效果注册 | 诊断插件，构建需 `-IncludeProbes` |
+
+普通开发先执行相关项目编译与针对性既有检查；修改公共核心行为或跨模块契约时使用上文 `Build-P0.ps1`。该脚本检查互操作签名、领域规则和入口保护，再编译核心与四个示例，不启动游戏；加 `-IncludeProbes` 后另编译两个探针。纯文档修改核对链接、签名和差异即可。
+
+打包与安装按[开发说明](docs/DEVELOPMENT.md)另行执行。关联仓库的 `Build-ForgeMods.ps1` 默认会安装，只有 `-NoInstall` 才跳过安装，不应拿默认调用作为普通编译命令。原生验收使用当前候选、新进程和可丢弃存档，分别记录实际行为、失败恢复、文件读回和跨进程重载。
+
+### 6. 给 AI 的任务上下文
+
+给 AI 下达内容开发任务时，可复制以下内容并补充需求：
+
+```text
+在当前 Nicokobo Forge API 上实现以下内容 Mod 功能：<需求与完成条件>。
+先读 Forge README 的接入指南，再按功能查 docs/API_BOUNDARIES.md 和对应专题文档。
+核对 src/Nicokobo.Forge 中的实际公共签名、模型、返回状态及 samples；不从历史记录猜 API。
+先检查工作区现有修改并保留它们。优先复用已有 API；玩法、数值、资源与存档格式由内容 Mod 持有。
+说明使用哪些入口、注册时机、所需能力门控、状态归属及失败处理，然后实施。
+涉及交易时重检周目/槽位、所有权、容量和资源，处理重复请求与不确定结果。
+Accepted、Applied、Stage、保存文件读回和新进程重载分别判断，不互相替代。
+只运行与改动相关的既有检查；默认完成相关项目编译，不自动打包、安装或启动游戏。
+交付列出改动、检查结果和仍未验证的行为。
+```
+
+MIT License.

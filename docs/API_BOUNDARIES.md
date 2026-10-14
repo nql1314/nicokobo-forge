@@ -22,6 +22,7 @@ Forge 持有通用注册、事件分派、构建门控和资源事务，以及�
 | `ForgeProductionValueApi` | 逐批材料内在价值汇总、按产量与加工倍率折算、产物生产基础价值的保存与读取 |
 | `ForgeProductionValueMath` | 生产价值与液体价值的纯计算规则（无 Harmony、无原生调用） |
 | `ForgeDialogueApi` / `ForgeClientVisitApi` / `ForgeReadingApi` | 分支选择、原生来访与阅读窗；管理 owner、会话与对象生命周期，不接管内容规则或主动保存；见[对话 API](CONVERSATION_API.md) |
+| `ForgePhoneApi` / `ForgeSupplierApi` | 所属联系人、原生电话簿和可多笔购买的会面；内容方负责排期、货单、报价、交易与持久化；见[对话 API](CONVERSATION_API.md) |
 | `ForgeInventoryApi` | 库存读取、周目物品观察、所有权和搬运预检 |
 | `ForgeInventoryPlacementApi` | 未附着单件物品的整批几何落位预检，返回克隆形状；不提交、发奖、保存或预留真实库存 |
 | `ForgeItemTransferApi` / `ForgeLiquidTransferApi` | 单次原生物品搬运／倒液与两端读回；返回实际量和不确定状态，不撤回此前独立成功操作 |
@@ -34,7 +35,7 @@ Forge 持有通用注册、事件分派、构建门控和资源事务，以及�
 | `ForgeStartApi` | 开局身份认领 |
 | `ForgeWorkshopApi` | 独立工坊标签、图谱展示与事件分派 |
 | `ForgeAssetsApi` / `ForgeSpriteAtlas` | 图片声明、图集路径所有权、完整发布读回、失败清理及物品赋图 |
-| `ForgeSaveReadbackApi` | 有界 ES3 只读解析和唯一字段检查；调用方验证周目、所属状态及交易结果 |
+| `ForgeSaveReadbackApi` | 有界 ES3 只读解析、唯一字段检查与指定库存图的可达物品读取；调用方验证周目、所属状态、真实归属及交易结果 |
 | `ForgeHookApi` | 检查 IL2CPP 方法的原生执行入口，不安装内容方补丁 |
 
 `NativeItemRegistry`、`NativeEffectRegistry`、`NativeShopAdapter` 是内部适配器，内容 Mod 通过公共入口调用。商店库存生成由独立适配器处理，购买后不自动补货；效果注册复用物品目录就绪接入。
@@ -87,7 +88,9 @@ subscription.Dispose();
 - 模组矩阵：成长、节点转换／隔离／学习、市场追踪、模组仓准入和文本使用 Forge API；净水、供水、解码完成与进度速度保留内容专用接入。
 - 合成扩展：新机器使用模板 API；机器倍率由批次上下文提供给本机和追加配方。原版熔炉的配方、投料、优先级和夜间调度由 `NativeFurnaceRuntime` 持有，复用通用事务。成品品质、制造效果和销售保护由内容方实现。
 - 物流网络：物品、实际配方目录、逐批边界、单次搬运／倒液与周目配置使用公共 API。本地填料、附近产物弹出、终端配方卡和配置暂存已接入；资源／电力网络、网络货物持久化仍待实现，游戏内操作和保存重载待验收。见[物流接入边界](LOGISTICS_API_PROGRESS.md)。
-- 机械飞升：注册成品、向 K05 追加六条义体配方、向 K04 追加仿生修补胶；沿用目标机器的配置倍率与当前电耗。工坊由 Forge 展示，解锁交易与保存由机械飞升持有。
+- 机械飞升：注册七件制造义体，向 K05 追加对应配方；独立食品加工注册 K04 后追加仿生修补胶。沿用目标机器的配置倍率与当前电耗；持有规则、工坊成就和剧情事务由机械飞升维护。
+- 食品加工：独立拥有 K04 液体灌装器、K06 食品加工器、食品与手册，以及 19 条内置配方；使用共享机器事务和动态手册目录，不依赖合成扩展 DLL。
+- 保证是偷得：独立拥有开局、perk、夜间目标、概率／滑块规则、携带与返店事务；使用 Forge 库存图、冻结、落位、周目 JSON 与实际存档读回。归还证据仅接受真实库存图的可达物品。
 
 机械飞升、矩阵、合成扩展的图集现通过 `ForgeAssetsApi` 加载；Forge 与机械飞升的存档读取复用 `ForgeSaveReadbackApi`。示例及其他候选见[公共服务](SHARED_SERVICES.md)。
 
@@ -95,4 +98,4 @@ subscription.Dispose();
 
 ## 验证边界
 
-`scripts/Check-AdapterContracts.ps1` 只读互操作程序集元数据，不初始化游戏类。合成扩展的熔炉和液体签名由所属检查脚本在机核发布流程中核对。检查数量和当轮证据统一见[当前进度](FORGE_PROGRESS.md)。`scripts/Build-P0.ps1` 自动执行框架签名与领域检查，统一脚本再构建六个示例、四个调用者和三个 Obfuscar 发布包。编译、签名检查与哈希一致均不能证明补丁实际安装、UI 拖放、过夜效果或新档重载成功；这些需要新游戏进程和可丢弃测试档。
+`scripts/Check-AdapterContracts.ps1` 只读互操作程序集元数据，不初始化游戏类。合成扩展的熔炉和液体签名由所属检查脚本核对。检查数量和当轮证据见[当前进度](FORGE_PROGRESS.md)，单项目与统一构建入口见[开发说明](DEVELOPMENT.md)。编译和签名检查不能证明补丁实际安装、UI 拖放、过夜效果或新档重载成功；这些需要当前产物、新游戏进程和可丢弃测试档。
