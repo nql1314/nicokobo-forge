@@ -50,7 +50,8 @@ internal static class InventoryReadRuntime
     }
 
     internal static IReadOnlyDictionary<string, int> Capture(PlayerStore store,
-        IReadOnlyCollection<string>? requestedIds, Func<IReadOnlySet<string>?, IReadOnlyDictionary<string, int>> capture)
+        IReadOnlyCollection<string>? requestedIds,
+        Func<PlayerStore, IReadOnlySet<string>?, IReadOnlyDictionary<string, int>> capture)
     {
         if (requestedIds == null)
         {
@@ -64,9 +65,10 @@ internal static class InventoryReadRuntime
             foreach (string id in requestedIds) changed |= RequestedIds.Add(id);
             if (changed) Counts.Invalidate();
         }
-        IReadOnlyDictionary<string, int> Scan() => capture(_allIds ? null : RequestedIds);
-        return !_enabled ? Scan() :
-            Counts.Capture(new(store.Pointer, store.runID, store.saveSlotId), Time.unscaledTimeAsDouble, Scan);
+        // Pass scan arguments as a value tuple so a cache hit creates no closure.
+        return !_enabled ? capture(store, _allIds ? null : RequestedIds) :
+            Counts.Capture(new(store.Pointer, store.runID, store.saveSlotId), Time.unscaledTimeAsDouble,
+                (Store: store, Scan: capture), static state => state.Scan(state.Store, _allIds ? null : RequestedIds));
     }
 
     private static void OwnershipTagChanged(string __0)

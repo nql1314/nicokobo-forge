@@ -20,6 +20,9 @@ internal sealed class InventoryReadCache<T>(double maximumAgeSeconds)
     }
 
     internal T Capture(InventoryReadKey key, double now, Func<T> capture)
+        => Capture(key, now, capture, static scan => scan());
+
+    internal T Capture<TState>(InventoryReadKey key, double now, TState state, Func<TState, T> capture)
     {
         if (_hasValue && _key == key && now >= _capturedAt &&
             now - _capturedAt < maximumAgeSeconds) return _value!;
@@ -27,7 +30,7 @@ internal sealed class InventoryReadCache<T>(double maximumAgeSeconds)
         _hasValue = false;
         _value = default;
         long revision = _revision;
-        T value = capture();
+        T value = capture(state);
         // A nested native callback may mutate inventory while a snapshot is captured.
         if (revision == _revision)
         {

@@ -95,20 +95,22 @@ public static class ForgeInventoryApi
         if (store == null || store.Pointer == IntPtr.Zero ||
             string.IsNullOrWhiteSpace(store.runID) || store.saveSlotId < 0)
             throw new ArgumentException("Current run is required");
-        return InventoryReadRuntime.Capture(store, relevantIds, ids =>
+        return InventoryReadRuntime.Capture(store, relevantIds, CaptureOwnedCounts);
+    }
+
+    private static IReadOnlyDictionary<string, int> CaptureOwnedCounts(PlayerStore store, IReadOnlySet<string>? ids)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var item in CaptureRunItems(store))
         {
-            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-            foreach (var item in CaptureRunItems(store))
-            {
-                int units = item.unitCount;
-                if (units <= 0) continue;
-                string id = item.identifier;
-                if (string.IsNullOrWhiteSpace(id) || ids != null && !ids.Contains(id) || !IsPlayerOwned(item)) continue;
-                counts.TryGetValue(id, out int previous);
-                counts[id] = (int)Math.Min(int.MaxValue, (long)previous + units);
-            }
-            return new ReadOnlyDictionary<string, int>(counts);
-        });
+            int units = item.unitCount;
+            if (units <= 0) continue;
+            string id = item.identifier;
+            if (string.IsNullOrWhiteSpace(id) || ids != null && !ids.Contains(id) || !IsPlayerOwned(item)) continue;
+            counts.TryGetValue(id, out int previous);
+            counts[id] = (int)Math.Min(int.MaxValue, (long)previous + units);
+        }
+        return new ReadOnlyDictionary<string, int>(counts);
     }
 
     /// <summary>Observes the existing native drag handler without creating one.</summary>

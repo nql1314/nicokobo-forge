@@ -87,9 +87,13 @@ public static partial class ForgeModuleApi
         if (!Events.Has(phase)) return;
         try
         {
-            var snapshot = new List<GameItem>();
-            if (modules != null) for (int i = 0; i < modules.Count; i++)
-                if (modules[i] != null && modules[i].Pointer != IntPtr.Zero) snapshot.Add(modules[i]);
+            int count = modules?.Count ?? 0;
+            var snapshot = new List<GameItem>(count);
+            for (int i = 0; i < count; i++)
+            {
+                var item = modules![i];
+                if (item != null && item.Pointer != IntPtr.Zero) snapshot.Add(item);
+            }
             Events.Dispatch(phase, new(snapshot.AsReadOnly(), machine, module), _log);
         }
         catch (Exception ex) { try { _log?.Invoke($"[WARN] [NicokoboForge/Modules] phase={phase}; {ex.Message}"); } catch { } }

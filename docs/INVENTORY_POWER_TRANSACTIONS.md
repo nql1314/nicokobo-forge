@@ -22,6 +22,8 @@ Forge 0.6.33 的通用接入。玩法容量、网络身份、材料保留量、�
 
 `ForgeSaveGraphApi.Encode/Decode/Items` 复用原生图与载入修复，拒绝未知工厂、重复/冲突身份和不支持的人物节点。`ForgeListInventoryApi.Create/Move` 使用合法 GameGridInventory 单节点作为后台承载；owner 的原生状态保存实际尺寸，插入及读回恢复布局。格子只承载形状；内容按真实物品件数及嵌套内容验证容量，并提供分页 UI，不让玩家整理后台网格。
 
+`Encode` 要求已有 `PlayerStore.instance`，不会通过单例 getter 创建玩家对象。原生编码所需的 `savedItemFeatureList` 使用本次图的独立列表，并在成功或失败后恢复原引用；首次 `SaveGame` 前可调用，也不会把 NPC 候选特征加入玩家的待保存列表。完整特征以原生 ES3 序列化保存在图 JSON 的 `forgeItemFeatures` 字段中，`Decode` 在执行载入修复前按原 UID 附回，保留真实条件、价值及禁用状态。旧的仅节点图仍可读取，但缺失的特征无法从该旧图恢复。
+
 `ForgeInventoryFreezeApi.TryAcquire(items, group)` 提供临时真实实例锁。匿名事务互斥；同一命名 group 的多个长期介质锁可共享祖先、按引用数解除，其他 group 仍互斥。内容同时保存/恢复实际容器的 insert/remove 锁。原生 UncheckedAccept/Expel 属于底层入口，不能把它们当用户准入证明。
 
 `ForgeItemTransferApi.Move` 核对原生搬运后的真实身份与数量。`ForgeLiquidTransferApi.Pour(source,target,max,condition)` 按完整液体混合物限制量，携带每组分的价值/品质基准并对两端登记补偿；有过滤器的中途转换不进入受限倒液。`ForgeItemInspectionApi` 读取普通原生单价及实际实例原生富文本提示；读取不复制货物或执行加工。`ForgeRunPurchaseApi.Purchase` 把原生付款及内容步骤纳入同批事务。

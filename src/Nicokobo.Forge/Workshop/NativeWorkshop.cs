@@ -202,7 +202,8 @@ internal static class NativeWorkshop
 
     private static void ObserveItem(GameItem? item)
     {
-        if (!Current() || _blocked || _busy || _observing || item == null || item.Pointer == IntPtr.Zero || !NativeAchievementAdapter.Relevant(item.identifier)) return;
+        if (_blocked || _busy || _observing || item == null || item.Pointer == IntPtr.Zero ||
+            !NativeAchievementAdapter.Relevant(item.identifier) || !Current()) return;
         _observing = true;
         try
         {
@@ -219,7 +220,7 @@ internal static class NativeWorkshop
     private static void AfterItemMutation(GameItem __instance) { ObserveItem(__instance); MarkDirty(); }
     private static void BeforeRemoval(GameItem __0)
     {
-        if (_busy || !Current() || __0 == null || !NativeAchievementAdapter.Relevant(__0.identifier)) return;
+        if (_busy || __0 == null || !NativeAchievementAdapter.Relevant(__0.identifier) || !Current()) return;
         // All tools must coexist in one snapshot; never union their historical observations.
         if (!_state!.Completed.ContainsKey("scavenger_toolset") && AchievementRules.Tools.Contains(__0.identifier)) ObserveTools();
         else ObserveItem(__0);

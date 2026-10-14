@@ -62,6 +62,19 @@ internal static class InventoryReadChecks
         int continuousScans = scans - beforeContinuousReads;
         Expect(continuousScans <= 240, "One minute of unchanged shop price reads still scanned inventory every frame");
 
+        var valueCache = new InventoryReadCache<int>(ForgeNumbers.Inventory.OwnedCountCacheSeconds);
+        Func<int, int> valueScan = static value => value;
+        for (int i = 0; i < 100; i++) valueCache.Capture(key, 0, 42, valueScan);
+        long allocated = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 10000; i++) valueCache.Capture(key, 0, 42, valueScan);
+        long cacheHitBytes = GC.GetAllocatedBytesForCurrentThread() - allocated;
+        Expect(cacheHitBytes == 0, $"Cache hits with explicit scan state allocate a closure or delegate: {cacheHitBytes} bytes");
+        valueCache.Invalidate();
+        Expect(valueCache.Capture(key, 0, 17, static value => value) == 17,
+            "Explicit scan state ignored same-frame invalidation");
+        Expect(valueCache.Capture(key, 0.25, 23, static value => value) == 23,
+            "Explicit scan state ignored snapshot expiry");
+
         var idle = new DragIdleGate();
         var now = new DateTime(2026, 10, 3, 0, 0, 0, DateTimeKind.Utc);
         Expect(idle.Ready(false, now), "Idle startup never refreshed achievements");
@@ -73,6 +86,6 @@ internal static class InventoryReadChecks
         Expect(!idle.Ready(true, released.AddMilliseconds(300)), "A second drag reused the old quiet interval");
         idle.Reset();
         Expect(idle.Ready(false, now), "A new run inherited the previous run's drag delay");
-        Console.WriteLine($"Inventory reads and drag scheduling: {checks} assertions passed; 360000 reads over 3600 frames -> {continuousScans} scans.");
+        Console.WriteLine($"Inventory reads and drag scheduling: {checks} assertions passed; 360000 reads over 3600 frames -> {continuousScans} scans; 10000 cache hits -> {cacheHitBytes} allocated bytes.");
     }
 }

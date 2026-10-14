@@ -367,7 +367,7 @@ internal static partial class ConversationRuntime
 
     internal static void Update()
     {
-        if (!_installed || DateTime.UtcNow < _nextUpdate) return;
+        if (!_installed || (Visits.Count == 0 && _reading == null) || DateTime.UtcNow < _nextUpdate) return;
         _nextUpdate = DateTime.UtcNow.AddMilliseconds(250);
         try
         {
@@ -383,6 +383,7 @@ internal static partial class ConversationRuntime
 
     private static void RefreshVisits(bool callNext)
     {
+        if (Visits.Count == 0) return;
         var store = Store();
         var queue = store?.storeClientManager?.clientStack;
         if (store == null || queue == null) return;

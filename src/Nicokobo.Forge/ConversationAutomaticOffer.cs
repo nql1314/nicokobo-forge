@@ -12,6 +12,7 @@ internal static partial class ConversationRuntime
 
     private static AutomaticOffer? CurrentAutomaticOffer(DialogUIManager dialog)
     {
+        if (Visits.Count == 0) return null;
         foreach (var visit in Visits.ToArray())
             if (visit.Automatic is { } automatic && automatic.Selection.Pending && IsCurrent(visit) &&
                 dialog.currentDialog?.Pointer == automatic.Menu.Pointer)
@@ -63,6 +64,7 @@ internal static partial class ConversationRuntime
 
     private static void UpdateAutomaticOffers()
     {
+        if (!Visits.Any(visit => visit.Automatic?.Selection.Pending == true)) return;
         var dialog = DialogUIManager.Instance;
         foreach (var visit in Visits.ToArray())
         {

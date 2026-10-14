@@ -15,6 +15,8 @@ internal static class ForgeWorkshopInputShield
     private static RectTransform? _hitArea;
     private static bool _creationFailed;
     private static bool _installed;
+    private static Rect _bounds;
+    private static bool _hasBounds;
 
     internal static bool Install(Action<string> log)
     {
@@ -131,12 +133,18 @@ internal static class ForgeWorkshopInputShield
                 image.raycastTarget = true;
                 UnityEngine.Object.DontDestroyOnLoad(root);
                 _root = root;
+                _hasBounds = false;
                 log("[NicokoboForge/Workshop] window UI input shield created");
             }
             var bounds = ForgeWorkshopOverlay.ScreenRect();
-            _hitArea!.anchoredPosition = new Vector2(bounds.x, bounds.y);
-            _hitArea.sizeDelta = new Vector2(bounds.width, bounds.height);
-            _root.SetActive(true);
+            if (!_hasBounds || _bounds != bounds)
+            {
+                _hitArea!.anchoredPosition = new Vector2(bounds.x, bounds.y);
+                _hitArea.sizeDelta = new Vector2(bounds.width, bounds.height);
+                _bounds = bounds;
+                _hasBounds = true;
+            }
+            if (!_root.activeSelf) _root.SetActive(true);
             return true;
         }
         catch (Exception ex)
@@ -155,7 +163,7 @@ internal static class ForgeWorkshopInputShield
 
     internal static void Hide()
     {
-        try { _root?.SetActive(false); }
+        try { if (_root != null && _root.activeSelf) _root.SetActive(false); }
         catch { /* The scene may have destroyed the shield. */ }
     }
 }
