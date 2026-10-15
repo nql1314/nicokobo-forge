@@ -127,6 +127,27 @@ internal static class NightShopChecks
         StoreClientList.PlaceInventorInventory(false);
         Expect(created.Count == 0 && shelf.childItems.Count == 0,
             "Ownership, disabled policy, staged factory or availability filtering failed");
+
+        shelf = Reset();
+        int availabilityCalls = 0, nativePlacements = StoreClientList.InventorPlacements;
+        Offer(repeatable, NightShopStockPolicy.Repeatable, available: () =>
+        {
+            // Model a native query in content availability reentering stock generation.
+            if (++availabilityCalls > 4) throw new InvalidOperationException("Bounded stock reentry");
+            StoreClientList.PlaceInventorInventory(false);
+            return true;
+        });
+        StoreClientList.PlaceInventorInventory(false);
+        Expect(availabilityCalls == 1 && created.Count == 1 && shelf.childItems.Count == 1 &&
+            PlayerStore.instance!.Placements == 1,
+            "Availability reentry repeated Forge stock selection or duplicated an offer");
+        Expect(StoreClientList.InventorPlacements == nativePlacements + 2,
+            "Stock observation protection suppressed the nested native generation");
+        PlayerStore.instance!.OnItemBought(shelf.childItems[0], 10);
+        StoreClientList.PlaceInventorInventory(false);
+        Expect(availabilityCalls == 2 && created.Count == 2 && shelf.childItems.Count == 1,
+            "A later native generation stayed blocked after stock reentry");
+
         PlayerStore.instance = null;
         StoreClientList.PlaceInventorInventory(false);
         Expect(PlayerStore.SingletonCreations == 0, "Stock hook constructed a store singleton");

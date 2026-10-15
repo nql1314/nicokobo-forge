@@ -8,6 +8,7 @@ internal static class NativeShopAdapter
 {
     private static Action<string>? _log;
     private static bool _allowed, _nightShopEnabled;
+    [ThreadStatic] private static bool _stocking;
     internal static bool Installed => _nightShopEnabled;
     internal static void Configure(bool allowed, Action<string> log)
     { _allowed = allowed; _log = log; DeclarationsChanged(); }
@@ -20,7 +21,8 @@ internal static class NativeShopAdapter
     }
     private static void NightShopStockPostfix(bool isVisitingPlayerStore)
     {
-        if (!_nightShopEnabled || isVisitingPlayerStore) return;
+        if (!_nightShopEnabled || isVisitingPlayerStore || _stocking) return;
+        _stocking = true;
         try
         {
             var store = PlayerStore.instance;
@@ -124,6 +126,7 @@ internal static class NativeShopAdapter
             SafeLog(_log, $"[ERROR] [NicokoboForge/NightShop] status=Failed; " +
                 $"reason={ex.GetType().Name}: {ex.Message}");
         }
+        finally { _stocking = false; }
     }
 
     private static void SafeLog(Action<string>? log, string message)

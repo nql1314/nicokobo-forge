@@ -33,11 +33,13 @@ public sealed class ForgeLifecycleContext
 /// body to have run. NightAttemptFinished is emitted when the night postfix is
 /// reached, including a skipped body; it does not guarantee cleanup after an
 /// original-method exception. AfterGameLoadedLate observes the native late
-/// notification, not a LoadGame body return. Hooks never suppress a game method.</summary>
+/// notification, not a LoadGame body return. Same-thread reentry of the same
+/// phase/store skips repeated observation. Hooks never suppress a game method.</summary>
 public static class ForgeLifecycleApi
 {
     private static readonly OwnedCallbacks<ForgeLifecyclePhase, ForgeLifecycleContext> Callbacks = new();
     private static readonly HashSet<string> Installed = new(StringComparer.Ordinal);
+    [ThreadStatic] private static HashSet<(ForgeLifecyclePhase Phase, IntPtr Store)>? _dispatching;
     private static bool _allowed;
     private static Action<string>? _log;
     internal static void Configure(bool allowed, Action<string> log) { _allowed = allowed; _log = log; }
@@ -96,8 +98,13 @@ public static class ForgeLifecycleApi
     private static void Dispatch(ForgeLifecyclePhase phase, PlayerStore? store)
     {
         if (!Callbacks.Has(phase) || store == null || store.Pointer == IntPtr.Zero) return;
+        var dispatching = _dispatching ??= [];
+        var key = (phase, store.Pointer);
+        // Constructing the context reads native state, which can itself reenter.
+        if (!dispatching.Add(key)) return;
         try { Callbacks.Dispatch(phase, new(store), _log); }
         catch (Exception ex) { try { _log?.Invoke($"[WARN] [NicokoboForge/Lifecycle] phase={phase}; {ex.Message}"); } catch { } }
+        finally { dispatching.Remove(key); }
     }
     private static void BeforeLoad(PlayerStore __instance) => Dispatch(ForgeLifecyclePhase.BeforeLoad, __instance);
     private static void AfterLoad(PlayerStore __instance, bool __runOriginal)
@@ -117,13 +124,13 @@ public static class ForgeLifecycleApi
         try { UnityEngine.Debug.LogError(message); } catch { }
         try { _log?.Invoke(message); } catch { }
     }
-    private static void BeforeServices() => Dispatch(ForgeLifecyclePhase.BeforeNightServices, PlayerStore.Instance);
+    private static void BeforeServices() => Dispatch(ForgeLifecyclePhase.BeforeNightServices, PlayerStore.instance);
     private static void AfterServices(bool __runOriginal)
-    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterNightServices, PlayerStore.Instance); }
+    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterNightServices, PlayerStore.instance); }
     private static void AfterSleep(bool __runOriginal)
-    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterSleep, PlayerStore.Instance); }
+    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterSleep, PlayerStore.instance); }
     private static void AfterEndDay(PlayerStore __instance, bool __runOriginal)
     { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterEndDay, __instance); }
     private static void AfterGameLoadedLate(bool __runOriginal)
-    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterGameLoadedLate, PlayerStore.Instance); }
+    { if (__runOriginal) Dispatch(ForgeLifecyclePhase.AfterGameLoadedLate, PlayerStore.instance); }
 }

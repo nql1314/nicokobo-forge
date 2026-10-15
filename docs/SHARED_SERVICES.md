@@ -37,6 +37,8 @@ Icons.Assign(item, "example_card"); // 仅在安装成功后赋图。
 
 `ForgeLifecycleApi.Subscribe(ownerId, callbackId, phase, callback, order)` 同步分派，先按 `order` 升序，再按所属回调 ID 排序。订阅不抑制原版方法；一个回调失败不阻止其他订阅者。上下文的 `Items` 只在本事件内延迟捕获一次，仍包含实时原生句柄；写入前重新核对周目、归属与槽位，事件结束后不保留上下文。
 
+静态通知读取现有 `PlayerStore.instance`，缺少实例时跳过观察。同一线程、阶段与 store 正在分派时，嵌套调用只略过重复通知；保护覆盖上下文构造，退出时解除。其他阶段或 store 的嵌套通知仍可分派，原版方法不受该保护阻断。
+
 | phase 与数值 | 原生边界及保证范围 |
 | --- | --- |
 | `BeforeLoad=0`、`BeforeNight=2`、`BeforeNightServices=4` | 表示调用意图，其他 prefix 拒绝原方法时仍可能执行；不能据此清除尚未切换周目的故障锁或扣费记录 |

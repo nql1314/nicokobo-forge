@@ -1,6 +1,6 @@
 # Nicokobo Forge 当前进度
 
-更新：2026-10-14。源码版本 **0.6.37**，目标 **Probably Stolen Demo，Steam Build `25382790`**。版本相同的 DLL 也可能包含不同源码；构建、打包、安装与原生结果分别确认。
+更新：2026-10-15。源码版本 **0.6.37**，目标 **Probably Stolen Demo，Steam Build `25382790`**。版本相同的 DLL 也可能包含不同源码；构建、打包、安装与原生结果分别确认。
 
 ## 当前实现
 
@@ -15,6 +15,24 @@
 | 供货与卸载恢复 | 保留原生指定商品，按合格候选分配 Mod 供货权重；仅对已有来源记录且确认提供者 DLL 缺失的 Forge 物品执行清理与正常内容物返还 |
 
 详细职责见 [SCOPE](SCOPE.md) 和 [API_BOUNDARIES](API_BOUNDARIES.md)，机器见 [MACHINE_API](MACHINE_API.md)，对话见 [CONVERSATION_API](CONVERSATION_API.md)，资源／存档见 [SHARED_SERVICES](SHARED_SERVICES.md)。
+
+## 2026-10-15 同类观察入口排查
+
+检查 Forge 核心的 `PlayerStore` 访问、生命周期、工坊、夜店与 NPC 供货、液体估价及机器批次入口，补齐三类问题：
+
+- 生命周期四个静态通知仍通过 `PlayerStore.Instance` 请求创建型单例，改为读取已有 `instance`；无实例时跳过观察。本轮修改后核心源码不再直接调用 `PlayerStore.Instance`。
+- 生命周期订阅者或上下文构造中的原生读取可再次触发同一阶段，原实现会重复分派。按线程、阶段及 store 指针保护，进入保护后再构造上下文，`finally` 解除；其他阶段、其他 store 及后续独立调用保留。
+- 夜店可用性回调或原生放置回调可重入补货，原实现会重复挑选和上架。补货观察入口先进入线程内保护，嵌套时略过 Forge 追加商品，原版补货方法继续执行，退出时解除保护。
+
+在既有离线夹具中先复现了创建单例、同阶段重复分派及重复上架三项失败，再修复生产入口。新增生命周期 11 项和夜店 3 项回归，覆盖上下文构造重入、原方法继续执行、不同阶段／store 嵌套及异常后恢复。`Build-P0.ps1` 的契约、领域、生命周期（103 项）、Hook 检查和默认核心／示例 Release 编译通过，夜店共 24 项、NPC 供货 207 项通过；保留既有测试项目警告。机器批次 `Batches.TryEnter` 与液体估价 `ValuePrefix` 已在回调前进入保护并在退出时解除，本轮未发现这两处相同的保护顺序缺陷。结论为源码与离线边界验证，未打包、安装或进行原生测试。
+
+## 2026-10-15 工坊成就观察重入
+
+用户提供的 `PSCompatPatch.dll` 1.0.0 以线程内深度计数，在第二层 `GameItem.SetUnitCount` 调用时跳过原方法，Postfix 递减深度。它能截断所报 `PCExpansion.NpcStockOffers.Stock → SetUnitCount → NativeWorkshop.ObserveItem → Current → PlayerStore.get_Instance` 循环，但也会跳过正常的跨物品嵌套数量修改；计数没有 Finalizer 异常清理。该结论来自静态分析与 ILSpy 反编译，未执行补丁，REA 成员证据为 `ev_85045c107a82fb037062d40a3954a1843a6e4a560f2939ce114000fdc4a3fd99`。
+
+Forge 采用观察入口自身的防重入：`Observe`、`ObserveItem`、`BeforeRemoval` 和 `ObserveTools` 先检查并设置 `_observing`，再读取原生对象与周目身份，退出或异常时由 `finally` 解除。嵌套调用只略过成就观察，原生数量修改继续执行。保留所有工具必须同时存在的快照规则。当前源码及本机已安装的 0.6.37 的 `Current()` 已使用现有 `PlayerStore.instance` 字段，不调用 `get_Instance`；用户所报崩溃 DLL 的具体身份尚未核实。
+
+直接提取生产方法在内存中编译的离线模拟，修复前五条观察路径均重入失败（4/9 通过），修复后 9/9 通过，覆盖嵌套数量修改、异常后恢复及暂停观察时保留原方法。使用本机 MelonLoader 0.7.3 引用执行 `scripts/Build-P0.ps1`，既有契约、领域、生命周期、Hook 检查及核心与默认示例 Release 编译通过；测试项目仍有 `net6.0` 生命周期和 `DiagnosticSource` 引用版本警告。本轮未打包、安装或启动游戏，第 4 天江白到店的实际崩溃场景仍待原生复测。
 
 ## 2026-10-14 库存保存证据收紧
 

@@ -114,6 +114,7 @@ try
         Require(readyOrder.SequenceEqual(new[] { "prepare", "content", "prepare", "content" }),
             "A later native load must prepare exactly once before its consumers");
     }
+    LifecycleReentryChecks.Run(Require);
     MachineLifecycleChecks.Run(Require);
     PresentationChecks.Run(Require);
     Console.WriteLine($"Lifecycle and presentation checks passed: {checks} assertions.");

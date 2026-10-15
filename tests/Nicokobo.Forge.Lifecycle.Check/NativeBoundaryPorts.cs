@@ -55,9 +55,14 @@ namespace Il2Cpp
     public static class GeneralHelper { public static bool IsItemOwned(GameItem item) => true; }
     public sealed class PlayerStore
     {
-        public static PlayerStore Instance { get; set; } = new();
-        public static PlayerStore instance => Instance;
-        public IntPtr Pointer { get; } = (IntPtr)41;
+        public static PlayerStore? instance = new();
+        public static int SingletonReads;
+        public static PlayerStore Instance
+        {
+            get { SingletonReads++; return instance ??= new(); }
+            set => instance = value;
+        }
+        public IntPtr Pointer { get; set; } = (IntPtr)41;
         public string runID = "lifecycle-run";
         public int saveSlotId = 2;
         public int BodyCalls;
@@ -67,7 +72,11 @@ namespace Il2Cpp
         public void EndNight() { BodyCalls++; if (NightFailure != null) throw NightFailure; }
         public void EndDay() => BodyCalls++;
     }
-    public static class StoreStation { public static int GetDayCounter() => 7; }
+    public static class StoreStation
+    {
+        public static Action? BeforeDayRead;
+        public static int GetDayCounter() { BeforeDayRead?.Invoke(); return 7; }
+    }
     public static class ModHook
     {
         public static int BodyCalls;

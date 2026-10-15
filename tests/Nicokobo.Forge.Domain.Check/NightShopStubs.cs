@@ -136,8 +136,12 @@ namespace Il2Cpp
 
     public static partial class StoreClientList
     {
-        public static void PlaceInventorInventory(bool isVisitingPlayerStore = false) =>
+        public static int InventorPlacements;
+        public static void PlaceInventorInventory(bool isVisitingPlayerStore = false)
+        {
+            InventorPlacements++;
             Nicokobo.Forge.Runtime.NativeHookSet.Postfix(typeof(StoreClientList),
                 nameof(PlaceInventorInventory), isVisitingPlayerStore);
+        }
     }
 }

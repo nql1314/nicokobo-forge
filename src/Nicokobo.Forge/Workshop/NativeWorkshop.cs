@@ -188,10 +188,11 @@ internal static class NativeWorkshop
 
     private static void Observe()
     {
-        if (!Current() || _blocked || _busy || _observing) return;
+        if (_blocked || _busy || _observing) return;
         _observing = true;
         try
         {
+            if (!Current()) return;
             _dirty = false; Unavailable.Clear();
             _evidence = AchievementRules.Evaluate(NativeAchievementAdapter.Capture(_store!, _ending, Unavailable), English());
             var next = AchievementRules.Latch(_state!, _evidence.Where(x => !Unavailable.ContainsKey(x.Key)).ToDictionary(x => x.Key, x => x.Value));
@@ -202,11 +203,12 @@ internal static class NativeWorkshop
 
     private static void ObserveItem(GameItem? item)
     {
-        if (_blocked || _busy || _observing || item == null || item.Pointer == IntPtr.Zero ||
-            !NativeAchievementAdapter.Relevant(item.identifier) || !Current()) return;
+        if (_blocked || _busy || _observing || item == null) return;
+        // Native reads can invoke another Mod's SetUnitCount; guard before any of them.
         _observing = true;
         try
         {
+            if (item.Pointer == IntPtr.Zero || !NativeAchievementAdapter.Relevant(item.identifier) || !Current()) return;
             var snapshot = NativeAchievementAdapter.Capture(item);
             if (!snapshot.Owned) return;
             var proofs = AchievementRules.Evaluate(new([snapshot], 0, 0, 0), English());
@@ -220,17 +222,26 @@ internal static class NativeWorkshop
     private static void AfterItemMutation(GameItem __instance) { ObserveItem(__instance); MarkDirty(); }
     private static void BeforeRemoval(GameItem __0)
     {
-        if (_busy || __0 == null || !NativeAchievementAdapter.Relevant(__0.identifier) || !Current()) return;
+        if (_blocked || _busy || _observing || __0 == null) return;
+        bool tools;
+        _observing = true;
+        try
+        {
+            if (!NativeAchievementAdapter.Relevant(__0.identifier) || !Current()) return;
+            tools = !_state!.Completed.ContainsKey("scavenger_toolset") && AchievementRules.Tools.Contains(__0.identifier);
+        }
+        finally { _observing = false; }
         // All tools must coexist in one snapshot; never union their historical observations.
-        if (!_state!.Completed.ContainsKey("scavenger_toolset") && AchievementRules.Tools.Contains(__0.identifier)) ObserveTools();
+        if (tools) ObserveTools();
         else ObserveItem(__0);
     }
     private static void ObserveTools()
     {
-        if (!Current() || _blocked || _busy || _observing) return;
+        if (_blocked || _busy || _observing) return;
         _observing = true;
         try
         {
+            if (!Current()) return;
             var proof = AchievementRules.Evaluate(new(NativeAchievementAdapter.CaptureTools(_store!), 0, 0, 0), English())["scavenger_toolset"];
             var next = AchievementRules.Latch(_state!, new Dictionary<string, AchievementEvidence> { ["scavenger_toolset"] = proof });
             if (next.Completed.Count != _state!.Completed.Count) Stage(next);
