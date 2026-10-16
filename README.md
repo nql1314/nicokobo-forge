@@ -4,11 +4,13 @@
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.37** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Source version: **0.6.39** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
 Matching Mechcore Protocol bundle: **1.0.0** (Synthesis 0.9.65, Aug 0.1.62, Matrix 1.1.7).
 
 Forge provides native registration, lifecycle events, machine templates and transactions, dialogue, visits, reading windows, Nico Workshop, image resources and save inspection for content mods. It also owns the Universal Manufacturing Terminal, workshop cards and ten base-game achievements. Content mods own their items, recipes, prices, rewards and story rules.
+
+Built-in workshop cards, achievement records and rewards take effect in the current session and are persisted by the game's normal night save. The workshop never requests an extra save.
 
 Install MelonLoader, close the game and copy the matching `Nicokobo.Forge-<version>.dll` into `Mods/`. Keep one DLL per assembly when several packages include Forge. The separate Wage's Perks 1.3.4 compatibility DLL is optional; see [compatibility](compatibility/README.md).
 
@@ -24,11 +26,13 @@ Registration acceptance, native application and successful game/save behavior ar
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.37** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 源码版本：**0.6.39** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
 
 配套机核协议合集：**1.0.0**（合成扩展 0.9.65、机械飞升 0.1.62、模组矩阵 1.1.7）。
 
 Forge 为内容 Mod 提供原生注册、生命周期、机器模板与资源事务、对话／来访／阅读窗、Nico 工坊、图片资源及存档读取，内置全域制造终端、全开局工坊名片与十项原版成就。内容 Mod 维护物品、配方、价格、奖励和剧情规则。
+
+内置工坊的名片、成就记录与领奖结果在当前会话立即生效，统一随游戏正常过夜存档保存；工坊不触发额外存档。
 
 安装 MelonLoader，关闭游戏后将配套 `Nicokobo.Forge-<版本>.dll` 放入 `Mods/`。多个包附带 Forge 时只保留一份同次构建的 DLL。Wage's Perks 1.3.4 的独立兼容补丁按需安装，见[兼容补丁说明](compatibility/README.md)。玩家功能与完整安装说明维护在[发布 README 模板](docs/RELEASE_README.md)，打包时填写实际 DLL 版本。
 
@@ -52,7 +56,7 @@ Forge 为内容 Mod 提供原生注册、生命周期、机器模板与资源事
 
 ## 开发者与 AI 接入指南
 
-本指南按当前 **0.6.37 源码**组织，面向内容 Mod 作者和协助开发的 AI。先按功能找到公共入口，再阅读对应契约与示例；参数、返回状态和模型以 [src/Nicokobo.Forge](src/Nicokobo.Forge/) 为准。当前构建及实机证据见[进度](docs/FORGE_PROGRESS.md)，不根据版本号推定某项玩法已验收。
+本指南按当前 **0.6.39 源码**组织，面向内容 Mod 作者和协助开发的 AI。先按功能找到公共入口，再阅读对应契约与示例；参数、返回状态和模型以 [src/Nicokobo.Forge](src/Nicokobo.Forge/) 为准。当前构建及实机证据见[进度](docs/FORGE_PROGRESS.md)，不根据版本号推定某项玩法已验收。
 
 ### 1. 按需求选择已有能力
 

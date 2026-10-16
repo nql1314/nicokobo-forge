@@ -4,6 +4,32 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.39 — 2026-10-16
+
+- 工坊内置名片、成就领奖与胜利记录取消主动存档及保存重试，统一随游戏正常过夜存档保存。
+- 奖励交付核对后立即记录本次会话的领取状态，可直接使用奖励与通关预算效果；保留整份奖励落位预检、实际交付核对和重复领取保护。
+- 旧存档中的待确认交付只核对原物品，不重发奖励或触发额外存档。
+- 本轮同步版本与日志，核心 Release 编译通过；未打包、安装或执行原生测试。
+
+### English
+
+- Built-in workshop cards, achievement claims and victory records no longer request saves or retry them. They persist with the game's normal night save.
+- Verified deliveries finalize the live claim immediately, making rewards and victory budget effects available in the current session. Whole-bundle placement checks, delivery verification and duplicate-claim protection remain in place.
+- Pending deliveries in older saves only verify the original items; they neither reissue rewards nor request an extra save.
+- This update synchronizes versions and changelogs. The core Release build passed; no packaging, installation or native testing.
+
+## 0.6.38 — 2026-10-15
+
+- 配套机核协议合集 1.0.2，将程序集版本与 MelonLoader 声明统一更新为 0.6.38，同步源码文档。
+- 汇总成就观察、生命周期通知与夜店补货的防重入修复；读取已有的 `PlayerStore.instance`，避免重复分派和重复上架，保留原生数量修改与补货流程。
+- 本轮仅更新版本与文档，核心 Release 编译通过，0 警告、0 错误；未打包、安装或执行原生测试，历史测试记录保留原候选版本。
+
+### English
+
+- Matches Mechcore Protocol 1.0.2. Update assembly and MelonLoader versions to 0.6.38 and synchronize source documentation.
+- Includes reentrancy fixes for achievement observation, lifecycle notifications and night-shop stock. Read the existing `PlayerStore.instance`, prevent duplicate dispatch and stock additions, and preserve native quantity changes and restocking.
+- This update changes versions and documentation only. The core Release build passed with no warnings or errors. No packaging, installation or native testing; historical test records retain their original candidate versions.
+
 ## 0.6.37 — 2026-10-14
 
 - 将当前源码的程序集版本与 MelonLoader 声明统一更新为 0.6.37，同步源码文档版本。此次版本更新不新增功能；历史原生测试记录仍对应其注明的 0.6.36 候选。

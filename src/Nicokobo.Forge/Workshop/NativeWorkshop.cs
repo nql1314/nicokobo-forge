@@ -25,8 +25,8 @@ internal static class NativeWorkshop
     private static AchievementState? _state, _confirmed;
     private static string? _json, _confirmedJson;
     private static Action<string>? _log;
-    private static bool _enabled, _bindRequested, _busy, _saving, _dirty, _wasVisible, _blocked, _observing;
-    private static DateTime _nextUpdate, _nextCard, _nextSave;
+    private static bool _enabled, _bindRequested, _busy, _dirty, _wasVisible, _blocked, _observing;
+    private static DateTime _nextUpdate, _nextCard;
     private static string _ending = "", _message = "", _lastFailure = "";
     private static Dictionary<string, AchievementEvidence> _evidence = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, string> Unavailable = new(StringComparer.Ordinal);
@@ -47,7 +47,7 @@ internal static class NativeWorkshop
         {
             new(typeof(PlayerStore), nameof(PlayerStore.StartNewGame), [], typeof(void), typeof(NativeWorkshop), Prefix: nameof(ResetPrefix)),
             new(typeof(PlayerStore), nameof(PlayerStore.InitialSave), [], typeof(void), typeof(NativeWorkshop), Postfix: nameof(InitialPostfix)),
-            new(typeof(PlayerStore), nameof(PlayerStore.SaveGame), [], typeof(void), typeof(NativeWorkshop), Prefix: nameof(SavePrefix), Postfix: nameof(SavePostfix)),
+            new(typeof(PlayerStore), nameof(PlayerStore.SaveGame), [], typeof(void), typeof(NativeWorkshop), Prefix: nameof(SavePrefix)),
             new(typeof(PlayerStore), nameof(PlayerStore.ExecuteGameOver), [typeof(string)], typeof(void), typeof(NativeWorkshop), Postfix: nameof(EndingPostfix)),
             new(typeof(ItemMouseDoubleClickHandler), "DoubleClickAction", [typeof(GameItem), typeof(Vector2)], typeof(void), typeof(NativeWorkshop), Prefix: nameof(CardDoubleClick))
         };
@@ -125,12 +125,7 @@ internal static class NativeWorkshop
             if (_bindRequested) Bind();
             if (!Current()) return;
             if (_dirty) Observe();
-            if (!_blocked && DateTime.UtcNow >= _nextSave)
-            {
-                _nextSave = DateTime.UtcNow.AddSeconds(ForgeNumbers.Achievements.SaveRetrySeconds);
-                if (_json != _confirmedJson) Save();
-                if (_state!.Pending != null) Recover();
-            }
+            if (!_blocked && _state!.Pending != null) Recover();
             if (!_blocked && !_state!.CardGranted && _state.Pending == null && DateTime.UtcNow >= _nextCard)
             {
                 _nextCard = DateTime.UtcNow.AddSeconds(ForgeNumbers.Achievements.CardRetrySeconds);
@@ -156,7 +151,7 @@ internal static class NativeWorkshop
         {
             try { _state = AchievementRules.Decode(read.Json!, store.runID, store.saveSlotId); _json = read.Json; }
             catch (Exception ex) { Block("成就记录无法读取：" + ex.Message); return; }
-            Confirm();
+            if (_state.Pending == null) AcceptLive();
         }
         else { Block("暂时无法读取成就记录：" + read.Reason); return; }
         // Refresh this provider's own cards. A granted card lost later is not replaced.
@@ -165,7 +160,6 @@ internal static class NativeWorkshop
         _dirty = true; _nextCard = DateTime.UtcNow;
         Observe();
         if (_json == null) Stage(_state!);
-        if (_json != _confirmedJson) Save();
         if (_state?.Pending != null) Recover();
     }
 
@@ -180,10 +174,10 @@ internal static class NativeWorkshop
     {
         ForgeWorkshopApi.ResetRunSelection();
         _store = null; _state = null; _confirmed = null; _json = null; _confirmedJson = null;
-        _bindRequested = false; _busy = false; _saving = false; _blocked = false; _dirty = true; _wasVisible = false;
+        _bindRequested = false; _busy = false; _blocked = false; _dirty = true; _wasVisible = false;
         Idle.Reset();
         NativeVictoryBudget.Reset();
-        _ending = ""; _message = ""; _lastFailure = ""; Unavailable.Clear(); _evidence.Clear(); _nextUpdate = DateTime.MinValue; _nextSave = DateTime.MinValue;
+        _ending = ""; _message = ""; _lastFailure = ""; Unavailable.Clear(); _evidence.Clear(); _nextUpdate = DateTime.MinValue;
     }
 
     private static void Observe()
@@ -255,7 +249,7 @@ internal static class NativeWorkshop
     {
         if (!Current() || _store!.Pointer != __instance.Pointer || !AchievementRules.IsVictory(__0)) return;
         _ending = __0;
-        try { Observe(); Save(); }
+        try { Observe(); }
         catch (Exception ex) { Warn("Victory record pending: " + ex.Message); }
     }
 
@@ -266,30 +260,27 @@ internal static class NativeWorkshop
         if (json == _json) { _state = next; return true; }
         var staged = ForgeRunDataApi.Stage(_store, OwnerId, AchievementRules.SaveKey, next.RunId, next.SlotId, _json, json);
         if (staged.Status != RunDataStatus.StagedInMemory) { Block("成就记录发生冲突，暂不可领取。" + staged.Reason); return false; }
-        _state = next; _json = json; return true;
+        _state = next; _json = json;
+        if (next.Pending == null) AcceptLive();
+        return true;
     }
 
     private static bool SavePrefix(PlayerStore __instance)
     {
-        // Native callbacks cannot save an intermediate delivery. The deliberate save follows all placements.
-        if (_busy && !_saving && _store?.Pointer == __instance.Pointer) return false;
-        if (_saving || !Current() || _store!.Pointer != __instance.Pointer || _blocked) return true;
+        // An inventory callback cannot serialize a partly placed reward bundle.
+        if (_busy && _store?.Pointer == __instance.Pointer) return false;
+        if (!Current() || _store!.Pointer != __instance.Pointer || _blocked) return true;
         try { Observe(); }
         catch (Exception ex) { Warn("Save evidence deferred: " + ex.Message); }
         return true;
     }
-    private static void SavePostfix(PlayerStore __instance)
+    private static void AcceptLive()
     {
-        if (!Current() || _store!.Pointer != __instance.Pointer || _json == null) return;
-        Confirm();
-    }
-    private static bool Save()
-    {
-        if (!Current() || _blocked || _json == null) return false;
-        bool prior = _saving; _saving = true;
-        try { _store!.SaveGame(); return Confirm(); }
-        catch (Exception ex) { Warn("Save confirmation deferred: " + ex.Message); return Confirm(); }
-        finally { _saving = prior; }
+        // Completed goals and claimed rewards take effect in this session.
+        // Inventory and modData reach disk together at the normal night save.
+        _confirmedJson = _json; _confirmed = _state;
+        NativeVictoryBudget.SetActive(!_blocked && AchievementRules.HasVictoryBudgetReward(_confirmed),
+            _store!.currentClientInstance?.GetClientBlueprint());
     }
     private static bool Confirm()
     {
@@ -308,18 +299,14 @@ internal static class NativeWorkshop
     private static void Recover()
     {
         if (!Current() || _blocked || _state!.Pending is not { } pending) return;
-        if (_json != _confirmedJson && !Confirm()) return;
-        // Resume only the saved delivery. Never reconstruct and resend its reward manifest.
-        if (!Readback(_json!, pending).Matched)
+        // Older saves can contain a delivered reward awaiting its final claim.
+        // Read that original transaction only; never save or resend its items.
+        if (!Confirm())
         {
             _message = English() ? "Reward save confirmation pending; no duplicate delivery." : "奖励等待保存确认，不会重复发放。";
             return;
         }
-        if (Stage(AchievementRules.Claim(_state)))
-        {
-            bool confirmed = Save();
-            _message = confirmed ? "" : (English() ? "Claim confirmation pending." : "领取记录等待保存确认。");
-        }
+        if (Stage(AchievementRules.Claim(_state))) _message = "";
     }
 
     private static void Claim(string id)
@@ -366,13 +353,12 @@ internal static class NativeWorkshop
             var pending = new PendingReward(nodeId, receipts);
             if (!Stage(before with { Pending = pending })) throw new InvalidOperationException("Delivery journal could not be staged");
             journaled = true;
-            // Native SaveGame serializes these resources and this pending manifest together.
-            if (!Save()) { _message = English() ? "Delivered; awaiting save confirmation." : "奖励已交付，等待保存确认。"; return; }
+            // Placement was verified above. Finalize the live claim now so it
+            // cannot be repeated before the normal night save.
             if (!Stage(AchievementRules.Claim(_state!))) return;
-            bool confirmed = Save();
-            _message = confirmed ? "" : (English() ? "Claim confirmation pending." : "领取记录等待保存确认。");
+            _message = "";
             _dirty = true;
-            Log($"reward={nodeId}; items={products.Count}; slotReadback={confirmed}");
+            Log($"reward={nodeId}; items={products.Count}; save=deferred-until-overnight");
         }
         catch (Exception ex)
         {
@@ -436,7 +422,7 @@ internal static class NativeWorkshop
                 state = english ? "Victory badge awarded · NPC purchase budgets x2" : "通关纪念徽章已领取 · NPC收购预算×2";
             if (_blocked) state = english ? "Achievement record unavailable" : "成就记录不可用";
             else if (!rewardAvailable) state = english ? "Purchase budget reward unavailable" : "收购预算奖励暂不可用";
-            else if (pending) state += english ? " · save pending" : " · 等待保存";
+            else if (pending) state += english ? " · delivery pending" : " · 交付待确认";
             else if (!completed && Unavailable.ContainsKey(definition.Id)) state = english ? "Progress temporarily unavailable" : "进度暂时无法读取";
             string progressLabel = definition.Id is "pure_water_jug" or "quality_overload"
                 ? (english ? "Requirement: " : "达成要求：") : (english ? "Progress: " : "当前进度：");

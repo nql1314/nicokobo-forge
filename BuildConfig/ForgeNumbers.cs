@@ -43,7 +43,6 @@ internal static class ForgeNumbers
         internal const int UpdateMilliseconds = 1000;
         internal const int DragQuietMilliseconds = 250;
         internal const int CardRetrySeconds = 5;
-        internal const int SaveRetrySeconds = 5;
         internal const int MaxSaveBytes = 64 * 1024 * 1024;
         internal const int MaxRewardItems = 10;
     }
