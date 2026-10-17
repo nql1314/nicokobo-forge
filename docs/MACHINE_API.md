@@ -51,7 +51,7 @@ G 键入口与阅读界面由 Forge 提供；内容 Mod 不再各自监听 G。`
 
 `ForgeMachineRecipe.MachineCondition`（0.6.36）是可选的只读机器条件，例如是否安装高炉模组。物流在选配方、逐项填料和接收产物时检查目标机器；Forge 在批次规划、资源写入前及最终提交时重新检查，状态改变则拒绝或恢复该批资源。原料的 `Condition` 应只检查原料本身，不能要求它已经属于目标机器，否则仓库和容器中的合法原料无法被自动填入。机器条件的语义改变也需要更新 `RuleRevision`；图鉴读取与声明冻结不执行该回调。
 
-`Subscribe(owner, callbackId, BeforeBatch, callback)` 在每次原有批次机会、事务规划之前执行；上下文含机器与真实槽位。内容方可独立搬运／供电，再 `SelectRecipe(recipeId)` 限定本次机会。多个调用方选择冲突或回调抛出异常时本次批次停止。无选择时保持原生声明顺序；接口不新增批次，不改变其他机器或全局配方排序。`AfterBatch` 在执行尝试返回结果后分派，调用方检查 `Result`，不能将失败当作已生产。
+`Subscribe(owner, callbackId, BeforeBatch, callback)` 在每次原有批次机会、事务规划之前执行；上下文含机器与真实槽位。内容方可独立搬运／供电，再 `SelectRecipe(recipeId)` 限定本次机会。多个调用方选择冲突或回调抛出异常时本次批次停止。无选择时保持原生声明顺序；接口不新增批次，不改变其他机器或全局配方排序。`AfterBatch` 在执行尝试返回结果、供电和配方凭据均尝试释放后分派，调用方检查 `Result`，不能将失败当作已生产。规划拒绝也会释放已取得的凭据；单个释放异常只记警告，继续释放其他凭据，不替换批次结果或重试已提交的生产。
 
 单次正常搬运使用 `ForgeItemTransferApi.Move`；倒液使用 `ForgeLiquidTransferApi.Pour`。二者返回实际数量和 `Indeterminate`，不跨搬运与加工执行退料。拒绝条件、真实锁定及写后读回与本机加工事务分开。`Pour` 依赖已安装的机器／液体价值适配；内容方负责液体与混合品质准入。candidate003 已覆盖本地固体链、附着后异常守恒、多液源逐步重查及受测 24 台机器的跨 PID 完整存档快照，范围见[本次进度](FORGE_PROGRESS.md#2026-10-06-联合-review-候选)；其余转移分支、完整夜结和网络不据此计为通过。既有 `InventoryTransfer` 总能力仍为 false。
 

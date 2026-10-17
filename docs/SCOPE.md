@@ -15,10 +15,10 @@
 | 内置全域制造终端 | `ForgeManufacturingTerminal` 提供稳定 ID 与参数；Forge 注册本体、图标、拾荒和夜间商店入口，兼容两个已知旧终端存档 ID；内容 Mod 追加配方 |
 | 缺失物品读档兼容 | 仅处理通过 Forge API 成功登记且正常保存已有来源记录的普通物品：原生登记缺失、当前无 Forge 声明且确认提供者 DLL 已移除时才清理；第三方物品、无记录旧档及来源不确定的项保留。玩家持有的缺失项按存档单价和数量返款，正常子物品完整返还；工厂不可用或空间不足时保存在周目 `modData`。来源记录使用 `nicokobo.forge.save.item_providers_v1`，待返还图使用 `nicokobo.forge.save.recovered_items_v1`，均随原版正常保存持久化。保留终端 ID 迁移；已售或未持有项不返款；须继续安装 Forge |
 | 显式批次处理 | `ForgeMachineRuntimeApi.CreateBatchProcessor` 复用事务；调用者提供实时槽位、投料规则、时机与同夜去重 |
-| 机器自动化观察 | `ForgeMachineAutomationApi` 读取真实配方及提供者，在原有加工机会的逐批前后分派回调；选择只影响该次机会，不增加加工次数 |
+| 机器物流观察 | `ForgeMachineAutomationApi` 读取真实配方及提供者，在原有加工机会的逐批前后分派回调；选择只影响该次机会，不增加加工次数 |
 | 电量、液体与生产价值 | `ForgePowerApi`、`ForgeLiquidApi`、`ForgeProductionValueApi` 及纯计算类；内容方决定配方与系数 |
 | Nico 工坊 | `ForgeWorkshopApi.RegisterChain` 声明独立图谱与回调；条件和奖励用于展示，实际交易由提供者完成；Forge 内置全开局名片与原版成就提供者，内容 Mod 持有各自的独立页面 |
-| 夜间商店库存 | `NativeItemOptions` 声明 `Repeatable / Unique / None`；只在原生商店生成库存时加入商品，购买后不自动补货；可用条件由内容方提供，框架预检货架空间并核对实际落点 |
+| 夜间商店库存 | `NativeItemOptions` 声明 `Repeatable / Unique / None`；只在博士（杰克逊）的原版夜间商店生成库存时加入商品，购买后不自动补货。`ForgeNightShopApi.IsInventorShop` 提供当前商店判断，排除其他地图位置及复用博士场景的四十七酿酒商店；可用条件由内容方提供，框架预检货架空间并核对实际落点 |
 | NPC 供货与夜间模组池 | `NativeItemOptions.NpcTrade` 声明物品类别，包含食品与医疗品；`Suppliers` 可组合 `Thief / Inventor`，默认 `Any` 不限制白天供货人。`IncludeInNightShop` 只允许 `Module` 类别加入杰克逊原版夜间模组／节点名额，其他夜店商品保留原规则。`MinimumDay` 限制最早供货日，`SkipWhenOwned` 按玩家实际持有过滤。普通池先筛选供货人、类别、天数、持有状态及已应用工厂，合格 Mod 候选均分 `ForgeNumbers.NpcStock.ModSupplyWeight = 0.25`，每种为 `0.25 / N`。28 条入口中，掉落表抽取临时合并对应类别候选，保留原版、未知条目及被其他 Mod 占用的 `Conflict` ID 原有权重，不重复加权；直接供货同样保留 `Conflict` ID 的结果，其余按原版商品名额抽签，原版结果权重默认 1，Mod 总概率约 20%，候选数量变化不增加总概率。无合格候选时保留原版，不额外保底追加商品。矿工仍按独立 `MinerWeight`（未声明时用 `Weight`）整批选一种矿物，保留原版件数；农夫、水商及冰矿工沿用原版供货。每次供货／刷货重新筛选并分配权重，原生处理归属、阵营限制和容量；不改写全局拾荒掉落表 |
 | 生命周期、模组与文本 | `ForgeLifecycleApi`、`ForgeModuleApi`、`ForgePresentationApi`；共享观察 Hook 和拥有者回调 |
 | 开局与周目数据 | `ForgeStartApi` 认领开局 ID；`ForgeRunDataApi.Read / Stage` 读取及比较后暂存所属 JSON，文件保存与回读由内容方确认 |
@@ -48,9 +48,9 @@ G 键合成表由 Forge 持有：快捷键、真实配方关系查询、窗口�
 - 独立开局的卡片文本、选择与启动逻辑、初始物资、健康／暴露、经营规则及失败处理；选择栏布局与滚动由 Forge 统一处理。
 - 内容 Mod 工坊节点的资格、信用点和物品扣除、奖励、失败恢复与保存；Forge 内置原版页使用自己的周目记录和有界原生发奖事务。
 - 原版熔炉扩展的投料、配方、原版优先级、夜间调度与生产 Hook。
-- 物流配方卡、来源选择、调度、UI 与周目配置；资源／电力网络、容量、过滤、解锁及网络存档。
+- 自动化物流的消耗观察、来源选择、调度、UI 与周目配置；实体存储、水罐、电网、容量、解锁及统计。
 
-`samples/Nicokobo.Forge.LogisticsExtension` 是内容侧示例库，不装入游戏，也不编入 Forge 核心。实际插件位于 `probably-stolen/mods-melonloader/logistics-nexus/`，0.2.0 候选接入本地物流、真实网络库存、材料保留量、唯一容器与真实电池供电。新增制造/解锁数值仍待用户确定；配置暂存不代表文件保存或新进程重载成功。`InventoryTransfer` 总能力维持 `false`，新库存与供电能力按各自已安装的适配门控和最终产物验收。
+`samples/Nicokobo.Forge.LogisticsExtension` 是内容侧通用示例库，不装入游戏，也不编入 Forge 核心。实际自动化物流插件位于 `probably-stolen/mods-melonloader/automated-logistics/`，使用实际消耗补货、实体库存及本地电池差额补电；玩法数值由内容仓库维护。配置暂存不代表文件保存或新进程重载成功。`InventoryTransfer` 总能力维持 `false`，具体库存与供电能力按各自已安装的适配门控和最终产物验收。
 
 ## 数值与验证
 

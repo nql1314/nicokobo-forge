@@ -16,6 +16,15 @@ function Assert-AdapterMethod([string]$Type, [string]$Name, [string]$Return, [st
     $script:adapterChecked++
 }
 try {
+    Assert-AdapterMethod 'Il2Cpp.RenderHandler' 'LoadFromAtlas' 'UnityEngine.Sprite' @('System.String', 'System.String')
+    Assert-AdapterMethod 'Il2Cpp.RenderHandler' 'LoadFromFile' 'UnityEngine.Sprite' @('System.String')
+    Assert-AdapterMethod 'Il2Cpp.RenderHandler' 'get_unknownSprite' 'UnityEngine.Sprite' @()
+    Assert-AdapterMethod 'Il2Cpp.IconProvider' 'GetIcon' 'UnityEngine.Sprite' @('Il2Cpp.NewGameData/StartType')
+    Assert-AdapterMethod 'Il2Cpp.MainMenuUIController' 'OnLoadGameClick' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.MainMenuUIController' 'get_saveUIManager' 'Il2Cpp.SaveUIManager' @()
+    Assert-AdapterMethod 'Il2Cpp.MainMenuUIController' 'get_confirmPanelUIManager' 'Il2Cpp.ConfirmPanelUIManager' @()
+    Assert-AdapterMethod 'Il2Cpp.SaveUIManager' 'CloseUI' 'System.Void' @()
+    Assert-AdapterMethod 'Il2Cpp.ConfirmPanelUIManager' 'OpenPanel' 'System.Void' @('System.String', 'Il2CppSystem.Action', 'Il2CppSystem.Action', 'System.Boolean')
     Assert-AdapterMethod 'Il2Cpp.PlayerStore' 'StartNewGame' 'System.Void' @()
     Assert-AdapterMethod 'Il2Cpp.MainMenuUIController' 'Awake' 'System.Void' @()
     Assert-AdapterMethod 'Il2Cpp.StoreClientManager' 'AddNextClient' 'System.Void' @('Il2Cpp.StoreClient')

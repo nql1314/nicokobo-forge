@@ -25,6 +25,8 @@ internal static class NativeShopAdapter
         _stocking = true;
         try
         {
+            // Other shops can reuse the native stock entry point and counter.
+            if (!ForgeNightShopApi.IsInventorShop) return;
             var store = PlayerStore.instance;
             var inventory = EmporiumEntry.Instance?.frontInvinvElement;
             if (store == null || store.Pointer == IntPtr.Zero || inventory == null ||

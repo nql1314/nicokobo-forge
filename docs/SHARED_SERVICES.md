@@ -129,7 +129,7 @@ Forge 内置成就和机械飞升共用该预检；正式接纳前仍须重查�
 | 成就领奖、初始物资、购买补偿 | 保留业务流程；各自凭据、库存范围和保存恢复规则不同，先共享文件读取 |
 | 义体分类、品质、熔炉优先级、成长公式 | 保留内容侧，属于玩法规则 |
 | 热键屏蔽、文案、界面图案 | 窗口及无 Forge 依赖的 Mod 接入方式不同，暂不统一依赖 |
-| 单次库存搬运／倒液、网络货物持久化 | 已有 `ForgeItemTransferApi.Move` / `ForgeLiquidTransferApi.Pour`；完整网络待实现，`InventoryTransfer` 总能力仍为 `false`；见[物流边界](LOGISTICS_API_PROGRESS.md) |
+| 单次库存搬运／倒液、网络货物持久化 | 使用 `ForgeItemTransferApi.Move` / `ForgeLiquidTransferApi.Pour`，完整实物由原生对象图保存；`InventoryTransfer` 总能力仍为 `false`；见[自动化物流边界](AUTOMATED_LOGISTICS_API_PROGRESS.md) |
 
 这些公共服务的较早审查见[2026-10-03 记录](probes/2026-10-03-forge-review-shared-apis.md)，结论仅适用于该记录注明的产物。新调用者须使用当前配套构建的 Forge DLL，不能只按版本字符串混用。
 

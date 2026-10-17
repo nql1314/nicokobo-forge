@@ -5,7 +5,7 @@ internal static class PowerConnectorIdentityChecks
     internal static void Run()
     {
         var wire = new object();
-        const string id = "nicokobo.logistics_nexus.wire";
+        const string id = "nicokobo.automated_logistics.wire";
         var registry = new Dictionary<string, object>(StringComparer.Ordinal) { [id] = wire };
         int checks = 0;
         void Check(bool condition, string message) { checks++; if (!condition) throw new Exception(message); }

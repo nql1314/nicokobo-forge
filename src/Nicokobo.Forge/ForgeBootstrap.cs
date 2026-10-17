@@ -30,6 +30,8 @@ internal static class ForgeBootstrap
         ForgeStartSelection.Install(report.KnownBuild, log.Callback);
         Runtime.InventoryReadRuntime.Install(report.KnownBuild && report.InventoryReadSignaturesMatch, log.Callback);
         ForgeDossierExpansion.Install(report.KnownBuild, log.Callback);
+        Runtime.MissingSpriteRuntime.Install(report.KnownBuild, log.Callback);
+        Runtime.SaveListRuntime.Install(report.KnownBuild, log.Callback);
 
         var installed = log.IsDebugEnabled && report.CanInstallReadOnlyProbes &&
             LifecycleProbe.Install(harmony, log.Callback);

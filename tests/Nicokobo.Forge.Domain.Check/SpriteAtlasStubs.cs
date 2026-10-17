@@ -39,5 +39,10 @@ namespace UnityEngine
     {
         private static int _next;
         public IntPtr Pointer { get; } = new(++_next);
+        public string? name;
+        public HideFlags hideFlags;
+        public Texture2D? texture;
+        public static Sprite Create(Texture2D texture, Rect rect, Vector2 pivot, float pixelsPerUnit)
+            => new() { texture = texture };
     }
 }

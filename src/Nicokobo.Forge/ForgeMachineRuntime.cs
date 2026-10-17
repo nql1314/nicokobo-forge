@@ -106,12 +106,23 @@ internal static partial class ForgeMachineRuntime
             if (!TryPlan(machine, profile, inventory, entry.Value, out var plan, out last)) continue;
             string result;
             try { result = Execute(plan!); }
-            finally { plan!.ExternalPower?.Dispose(); plan.Transaction?.Dispose(); }
+            finally { ReleaseReceipts(plan!.ExternalPower, plan.Transaction); }
             automation.Result = result;
             ForgeMachineAutomationApi.Dispatch(ForgeMachineAutomationPhase.AfterBatch, automation);
             return result;
         }
         return last;
+    }
+
+    private static void ReleaseReceipts(IForgePowerTransaction? power, IForgeBatchTransaction? participant)
+    {
+        try { power?.Dispose(); }
+        catch (Exception ex) { ForgeMachineRegistrationApi.Log("[WARN] [NicokoboForge/Machine] power receipt cleanup failed: " + ex.Message); }
+        finally
+        {
+            try { participant?.Dispose(); }
+            catch (Exception ex) { ForgeMachineRegistrationApi.Log("[WARN] [NicokoboForge/Machine] recipe receipt cleanup failed: " + ex.Message); }
+        }
     }
 
     private static bool SlotsMatch(ForgeMachineTemplate template, ForgeMachineInventory inventory)
@@ -256,16 +267,21 @@ internal static partial class ForgeMachineRuntime
                 external ? ForgeExternalPowerApi.Plan(machine, battery!, power) : null : null;
             if ((external || direct) && power > 0 && supply == null) { status = "external-power-unavailable"; return false; }
             IForgeBatchTransaction? participant = null;
+            bool ready = false;
             try
             {
                 participant = recipe.Transaction?.Invoke(context);
                 if (recipe.Transaction != null && participant == null)
-                { supply?.Dispose(); status = "recipe-transaction-unavailable"; return false; }
+                { status = "recipe-transaction-unavailable"; return false; }
                 plan = new(context, recipe, inventory, takes, changes, contents, containerOutput, direct ? null : battery, energy, power, supply, participant, direct);
                 if (!Unchanged(plan))
-                { supply?.Dispose(); participant?.Dispose(); plan = null; status = "input-changed"; return false; }
+                { status = "input-changed"; return false; }
+                ready = true;
             }
-            catch { supply?.Dispose(); participant?.Dispose(); throw; }
+            finally
+            {
+                if (!ready) { plan = null; ReleaseReceipts(supply, participant); }
+            }
             status = "ready"; return true;
         }
         catch (Exception ex) { status = "batch-rule-invalid:" + ex.Message; return false; }

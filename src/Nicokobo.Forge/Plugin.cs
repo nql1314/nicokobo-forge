@@ -37,6 +37,8 @@ public sealed class Plugin : MelonMod
     public override void OnDeinitializeMelon()
     {
         RecipeGuideBrowser.Uninstall();
+        Runtime.MissingSpriteRuntime.Uninstall();
+        Runtime.SaveListRuntime.Uninstall();
         MissingItemSaveRuntime.Uninstall();
         ConversationRuntime.Uninstall();
         PhoneContactRuntime.Uninstall();

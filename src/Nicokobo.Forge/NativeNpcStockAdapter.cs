@@ -165,7 +165,7 @@ internal static class NativeNpcStockAdapter
         __state = _supply;
         _supply = null;
         if (isVisitingPlayerStore) InventorSupplyStockPrefix(out _);
-        else BeginSupply(NpcTradeStockCategory.Module, out _,
+        else if (ForgeNightShopApi.IsInventorShop) BeginSupply(NpcTradeStockCategory.Module, out _,
             supplier: NpcTradeStockSupplier.Inventor, nightShopModules: true);
     }
 

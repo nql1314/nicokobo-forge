@@ -32,6 +32,9 @@ internal static class NightShopChecks
             created.Clear(); logs.Clear();
             PlayerStore.instance = new();
             EmporiumEntry.Instance = new();
+            MapUIManager.Instance = new() { isOutside = true,
+                currentLocation = MapUIManager.MapLocation.UPGRADE_MERCHANT };
+            XIAOWOBrewingBarrel.NightBrewingShop.Visiting = false;
             return EmporiumEntry.Instance.frontInvinvElement;
         }
 
@@ -46,6 +49,26 @@ internal static class NightShopChecks
         Expect(created.Count == 0 && shelf.childItems.Count == 0,
             "Daytime purchase injected inventor stock");
 
+        foreach (var map in new MapUIManager?[]
+        {
+            new() { isOutside = true, currentLocation = MapUIManager.MapLocation.STORE },
+            new() { isOutside = true, currentLocation = (MapUIManager.MapLocation)1000 },
+            new() { currentLocation = MapUIManager.MapLocation.UPGRADE_MERCHANT },
+            null
+        })
+        {
+            MapUIManager.Instance = map;
+            StoreClientList.PlaceInventorInventory(false);
+            Expect(created.Count == 0 && shelf.childItems.Count == 0,
+                "A reused inventor entry point added stock outside the inventor's night shop");
+        }
+        MapUIManager.Instance = new() { isOutside = true,
+            currentLocation = MapUIManager.MapLocation.UPGRADE_MERCHANT };
+        XIAOWOBrewingBarrel.NightBrewingShop.Visiting = true;
+        StoreClientList.PlaceInventorInventory(false);
+        Expect(created.Count == 0 && shelf.childItems.Count == 0,
+            "The brewing shop received inventor extras while sharing the native location");
+        XIAOWOBrewingBarrel.NightBrewingShop.Visiting = false;
         StoreClientList.PlaceInventorInventory(false);
         Expect(shelf.childItems.Count == 1 && !shelf.childItems[0].Owned,
             "Night-shop generation did not place an unowned registered item");

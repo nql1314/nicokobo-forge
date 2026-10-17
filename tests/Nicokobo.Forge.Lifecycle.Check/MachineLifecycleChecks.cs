@@ -26,6 +26,7 @@ internal static class MachineLifecycleChecks
         require(ForgeMachineUi.Reads == reads + 2, "Executed LoadGame retained an earlier session's nightly attempt ledger");
         CheckMixedRecipePlanning(require);
         CheckDirectPowerPlanning(require);
+        CheckReceiptCleanup(require);
         CheckNightOrder(require);
         store.DuringNight = null;
     }
@@ -68,12 +69,92 @@ internal static class MachineLifecycleChecks
     private sealed class PlannerPowerReceipt : IForgePowerTransaction
     {
         internal bool Valid = true, Disposed;
+        internal bool ThrowOnDispose;
+        internal int DisposeCalls;
         public bool Validate() => Valid && !Disposed;
         public void Debit() => throw new NotSupportedException("Planning must not draw power");
         public bool Verify() => throw new NotSupportedException("Planning must not commit power");
         public bool Restore() => true;
         public void Fault(string reason) => throw new NotSupportedException(reason);
-        public void Dispose() => Disposed = true;
+        public void Dispose()
+        {
+            Disposed = true; DisposeCalls++;
+            if (ThrowOnDispose) throw new InvalidOperationException("injected power cleanup failure");
+        }
+    }
+
+    private sealed class PlannerBatchReceipt : IForgeBatchTransaction
+    {
+        internal bool Valid;
+        internal int DisposeCalls;
+        public bool Validate() => Valid;
+        public void Apply(IReadOnlyList<GameItem> products) => throw new NotSupportedException();
+        public bool Verify() => throw new NotSupportedException();
+        public bool Restore() => true;
+        public void Fault(string reason) => throw new NotSupportedException(reason);
+        public void Dispose() { DisposeCalls++; throw new InvalidOperationException("injected recipe cleanup failure"); }
+    }
+
+    private static void CheckReceiptCleanup(Action<bool, string> require)
+    {
+        var output = new GameInventory { Pointer = (IntPtr)902 };
+        var inventory = new ForgeMachineInventory(null, null, null, output, new Dictionary<string, GameSlotInventory>(), null);
+        var machine = new GameItem { Pointer = (IntPtr)901, identifier = "cleanup-machine" };
+        var template = new ForgeMachineTemplate(null, new(ForgeMachineOutputKind.Items, new(1, 1)))
+            { Battery = null, Modules = null, ManualSlot = false };
+        var planner = typeof(ForgeMachineRuntime).GetMethod("TryPlan", BindingFlags.NonPublic | BindingFlags.Static)!;
+        try
+        {
+            foreach (bool powerThrows in new[] { true, false })
+            {
+                var power = new PlannerPowerReceipt { ThrowOnDispose = powerThrows };
+                var participant = new PlannerBatchReceipt();
+                var recipe = new ForgeMachineRecipe("cleanup", [], new ForgeMachineItemOutput("result"))
+                    { Transaction = _ => participant };
+                var profile = new Nicokobo.Forge.Registration.MachineProfile(new(machine.identifier,
+                    template, [recipe], new(10)));
+                ForgeExternalPowerApi.MachineEnergy = _ => 20;
+                ForgeExternalPowerApi.MachinePlan = (_, _) => power;
+                object?[] arguments = [machine, profile, inventory, recipe, null, null];
+                require(!(bool)planner.Invoke(null, arguments)!, "Rejected recipe participant must reject planning");
+                require(power.DisposeCalls == 1 && participant.DisposeCalls == 1,
+                    "Planning rejection must release each receipt once even when either release throws");
+                require(arguments[4] == null && Equals(arguments[5], "input-changed"),
+                    "Cleanup errors must not replace the planning result or expose a disposed plan");
+            }
+            foreach (string result in new[] { "produced:cleanupx1", "rolled-back" })
+            {
+                var power = new PlannerPowerReceipt { ThrowOnDispose = true };
+                var participant = new PlannerBatchReceipt { Valid = true };
+                var recipe = new ForgeMachineRecipe("cleanup", [], new ForgeMachineItemOutput("result"))
+                    { Transaction = _ => participant };
+                var profile = new Nicokobo.Forge.Registration.MachineProfile(new(machine.identifier,
+                    template, [recipe], new(10)));
+                ForgeExternalPowerApi.MachinePlan = (_, _) => power;
+                ForgeMachineRuntime.ExecuteBoundary = () => result;
+                bool observed = false;
+                ForgeMachineAutomationApi.Observe = (phase, context) =>
+                {
+                    if (phase == ForgeMachineAutomationPhase.AfterBatch)
+                        observed = context.Result == result && power.DisposeCalls == 1 && participant.DisposeCalls == 1;
+                };
+                string actual = ForgeMachineRuntime.ProcessBatch(machine, profile, inventory);
+                require(actual == result && observed,
+                    $"Committed or rolled-back batches must notify automation after both cleanup attempts despite disposal errors: {actual}; {observed}; {power.DisposeCalls}/{participant.DisposeCalls}");
+                power = new() { ThrowOnDispose = true }; participant = new() { Valid = true };
+                ForgeMachineRuntime.ExecuteBoundary = () => throw new InvalidOperationException("injected execution failure");
+                bool originalFailure = false;
+                try { ForgeMachineRuntime.ProcessBatch(machine, profile, inventory); }
+                catch (InvalidOperationException error) { originalFailure = error.Message == "injected execution failure"; }
+                require(originalFailure && power.DisposeCalls == 1 && participant.DisposeCalls == 1,
+                    "An execution error must retain its identity while both receipts are released");
+            }
+        }
+        finally
+        {
+            ForgeExternalPowerApi.MachineEnergy = null; ForgeExternalPowerApi.MachinePlan = null;
+            ForgeMachineRuntime.ExecuteBoundary = null; ForgeMachineAutomationApi.Observe = null;
+        }
     }
 
     private static void CheckDirectPowerPlanning(Action<bool, string> require)

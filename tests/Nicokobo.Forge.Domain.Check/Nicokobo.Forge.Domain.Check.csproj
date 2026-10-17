@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/Nicokobo.Forge/Runtime/MissingSpriteRuntime.cs" Link="MissingSpriteRuntime.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Runtime/SaveListRuntime.cs" Link="SaveListRuntime.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeConversationModels.cs" Link="ForgeConversationModels.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ConversationAutomaticOffer.cs" Link="ConversationAutomaticOffer.cs" />
     <Compile Include="../../src/Nicokobo.Forge/NativeDialogueChoice.cs" Link="NativeDialogueChoice.cs" />
@@ -17,6 +19,7 @@
     <Compile Include="../../src/Nicokobo.Forge/ForgeSpriteModels.cs" Link="ForgeSpriteModels.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeAssetsApi.cs" Link="ForgeAssetsApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/NativeShopAdapter.cs" Link="NativeShopAdapter.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeNightShopApi.cs" Link="ForgeNightShopApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/NativeNpcStockAdapter.cs" Link="NativeNpcStockAdapter.cs" />
     <Compile Include="../../src/Nicokobo.Forge/NativeApplicationView.cs" Link="NativeApplicationView.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeCapabilities.cs" Link="ForgeCapabilities.cs" />

@@ -1,6 +1,15 @@
 using System.Reflection;
 using Nicokobo.Forge.Registration;
 
+namespace XIAOWOBrewingBarrel
+{
+    internal static class NightBrewingShop
+    {
+        private static bool _brewingVisit;
+        internal static bool Visiting { get => _brewingVisit; set => _brewingVisit = value; }
+    }
+}
+
 // Offline placement fixtures run the production adapter's installed callbacks.
 // They model shelf capacity and native rejection cleanup, without IL2CPP or Harmony.
 namespace Nicokobo.Forge.Runtime
@@ -49,6 +58,14 @@ namespace Nicokobo.Forge
 
 namespace Il2Cpp
 {
+    public sealed class MapUIManager
+    {
+        public enum MapLocation { STORE, UPGRADE_MERCHANT }
+        public static MapUIManager? Instance;
+        public MapLocation currentLocation;
+        public bool isOutside;
+    }
+
     public sealed partial class GameItem
     {
         public string identifier = "";

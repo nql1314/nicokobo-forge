@@ -4,7 +4,7 @@
 
 ## English
 
-Author: Nicokobo · Version: **0.6.39** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Version: **0.6.43** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
 Mechcore Protocol 1.0.0 uses Forge 0.6.36 with Synthesis 0.9.65, Aug 0.1.62 and Matrix 1.1.7. Install one matching Forge DLL across these packages.
 
@@ -13,7 +13,7 @@ Nicokobo Forge provides shared registration, native adapters, machine templates,
 ### Installation and updates
 
 1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
-2. Copy `Nicokobo.Forge-0.6.39.dll` and required content mod DLLs into `Mods/`.
+2. Copy `Nicokobo.Forge-0.6.43.dll` and required content mod DLLs into `Mods/`.
 3. Remove older DLLs of the same assemblies. Keep one matching Forge DLL when multiple packages include it; versioned filenames can stay unchanged.
 
 Forge can run alone for its workshop and native achievements.
@@ -27,7 +27,7 @@ Forge can run alone for its workshop and native achievements.
 
 #### Universal Manufacturing Terminal
 
-Forge owns K05: 3×3 footprint, separate 9×6 input/output grids, a 7×5 ring-shaped module bay, base value 400 and base power 25. It processes one batch per night. Synthesis, Aug and Logistics Nexus add recipes; Forge alone has none.
+Forge owns K05: 3×3 footprint, separate 9×6 input/output grids, a 7×5 ring-shaped module bay, base value 400 and base power 25. It processes one batch per night. Synthesis, Aug and Automated Logistics add recipes; Forge alone has none.
 
 Night-shop stock has a 40% listing chance, including while owned. Purchases do not restock immediately; full shelves skip it, and daytime NPC supply excludes it.
 
@@ -84,7 +84,7 @@ Released under the MIT License.
 
 ## 中文
 
-作者：Nicokobo · 配套版本：**0.6.39** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 配套版本：**0.6.43** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
 
 机核协议 1.0.0 配套 Forge 0.6.36、合成扩展 0.9.65、机械飞升 0.1.62 与模组矩阵 1.1.7。多个包附带 Forge 时只安装一份配套 DLL。
 
@@ -93,7 +93,7 @@ Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、
 ### 安装与更新
 
 1. 安装 [MelonLoader](https://melonwiki.xyz/)，关闭游戏。
-2. 将 `Nicokobo.Forge-0.6.39.dll` 和所需内容 Mod DLL 放入 `Mods/`。
+2. 将 `Nicokobo.Forge-0.6.43.dll` 和所需内容 Mod DLL 放入 `Mods/`。
 3. 移出同程序集旧 DLL。多个包附带 Forge 时只保留一份配套文件，版本号文件名可保留。
 
 Forge 可单独使用内置工坊与原版成就。
@@ -107,7 +107,7 @@ Forge 可单独使用内置工坊与原版成就。
 
 #### 全域制造终端
 
-K05 全域制造终端由 Forge 提供：外部 3×3，输入／输出仓各 9×6，模组仓为 7×5 环形；基础价值 400、基础耗电 25，每晚一批。合成扩展、机械飞升和物流网络追加配方；仅装 Forge 时没有制造配方。
+K05 全域制造终端由 Forge 提供：外部 3×3，输入／输出仓各 9×6，模组仓为 7×5 环形；基础价值 400、基础耗电 25，每晚一批。合成扩展、机械飞升和自动化物流追加配方；仅装 Forge 时没有制造配方。
 
 夜店每次生成库存有 40% 上架机会，持有后仍可出现；购买不即时补货，货架满时跳过，不参加白天 NPC 供货。
 

@@ -160,7 +160,7 @@ Changes and validation scope by version. See [README](README.md) for installatio
 - 白天供货取消保底追加，改为与原版候选共同抽取；新增当前天数门槛和矿工独立权重，配套原矿为 70%／15%／15%。
 - 整批奖励改用托管占格图预检并共享布局接口；单件搬运核对原生插槽身份、拒收恢复来源，倒液读回实际组分、价值与品质变化。
 - 动作钩子延后至本地化就绪，避免启动阶段访问未完成资源；加载／夜间回调按实际原方法执行分派，增加夜晚 attempt 清理与晚期加载通知，拒绝 Load 不清除活状态。
-- README 改为完整中英文区块；物流显示名同步为“物流网络”。源码、配套构建、安装与原生验收分别说明。
+- README 改为完整中英文区块；物流显示名同步为“自动化物流”。源码、配套构建、安装与原生验收分别说明。
 - 2026-10-06 candidate003 已有选定机器／物流／跨进程读回证据；内置奖励、供货概率、鼠键 UI、完整两晚、旧终端迁移与后续悬停接口仍未完成原生验收。准确范围见源码 docs/FORGE_PROGRESS.md。
 
 
@@ -175,7 +175,7 @@ This section summarizes current source changes relative to main (Forge 0.6.18). 
 - Replaced guaranteed extra daytime stock with shared native/mod draws; added current-day thresholds and independent miner weights, producing matching ore batches at 70%/15%/15%.
 - Shared managed whole-reward placement preflight; single-item moves verify native slot identity and restore rejected sources, while pours reread actual composition, value and quality changes.
 - Deferred action hooks until localization is ready. Business load/night events require native-body execution; added night-attempt cleanup and late-load notification, preserving live state on declined loads.
-- README uses complete Chinese/English blocks; the logistics Chinese display name is 物流网络. Source, builds, installation and native coverage are distinguished.
+- README uses complete Chinese/English blocks; the logistics Chinese display name is 自动化物流. Source, builds, installation and native coverage are distinguished.
 - Dated candidate003 covers selected machine/logistics/cross-process readback cases. Built-in rewards, supply probabilities, mouse/keyboard UI, two complete nights, legacy migration and later hover APIs remain unvalidated. See source docs/FORGE_PROGRESS.md for exact scope.
 
 ## 0.6.17 — 2026-10-04

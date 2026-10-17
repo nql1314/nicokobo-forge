@@ -24,7 +24,7 @@ namespace Nicokobo.Forge.Registration
         internal string MachineId => definition.MachineId;
         internal ForgeMachineTemplate Template => definition.Template;
         internal ForgeMachinePowerRule Power => definition.Power;
-        internal IReadOnlyList<RegisteredMachineRecipe> Recipes => [];
+        internal IReadOnlyList<RegisteredMachineRecipe> Recipes => definition.Recipes.Select(recipe => new RegisteredMachineRecipe("test", recipe)).ToArray();
     }
 }
 namespace Nicokobo.Forge
@@ -77,7 +77,10 @@ namespace Nicokobo.Forge
         internal string? Result { get; set; }
     }
     internal static class ForgeMachineAutomationApi
-    { internal static void Dispatch(ForgeMachineAutomationPhase phase, ForgeMachineAutomationContext context) { } }
+    {
+        internal static Action<ForgeMachineAutomationPhase, ForgeMachineAutomationContext>? Observe;
+        internal static void Dispatch(ForgeMachineAutomationPhase phase, ForgeMachineAutomationContext context) => Observe?.Invoke(phase, context);
+    }
     internal static class ForgeMachinePowerMath
     { internal static int CalculateCost(int cost, int count, bool perOutput) => cost; }
     internal static class MachineNightCycle
@@ -95,6 +98,7 @@ namespace Nicokobo.Forge
     }
     internal static partial class ForgeMachineRuntime
     {
-        private static string Execute(BatchPlan plan) => throw new NotSupportedException("Resource commit is outside this lifecycle fixture");
+        internal static Func<string>? ExecuteBoundary;
+        private static string Execute(BatchPlan plan) => ExecuteBoundary?.Invoke() ?? throw new NotSupportedException("Resource commit is outside this lifecycle fixture");
     }
 }

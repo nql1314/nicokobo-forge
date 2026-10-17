@@ -3,6 +3,13 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+if (args is ["missing-sprites"])
+{
+    MissingSpriteChecks.Run();
+    SaveListChecks.Run();
+    return;
+}
+
 if (args is ["inventory-reads"])
 {
     InventoryReadChecks.Run();
@@ -69,6 +76,8 @@ WorkshopInputChecks.Run();
 TextInputFocusChecks.Run();
 InventoryReadChecks.Run();
 SpriteAtlasChecks.Run();
+MissingSpriteChecks.Run();
+SaveListChecks.Run();
 NightShopChecks.Run();
 NpcStockChecks.Run();
 ModuleActionChecks.Run();
@@ -171,11 +180,11 @@ Expect(nativeNodes.Submit("nicokobo.forge.other", nativeNodeId, NativeItemKind.N
 Expect(nativeNodes.Submit("nicokobo.aug", nativeNodeId, NativeItemKind.Item,
        neuralFactory).Status == SubmitStatus.Conflict,
        "An ordinary item replaced a node with the same ID");
-const string cardId = "nicokobo.logistics.memory_card";
-Expect(nativeNodes.Submit("nicokobo.logistics", cardId, NativeItemKind.Item,
+const string cardId = "nicokobo.automated_logistics.memory_card";
+Expect(nativeNodes.Submit("nicokobo.automated_logistics", cardId, NativeItemKind.Item,
        neuralFactory).Status == SubmitStatus.Accepted,
        "Logistics memory card registration was rejected");
-Expect(nativeNodes.Submit("nicokobo.logistics", cardId, NativeItemKind.Item,
+Expect(nativeNodes.Submit("nicokobo.automated_logistics", cardId, NativeItemKind.Item,
        neuralFactory).Status == SubmitStatus.AlreadyPresent,
        "Logistics memory card factory replay was not idempotent");
 const string moduleId = "nicokobo.forge.example_one.power_module";

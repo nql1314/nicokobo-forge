@@ -36,6 +36,9 @@ internal static class NpcStockChecks
             ForgeInventoryApi.OwnedItems.Clear(); RNG.Samples.Clear(); RNG.Calls = 0;
             StoreStation.Day = 1;
             PlayerStore.instance = new(); EmporiumEntry.Instance = new();
+            MapUIManager.Instance = new() { isOutside = true,
+                currentLocation = MapUIManager.MapLocation.UPGRADE_MERCHANT };
+            XIAOWOBrewingBarrel.NightBrewingShop.Visiting = false;
         }
         void Supply(string callback, Action body)
         {
@@ -575,6 +578,39 @@ internal static class NpcStockChecks
                 "A mixed thief replaced native stock with an unrelated Mod category");
         });
         Offer("test.pool.day_module", NpcTradeStockCategory.Module);
+        foreach (var map in new MapUIManager?[]
+        {
+            new() { isOutside = true, currentLocation = MapUIManager.MapLocation.STORE },
+            new() { isOutside = true, currentLocation = (MapUIManager.MapLocation)1000 },
+            new() { currentLocation = MapUIManager.MapLocation.UPGRADE_MERCHANT },
+            null
+        })
+        {
+            MapUIManager.Instance = map;
+            Supply("FoodStockPrefix", () => Inventor(false, () =>
+            {
+                int before = RNG.Calls;
+                Expect(ReferenceEquals(Merge("allModuleTable", moduleEntries), moduleEntries),
+                    "A foreign night shop inherited the inventor's module supply pool");
+                var original = Spawned("random_performance_module", "native.module");
+                var food = Item("native.food");
+                Expect(ReferenceEquals(Place(original), original) && ReferenceEquals(Place(food), food) &&
+                    original.DestroyCalls == 0 && RNG.Calls == before,
+                    "A foreign night shop replaced stock through an inventor or enclosing supply scope");
+            }));
+        }
+        MapUIManager.Instance = new() { isOutside = true,
+            currentLocation = MapUIManager.MapLocation.UPGRADE_MERCHANT };
+        XIAOWOBrewingBarrel.NightBrewingShop.Visiting = true;
+        Inventor(false, () =>
+        {
+            int before = RNG.Calls;
+            var original = Spawned("random_performance_module", "native.module");
+            Expect(ReferenceEquals(Merge("allModuleTable", moduleEntries), moduleEntries) &&
+                ReferenceEquals(Place(original), original) && original.DestroyCalls == 0 && RNG.Calls == before,
+                "The brewing shop inherited inventor module replacement while sharing the native location");
+        });
+        XIAOWOBrewingBarrel.NightBrewingShop.Visiting = false;
         Inventor(false, () =>
         {
             var merged = Merge("allModuleTable", moduleEntries);

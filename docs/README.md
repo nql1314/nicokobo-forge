@@ -12,7 +12,7 @@
 | [CONVERSATION_API.md](CONVERSATION_API.md) | 对话、阅读、来访、电话及多笔供应商会面 |
 | [WORKSHOP_GRAPH.md](WORKSHOP_GRAPH.md) | Nico 工坊图谱、条件、奖励和解锁回调 |
 | [WORKSHOP_ACHIEVEMENT_DESIGN.md](WORKSHOP_ACHIEVEMENT_DESIGN.md) | 内置十项原版成就、奖励与领取规则 |
-| [LOGISTICS_API_PROGRESS.md](LOGISTICS_API_PROGRESS.md) | 物流对通用 API 的使用与未开放能力 |
+| [AUTOMATED_LOGISTICS_API_PROGRESS.md](AUTOMATED_LOGISTICS_API_PROGRESS.md) | 自动化物流对通用 API 的使用与验证边界 |
 | [编译内置数值](../BuildConfig/README.md) | 通用参数集中入口、单位和重新编译方式 |
 | [FORGE_PROGRESS.md](FORGE_PROGRESS.md) | 当前实现、本地检查结果和待验收项 |
 
