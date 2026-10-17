@@ -1,0 +1,275 @@
+{
+  "date": "2026-10-17",
+  "build": "25382790",
+  "sourceBases": {
+    "probably-stolen": "e620687a17f5cf15255a5dfa3d6786792ef0819f",
+    "nicokobo-forge": "adb0ec3f2310cbff02935725ef87c9be988cbc10"
+  },
+  "nativeWrite": {
+    "runId": "83ca9f97-e749-46a1-8079-c3fb2ea572e0",
+    "passed": true,
+    "error": null,
+    "mode": "write",
+    "phase": 2,
+    "waiting": "native store and logistics readiness",
+    "persistentDataPath": "C:/Users/49479/AppData/LocalLow/Questing Goose Studio/Log017_70bd312f",
+    "forge": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Mods\\Nicokobo.Forge-0.6.43.dll",
+    "logistics": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Mods\\Nicokobo.LogisticsNexus-0.5.2.dll",
+    "checks": [
+      {
+        "name": "isolated-native-save-path",
+        "passed": true,
+        "observed": "C:/Users/49479/AppData/LocalLow/Questing Goose Studio/Log017_70bd312f",
+        "expected": null
+      },
+      {
+        "name": "loaded-candidate-versions",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "logistics-registration-applied",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "resource-prerequisite-denied",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "real-hidden-roots-created",
+        "passed": true,
+        "observed": {
+          "unlocked": "资源网络已开启：16×8 物品区、10L 水罐",
+          "powered": "电力网络已开启"
+        },
+        "expected": null
+      },
+      {
+        "name": "native-initial-capacity",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "native-terminal-open-close-unshown-networks",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "native-deposit-conserves-units",
+        "passed": true,
+        "observed": 3,
+        "expected": null
+      },
+      {
+        "name": "native-withdraw-conserves-units",
+        "passed": true,
+        "observed": {
+          "Moved": 1,
+          "Indeterminate": false,
+          "Status": "moved"
+        },
+        "expected": null
+      },
+      {
+        "name": "native-water-deposit",
+        "passed": true,
+        "observed": {
+          "PartsMoved": 300000,
+          "Indeterminate": false,
+          "Status": "poured-into-resource-tank"
+        },
+        "expected": null
+      },
+      {
+        "name": "native-water-withdraw",
+        "passed": true,
+        "observed": {
+          "PartsMoved": 100000,
+          "Indeterminate": false,
+          "Status": "committed"
+        },
+        "expected": null
+      },
+      {
+        "name": "native-upgrade-shell-paid-once",
+        "passed": true,
+        "observed": 16000000,
+        "expected": null
+      },
+      {
+        "name": "borrowed-native-root-preserved",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "created-root-nonempty-compensation-denied",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "created-root-retry-and-idempotence",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "native-power-region",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "registered-machine-real-grid-production",
+        "passed": true,
+        "observed": {
+          "produced": "produced:nicokobo.logistics_nexus.make_feederx2; power=15",
+          "before": 1000,
+          "after": 985
+        },
+        "expected": null
+      },
+      {
+        "name": "stale-toggle-preserves-native-consumption",
+        "passed": true,
+        "observed": 2,
+        "expected": null
+      },
+      {
+        "name": "consumption-only-native-refill",
+        "passed": true,
+        "observed": "补货依据：加工中实际消耗的原料\n来源：资源网络 → 四周容器 → 主仓库\n当前没有待补的已消耗原料",
+        "expected": null
+      },
+      {
+        "name": "native-output-eject",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "native-grid-off-blocks-without-consumption",
+        "passed": true,
+        "observed": "input-short-or-condition",
+        "expected": null
+      },
+      {
+        "name": "complete-native-night",
+        "passed": true,
+        "observed": 2,
+        "expected": 2
+      },
+      {
+        "name": "native-furnace-empty-local-slot-grid-power",
+        "passed": true,
+        "observed": {
+          "before": 985,
+          "after": 962,
+          "inputs": 0,
+          "outputs": [
+            {
+              "identifier": "metal_ingot",
+              "unitCount": 1
+            }
+          ]
+        },
+        "expected": null
+      },
+      {
+        "name": "real-full-es3-save",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      }
+    ]
+  },
+  "nativeReload": {
+    "runId": "0a3a0703-435b-48c7-ad3e-b66bff29f320",
+    "passed": true,
+    "error": null,
+    "mode": "reload",
+    "phase": 10,
+    "waiting": "native ES3 load and root rebinding",
+    "persistentDataPath": "C:/Users/49479/AppData/LocalLow/Questing Goose Studio/Log017_70bd312f",
+    "forge": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Mods\\Nicokobo.Forge-0.6.43.dll",
+    "logistics": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Mods\\Nicokobo.LogisticsNexus-0.5.2.dll",
+    "checks": [
+      {
+        "name": "isolated-native-save-path",
+        "passed": true,
+        "observed": "C:/Users/49479/AppData/LocalLow/Questing Goose Studio/Log017_70bd312f",
+        "expected": null
+      },
+      {
+        "name": "loaded-candidate-versions",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "fresh-process-real-run-slot",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "fresh-process-native-roots-items-liquids-power-journal",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      },
+      {
+        "name": "decoded-native-root-remains-borrowed",
+        "passed": true,
+        "observed": null,
+        "expected": null
+      }
+    ]
+  },
+  "candidateAssemblies": [
+    {
+      "source": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\nicokobo-forge\\src\\Nicokobo.Forge\\bin\\Release\\Nicokobo.Forge.dll",
+      "target": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Mods\\Nicokobo.Forge-0.6.43.dll",
+      "sha256": "26C3822A7A6073E3ADDDDE26F5EF3E2099C7FBC0C99B548780EEC27760E110FC",
+      "version": "0.6.43.0"
+    },
+    {
+      "source": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\probably-stolen\\mods-melonloader\\logistics-nexus\\bin\\Release\\Nicokobo.LogisticsNexus.dll",
+      "target": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Mods\\Nicokobo.LogisticsNexus-0.5.2.dll",
+      "sha256": "91B304469861EB5B5D6934E1818A1ABCD0CD104458400FA460D4C7784F47EB59",
+      "version": "0.5.2.0"
+    },
+    {
+      "source": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\probably-stolen\\mods-melonloader\\mechcore-protocol-synthesis-expansion\\bin\\Release\\MechcoreProtocol.SynthesisExpansion.dll",
+      "target": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Mods\\MechcoreProtocol.SynthesisExpansion-0.9.66.dll",
+      "sha256": "EF9E96EFEE5E441EA179ECB60D405A3F2252AB4AB8717FC56039D9A37CFBF9D2",
+      "version": "0.9.66.0"
+    },
+    {
+      "source": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\probably-stolen\\mods-melonloader\\food-processing\\bin\\Release\\Nicokobo.FoodProcessing.dll",
+      "target": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Mods\\Nicokobo.FoodProcessing-0.0.4.dll",
+      "sha256": "97F1E50231592E5A3B94711CCE84769628B1F6669BB80D6442530F2D796BF01A",
+      "version": "0.0.3.0"
+    },
+    {
+      "source": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\bootstrap\\bin\\Release\\net6.0\\Nicokobo.LogisticsIsolationBootstrap.dll",
+      "target": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native\\game\\Plugins\\Nicokobo.LogisticsIsolationBootstrap.dll",
+      "sha256": "16D9B45A6222BC49F8535201E17DA92160A1219B1EEDF9FBCB526CEA1437D04F",
+      "version": "1.0.0.0"
+    }
+  ],
+  "formalProtection": {
+    "matches": true,
+    "protectedFiles": 269,
+    "differences": []
+  },
+  "evidenceRoot": "C:\\Users\\49479\\Documents\\Codex\\2026-10-17\\task\\isolated-final\\native"
+}

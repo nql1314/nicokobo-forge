@@ -29,6 +29,7 @@
     <Compile Include="../../src/Nicokobo.Forge/Registration/ModuleAdmissionCatalog.cs" Link="ModuleAdmissionCatalog.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeMachineModels.cs" Link="ForgeMachineModels.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeBatchTransactions.cs" Link="ForgeBatchTransactions.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeInventoryEndpointCreation.cs" Link="ForgeInventoryEndpointCreation.cs" />
     <Compile Include="../../src/Nicokobo.Forge/NativeBatchFinalization.cs" Link="NativeBatchFinalization.cs" />
     <Compile Include="../../src/Nicokobo.Forge/PowerConnectorIdentity.cs" Link="PowerConnectorIdentity.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeInventoryAdmissionApi.cs" Link="ForgeInventoryAdmissionApi.cs" />

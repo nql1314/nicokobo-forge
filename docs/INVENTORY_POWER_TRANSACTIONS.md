@@ -14,6 +14,8 @@ Forge 0.6.33 的通用接入。玩法容量、网络身份、材料保留量、�
 
 原生电池工厂会在赋identifier之前调用供电初始化。null／empty／unknown ID不能查询外部provider或中断原方法；只有已登记的完整ID才被识别为电线。供电读取／连接判断／规划共用一次安全解析，直接使用捕获的provider，保持普通初始化与已识别电线的充能拒绝边界。
 
+0.6.43 起，创建事务使用 `ForgeInventoryEndpointApi.OpenForCreation`。返回的 `ForgeInventoryEndpointCreation.Created` 仅对本次新建的根为 true；已有内存根和存档解码根始终借用。调用 `RollbackCreation()` 前，调用者先撤销自己创建的内容物；Forge 只删除原周目、槽位、owner、端点 ID、实例 ID 和原指针都一致的空根，拒绝替换根及非空根。补偿失败保持可重试，成功后幂等；借用凭据的补偿不删除任何根。该增量接口需要 Forge 0.6.43，原 `Open` 保持兼容。签名和离线通过仍不证明真实图保存恢复。
+
 `ForgeInventoryEndpointApi.Open` 只管理原生保存图外的隐藏根，正常可见物品不可重复登记。内容工厂必须在原生 Decode 的子项配对前重建同一库存拓扑及稳定库存 ID。没有存档时仅显式 createIfMissing 才创建；有错、缺工厂或身份冲突不替换成空库存。端点完整图随正常 SaveGame 写入 `nicokobo.forge.inventory.endpoints_v1`；写入无法确认时阻止这次原生保存。隐藏图加入实际 FindAllItem 周目枚举，真实设备自然参加其原生夜结阶段，不另行追加回调。
 
 外部管理电网端点须显式 `chargingOnly: true`，保存数据保留此标记。其真实子图从所有原生全局电源设施查询中排除；CheckAvailablePower 与 HandlePower 的全局可用量／放电列表都不能使用这些电池。仅在原生 `ChargeAllRechargable` 一次调用中替换为独立列表副本，加入该区域真实 power_source_item；HandlePower 保留的原列表不变。该方法仅原生自充，PowerBlock 和 Recharger 仍分别通过真实 EndNight 前／后阶段执行一次原回调。

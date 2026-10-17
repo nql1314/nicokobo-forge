@@ -1,10 +1,12 @@
 # Nicokobo Forge
 
+0.6.43 审查修复候选新增端点创建凭据。旧 Open 接口兼容；新接口调用者需配套更新 Forge。本候选只在独立副本准备，未安装或进行原生验收。
+
 [English](#english) · [中文](#中文)
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.42** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Source version: **0.6.43** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
 Matching Mechcore Protocol bundle: **1.0.0** (Synthesis 0.9.65, Aug 0.1.62, Matrix 1.1.7).
 
@@ -26,7 +28,7 @@ Registration acceptance, native application and successful game/save behavior ar
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.42** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 源码版本：**0.6.43** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
 
 配套机核协议合集：**1.0.0**（合成扩展 0.9.65、机械飞升 0.1.62、模组矩阵 1.1.7）。
 

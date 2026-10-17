@@ -27,7 +27,27 @@ public static class ForgeInventoryEndpointApi
     /// <summary>Open the same per-run native root, or decode its full graph.
     /// A malformed, conflicting or unavailable graph is never replaced empty.</summary>
     public static ForgeInventoryEndpoint Open(PlayerStore store, string ownerId, string endpointId, string itemId, bool createIfMissing = false, bool chargingOnly = false)
+        => OpenCore(store, ownerId, endpointId, itemId, createIfMissing, chargingOnly, out _);
+
+    /// <summary>Open or create a root with compensation ownership. Existing
+    /// in-memory and saved roots remain borrowed, including empty roots.</summary>
+    public static ForgeInventoryEndpointCreation OpenForCreation(PlayerStore store, string ownerId, string endpointId, string itemId, bool chargingOnly = false)
     {
+        var endpoint = OpenCore(store, ownerId, endpointId, itemId, true, chargingOnly, out bool created);
+        IntPtr storePointer = store.Pointer; string run = store.runID; int slot = store.saveSlotId;
+        int instanceId = endpoint.Root.GetUniqueID();
+        return new(endpoint, created, () =>
+            Current() && _store?.Pointer == storePointer && _run == run && _slot == slot &&
+            store.runID == run && store.saveSlotId == slot &&
+            Roots.TryGetValue(endpointId, out var current) && ReferenceEquals(current, endpoint) && current.OwnerId == ownerId &&
+            current.Root.Pointer == endpoint.Root.Pointer && current.Root.GetUniqueID() == instanceId && current.Root.identifier == itemId &&
+            Delete(ownerId, endpointId));
+    }
+
+    private static ForgeInventoryEndpoint OpenCore(PlayerStore store, string ownerId, string endpointId, string itemId,
+        bool createIfMissing, bool chargingOnly, out bool created)
+    {
+        created = false;
         if (!IsAvailable || _loading || store == null || store.Pointer == IntPtr.Zero ||
             store.saveSlotId < 0 || string.IsNullOrWhiteSpace(store.runID) ||
             !OwnedCallbacks<bool, bool>.ValidId(ownerId, endpointId) ||
@@ -49,7 +69,7 @@ public static class ForgeInventoryEndpointApi
             if (root.identifier != itemId || root.GetUniqueID() != saved.InstanceId)
             { root.Destroy(); throw new InvalidDataException("Saved endpoint root identity mismatch"); }
         }
-        else if (createIfMissing) root = ForgeItemApi.Create(itemId);
+        else if (createIfMissing) { root = ForgeItemApi.Create(itemId); created = true; }
         else throw new InvalidDataException("Saved endpoint graph is missing; refusing an empty replacement");
         if (root.parentInventory != null || !GeneralHelper.IsItemOwned(root))
             throw new InvalidDataException("Endpoint root must be a detached player-owned item");

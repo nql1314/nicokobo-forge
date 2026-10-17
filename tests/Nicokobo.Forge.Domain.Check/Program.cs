@@ -436,3 +436,4 @@ try { MachineLiquidMath.ToParts(int.MaxValue); throw new Exception("Overflowing 
 catch (ArgumentOutOfRangeException) { }
 
 Console.WriteLine("Nicokobo Forge registration, logistics and liquid domain checks passed.");
+Console.WriteLine($"Endpoint creation receipt checks passed: {EndpointCreationChecks.Run()}.");
