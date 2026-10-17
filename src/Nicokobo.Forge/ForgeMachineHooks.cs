@@ -46,8 +46,11 @@ internal static class ForgeMachineHooks
             Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".rebind", ForgeLifecyclePhase.AfterLoad,
                 context => { ForgeMachineRuntime.BeforeLoadGame(); ForgeMachineRuntime.AfterLoadGame(context); },
                 ForgeNumbers.Machines.LifecyclePriority));
-            Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".process", ForgeLifecyclePhase.BeforeNight,
-                ForgeMachineRuntime.BeforeEndNight));
+            // The native night runs furnaces and their per-batch logistics first.
+            // Registered machines then consume those outputs in content tier order,
+            // before module idle decay at AfterSleep and without adding a cycle.
+            Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".process", ForgeLifecyclePhase.AfterSleep,
+                ForgeMachineRuntime.AfterNativeNightCycles, -1000));
             Installed = true;
             log("[INFO] [NicokoboForge/Machine] templates installed; shared lifecycle; machineDropRouting=1; acceleratorRouting=2; globalWindowHooks=0");
             return true;

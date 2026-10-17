@@ -67,9 +67,10 @@ namespace Il2Cpp
         public int saveSlotId = 2;
         public int BodyCalls;
         public Exception? NightFailure;
+        public Action? DuringNight;
         public List<GameItem> Items = [];
         public void LoadGame() => BodyCalls++;
-        public void EndNight() { BodyCalls++; if (NightFailure != null) throw NightFailure; }
+        public void EndNight() { BodyCalls++; if (NightFailure != null) throw NightFailure; DuringNight?.Invoke(); }
         public void EndDay() => BodyCalls++;
     }
     public static class StoreStation

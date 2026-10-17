@@ -211,6 +211,7 @@ internal sealed class MachineCatalog
                 recipe.LiquidInputs.Any(input => input == null || !slots.Contains(input.SlotId) ||
                     !RecipeGuidePresentation.Valid(input.Guide) ||
                     !Volume(input.Millilitres, input.ResolveMillilitres != null) ||
+                    input.RestockWaterQuality is < 1 or > 3 ||
                     (input.LiquidId != null && string.IsNullOrWhiteSpace(input.LiquidId))) ||
                 recipe.LiquidInputs.Select(input => input.SlotId).Distinct(StringComparer.Ordinal).Count() !=
                     recipe.LiquidInputs.Count || !TryFreezeOutput(recipe.Output, template.Output.Kind, out var output)) return false;

@@ -9,6 +9,7 @@ internal static class MachineLifecycleChecks
     {
         require(ForgeMachineHooks.Install(true, _ => { }), "Production machine lifecycle installer failed");
         var store = PlayerStore.Instance;
+        store.DuringNight = () => Boundary.Call(typeof(ModHook), nameof(ModHook.FireOnGoingSleepLate), store, true);
         store.Items.Add(new());
         Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, true);
         int reads = ForgeMachineUi.Reads, resets = ForgeMachineUi.Resets;
@@ -24,6 +25,109 @@ internal static class MachineLifecycleChecks
         Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, true);
         require(ForgeMachineUi.Reads == reads + 2, "Executed LoadGame retained an earlier session's nightly attempt ledger");
         CheckMixedRecipePlanning(require);
+        CheckDirectPowerPlanning(require);
+        CheckNightOrder(require);
+        store.DuringNight = null;
+    }
+
+    private static void CheckNightOrder(Action<bool, string> require)
+    {
+        var store = PlayerStore.Instance;
+        var previous = store.Items.ToArray();
+        try
+        {
+            store.Items.Clear(); ForgeMachineRuntime.BeforeLoadGame();
+            foreach (var (id, tier) in new[] { (804, 300), (803, 100), (801, 100), (802, 200) })
+            {
+                string name = "night-machine-" + id;
+                ForgeMachineRegistrationApi.Profiles[name] = new(new(name,
+                    new(null, new(ForgeMachineOutputKind.Items, new(1, 1))), [], new()) { NightlyOrder = tier });
+                store.Items.Add(new() { Pointer = (IntPtr)id, identifier = name });
+            }
+            ForgeMachineUi.ReadOrder.Clear();
+            bool observedAfterProcessing = false;
+            using var observer = ForgeLifecycleApi.Subscribe("test.machine_order", "test.machine_order.after_sleep",
+                ForgeLifecyclePhase.AfterSleep, _ => observedAfterProcessing = ForgeMachineUi.ReadOrder.SequenceEqual(new[] { 801, 803, 802, 804 }));
+            Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, false);
+            require(ForgeMachineUi.ReadOrder.Count == 0, "A skipped native night must not process registered machines");
+            Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, true);
+            require(ForgeMachineUi.ReadOrder.SequenceEqual(new[] { 801, 803, 802, 804 }),
+                "Nightly machines must process low tiers first and use instance ID for ties, regardless of inventory order");
+            require(observedAfterProcessing, "Registered production must finish before module idle decay observes AfterSleep");
+            ForgeMachineUi.ReadOrder.Clear();
+            Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, true);
+            require(ForgeMachineUi.ReadOrder.Count == 0, "Ordering must preserve the same-night attempt ledger");
+        }
+        finally
+        {
+            store.Items.Clear(); store.Items.AddRange(previous);
+            ForgeMachineRegistrationApi.Profiles.Clear(); ForgeMachineRuntime.BeforeLoadGame();
+        }
+    }
+
+    private sealed class PlannerPowerReceipt : IForgePowerTransaction
+    {
+        internal bool Valid = true, Disposed;
+        public bool Validate() => Valid && !Disposed;
+        public void Debit() => throw new NotSupportedException("Planning must not draw power");
+        public bool Verify() => throw new NotSupportedException("Planning must not commit power");
+        public bool Restore() => true;
+        public void Fault(string reason) => throw new NotSupportedException(reason);
+        public void Dispose() => Disposed = true;
+    }
+
+    private static void CheckDirectPowerPlanning(Action<bool, string> require)
+    {
+        var input = new GameInventory { Pointer = (IntPtr)601 };
+        var output = new GameInventory { Pointer = (IntPtr)602 };
+        var slot = new GameSlotInventory { Pointer = (IntPtr)603 };
+        var battery = new GameItem { Pointer = (IntPtr)604, identifier = "battery", parentInventory = slot };
+        var recipe = new ForgeMachineRecipe("powered", [], new ForgeMachineItemOutput("result"));
+        var definition = new ForgeMachineDefinition("grid-machine", new(new(1, 1), new(ForgeMachineOutputKind.Items, new(1, 1))),
+            [recipe], new(10));
+        var profile = new Nicokobo.Forge.Registration.MachineProfile(definition);
+        var machine = new GameItem { Pointer = (IntPtr)605, identifier = definition.MachineId };
+        var inventory = new ForgeMachineInventory(slot, null, input, output, new Dictionary<string, GameSlotInventory>(), null);
+        var planner = typeof(ForgeMachineRuntime).GetMethod("TryPlan", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var unchanged = typeof(ForgeMachineRuntime).GetMethod("Unchanged", BindingFlags.NonPublic | BindingFlags.Static)!;
+        int energy = 20; string? status = null;
+        var receipt = new PlannerPowerReceipt();
+        object? Plan()
+        {
+            object?[] arguments = [machine, profile, inventory, recipe, null, null];
+            bool planned = (bool)planner.Invoke(null, arguments)!;
+            status = arguments[5]?.ToString(); return planned ? arguments[4] : null;
+        }
+        try
+        {
+            ForgeExternalPowerApi.MachineEnergy = _ => energy;
+            ForgeExternalPowerApi.MachinePlan = (_, _) => receipt;
+            ForgePowerApi.SourceEnergy = item => item.Pointer == battery.Pointer ? 100 : null;
+            var plan = Plan();
+            require(plan != null && plan.GetType().GetProperty("Battery")!.GetValue(plan) == null && !receipt.Disposed,
+                "A required-battery machine must plan directly from the grid with an empty local slot: " + status);
+            energy = 0;
+            require(!(bool)unchanged.Invoke(null, [plan])!, "A grid outage must invalidate an already planned batch");
+            slot.childItem = battery;
+            require(Plan() == null && status == "power-unavailable" && ForgePowerApi.ReadSource(battery) == 100,
+                "An empty claimed grid must block despite a full local battery");
+            energy = -1;
+            var ordinary = Plan();
+            require(ordinary != null && ordinary.GetType().GetProperty("Battery")!.GetValue(ordinary) == battery,
+                "Unclaimed machines must retain ordinary local-battery planning");
+            energy = 20; ForgeExternalPowerApi.MachinePlan = (_, _) => null;
+            require(Plan() == null && status == "external-power-unavailable", "Grid energy without a power receipt cannot start a batch");
+            receipt.Valid = false; ForgeExternalPowerApi.MachinePlan = (_, _) => receipt;
+            require(Plan() == null && receipt.Disposed, "A rejected direct-power receipt must be disposed by the planner");
+            receipt = new(); slot.childItem = null;
+            plan = Plan(); energy = -1;
+            require(plan != null && !(bool)unchanged.Invoke(null, [plan])!, "A released grid claim must invalidate its earlier plan");
+            receipt.Dispose();
+        }
+        finally
+        {
+            ForgeExternalPowerApi.MachineEnergy = null; ForgeExternalPowerApi.MachinePlan = null; ForgePowerApi.SourceEnergy = null;
+        }
     }
 
     private static void CheckMixedRecipePlanning(Action<bool, string> require)

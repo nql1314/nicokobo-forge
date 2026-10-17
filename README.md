@@ -4,7 +4,7 @@
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.39** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Source version: **0.6.42** · Target: **Probably Stolen Demo, Steam Build `25382790`**
 
 Matching Mechcore Protocol bundle: **1.0.0** (Synthesis 0.9.65, Aug 0.1.62, Matrix 1.1.7).
 
@@ -26,7 +26,7 @@ Registration acceptance, native application and successful game/save behavior ar
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.39** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 源码版本：**0.6.42** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
 
 配套机核协议合集：**1.0.0**（合成扩展 0.9.65、机械飞升 0.1.62、模组矩阵 1.1.7）。
 
@@ -56,7 +56,7 @@ Forge 为内容 Mod 提供原生注册、生命周期、机器模板与资源事
 
 ## 开发者与 AI 接入指南
 
-本指南按当前 **0.6.39 源码**组织，面向内容 Mod 作者和协助开发的 AI。先按功能找到公共入口，再阅读对应契约与示例；参数、返回状态和模型以 [src/Nicokobo.Forge](src/Nicokobo.Forge/) 为准。当前构建及实机证据见[进度](docs/FORGE_PROGRESS.md)，不根据版本号推定某项玩法已验收。
+本指南按当前 **0.6.42 源码**组织，面向内容 Mod 作者和协助开发的 AI。先按功能找到公共入口，再阅读对应契约与示例；参数、返回状态和模型以 [src/Nicokobo.Forge](src/Nicokobo.Forge/) 为准。当前构建及实机证据见[进度](docs/FORGE_PROGRESS.md)，不根据版本号推定某项玩法已验收。
 
 ### 1. 按需求选择已有能力
 

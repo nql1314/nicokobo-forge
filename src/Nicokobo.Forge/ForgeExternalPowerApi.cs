@@ -1,4 +1,4 @@
-using HarmonyLib;
+﻿using HarmonyLib;
 using Il2Cpp;
 using Nicokobo.Forge.Runtime;
 using UnityEngine;
@@ -12,6 +12,8 @@ public static class ForgeExternalPowerApi
     private sealed record Provider(Func<GameItem, int> Energy,
         Func<GameItem, GameItem, int, IForgePowerTransaction?> Plan);
     private static readonly Dictionary<string, Provider> Providers = new(StringComparer.Ordinal);
+    private sealed record MachineProvider(Func<GameItem, int> Energy, Func<GameItem, int, IForgePowerTransaction?> Plan);
+    private static readonly Dictionary<string, MachineProvider> MachineProviders = new(StringComparer.Ordinal);
     private static Action<string>? _log;
     private static bool _installed;
     [ThreadStatic] private static NativeBatch? _native;
@@ -27,6 +29,37 @@ public static class ForgeExternalPowerApi
             !Providers.TryAdd(itemId, new(energy, plan))) throw new ArgumentException("Unique owned connector and callbacks required");
         return new CallbackLease(() => Providers.Remove(itemId));
     }
+    /// <summary>Supply a machine directly, even with an empty battery slot.
+    /// Return -1 to keep native battery behavior, or >=0 to claim supply exclusively.
+    /// A claimed empty or paused supply never falls back to the local battery.</summary>
+    public static IDisposable RegisterMachine(string ownerId, string callbackId, Func<GameItem, int> energy,
+        Func<GameItem, int, IForgePowerTransaction?> plan)
+    {
+        if (!_installed) throw new InvalidOperationException("External power adapter unavailable");
+        if (!OwnedCallbacks<bool, bool>.ValidId(ownerId, callbackId) || energy == null || plan == null ||
+            !MachineProviders.TryAdd(callbackId, new(energy, plan))) throw new ArgumentException("Unique owned machine supply callback required");
+        return new CallbackLease(() => MachineProviders.Remove(callbackId));
+    }
+    private static bool MachineSupply(GameItem machine, out MachineProvider? found, out int energy)
+    {
+        found = null; energy = 0; bool claimed = false;
+        if (!_installed || machine == null || machine.Pointer == IntPtr.Zero) return false;
+        foreach (var provider in MachineProviders.Values)
+        {
+            int amount;
+            try { amount = provider.Energy(machine); }
+            catch (Exception ex)
+            { _log?.Invoke("[WARN] [NicokoboForge/Power] machine supply query failed: " + ex.Message); found = null; energy = 0; return true; }
+            if (amount < 0) continue;
+            if (claimed) { found = null; energy = 0; return true; }
+            claimed = true; found = provider; energy = amount;
+        }
+        return claimed;
+    }
+    public static bool TryGetMachineEnergy(GameItem machine, out int energy) => MachineSupply(machine, out _, out energy);
+    internal static IForgePowerTransaction? PlanMachine(GameItem machine, int cost) =>
+        cost > 0 && MachineSupply(machine, out var provider, out int energy) && energy >= cost ? provider?.Plan(machine, cost) : null;
+
     public static int GetEnergy(GameItem connector)
     {
         if (!_installed || ProviderFor(connector) is not { } provider) return 0;
@@ -58,6 +91,10 @@ public static class ForgeExternalPowerApi
             new(typeof(PowerHelper), nameof(PowerHelper.IsPowerSourceFull), [typeof(GameItem)], typeof(bool), typeof(ForgeExternalPowerApi), nameof(ConnectorFull)),
             new(typeof(PowerHelper), nameof(PowerHelper.CreatePowerSourceItemTooltip), [typeof(RichTextBuilder), typeof(GameItem)], typeof(void), typeof(ForgeExternalPowerApi), nameof(ConnectorTooltip)),
             new(typeof(PowerHelper), nameof(PowerHelper.TryRemoveEnergy), [typeof(GameItem), typeof(int), typeof(bool)], typeof(int), typeof(ForgeExternalPowerApi), nameof(RejectRemoval)),
+            new(typeof(MachineHelper), nameof(MachineHelper.CanPower), [typeof(GameItem)], typeof(bool), typeof(ForgeExternalPowerApi), nameof(CanPowerMachine)),
+            new(typeof(MachineHelper), nameof(MachineHelper.CanPower), [typeof(GameItem), typeof(GameSlotInventory)], typeof(bool), typeof(ForgeExternalPowerApi), nameof(CanPowerMachine)),
+            new(typeof(MachineHelper), nameof(MachineHelper.HasBattery), [typeof(GameItem)], typeof(bool), typeof(ForgeExternalPowerApi), nameof(HasMachineSupply)),
+            new(typeof(MachineHelper), nameof(MachineHelper.TryDrawCyclePower), [typeof(GameItem), typeof(GameSlotInventory)], typeof(bool), typeof(ForgeExternalPowerApi), nameof(DrawMachine)),
             new(typeof(MachineFurnace.__c__DisplayClass0_0), "_Furnace_b__5", [typeof(GameItem), typeof(GameInventory), typeof(SlotMarker)], typeof(void), typeof(ForgeExternalPowerApi), nameof(BeforeNativeBatch), nameof(AfterNativeBatch), nameof(FinishNativeBatch)),
             // The generated GameItem wrapper hides a native abstract method.
             // GameItemElement owns the current game's concrete destruction body;
@@ -66,9 +103,44 @@ public static class ForgeExternalPowerApi
         ], log);
     }
     private static bool ReadEnergy(GameItem __0, ref int __result)
-    { if (!IsConnector(__0)) return true; __result = GetEnergy(__0); return false; }
+    {
+        if (__0 == null) return true;
+        if (_native is { Direct: true } batch && batch.Machine.Pointer == __0.Pointer)
+        { TryGetMachineEnergy(batch.Machine, out __result); return false; }
+        if (!IsConnector(__0)) return true; __result = GetEnergy(__0); return false;
+    }
+    private static bool CanPowerMachine(GameItem __0, ref bool __result)
+    {
+        if (!TryGetMachineEnergy(__0, out int energy)) return true;
+        int cost = ForgePowerApi.GetMachineCost(__0);
+        __result = cost >= 0 && energy >= cost; return false;
+    }
+    private static bool HasMachineSupply(GameItem __0, ref bool __result)
+    { if (!TryGetMachineEnergy(__0, out _)) return true; __result = true; return false; }
+    private static bool DrawMachine(GameItem __0, ref bool __result)
+    {
+        if (!TryGetMachineEnergy(__0, out _)) return true;
+        __result = false; var batch = _native;
+        if (batch == null || !batch.Direct || batch.Machine.Pointer != __0.Pointer || batch.Power != null) return false;
+        int cost = ForgePowerApi.GetMachineCost(__0);
+        if (cost == 0) { batch.ZeroCost = true; __result = true; return false; }
+        try
+        {
+            batch.Power = PlanMachine(__0, cost);
+            if (batch.Power == null || !batch.Power.Validate()) return false;
+            batch.Power.Debit(); __result = batch.Power.Verify(); batch.Debited = __result;
+            if (!__result) batch.Failed = true;
+        }
+        catch (Exception ex) { batch.Failed = true; _log?.Invoke("[WARN] [NicokoboForge/Power] direct machine debit failed: " + ex.Message); }
+        return false;
+    }
     private static bool CanDraw(GameItem __0, int __1, ref bool __result)
-    { if (!IsConnector(__0)) return true; __result = __1 >= 0 && Connected(__0) && GetEnergy(__0) >= __1; return false; }
+    {
+        if (__0 == null) return true;
+        if (_native is { Direct: true } batch && batch.Machine.Pointer == __0.Pointer)
+        { __result = __1 >= 0 && TryGetMachineEnergy(batch.Machine, out int energy) && energy >= __1; return false; }
+        if (!IsConnector(__0)) return true; __result = __1 >= 0 && Connected(__0) && GetEnergy(__0) >= __1; return false;
+    }
     private static bool RejectCharge(GameItem __0) => !IsConnector(__0);
     private static bool RejectRecharge(GameItem __0) => !IsConnector(__0) && !ForgeInventoryFreezeApi.IsFrozen(__0);
     private static bool RejectRemoval(GameItem __0, ref int __result)
@@ -83,12 +155,15 @@ public static class ForgeExternalPowerApi
     }
     private static bool Draw(GameItem __0, int __1, ref bool __result)
     {
+        if (__0 == null) return true;
+        if (_native is { Direct: true } direct && direct.Machine.Pointer == __0.Pointer)
+            return DrawDirect(direct, __1, ref __result);
         if (!IsConnector(__0)) return true;
         __result = false;
         if (__1 == 0)
         { __result = Connected(__0); if (__result && _native != null) _native.ZeroCost = true; return false; }
         var batch = _native;
-        if (batch == null || batch.Connector.Pointer != __0.Pointer || batch.Power != null || __1 < 0) return false;
+        if (batch == null || batch.Connector?.Pointer != __0.Pointer || batch.Power != null || __1 < 0) return false;
         try
         {
             batch.Power = Plan(batch.Machine, __0, __1);
@@ -99,6 +174,21 @@ public static class ForgeExternalPowerApi
             if (!__result) batch.Failed = true;
         }
         catch (Exception ex) { batch.Failed = true; _log?.Invoke("[WARN] [NicokoboForge/Power] native debit failed: " + ex.Message); }
+        return false;
+    }
+    private static bool DrawDirect(NativeBatch batch, int cost, ref bool result)
+    {
+        result = false;
+        if (cost == 0) { batch.ZeroCost = true; result = true; return false; }
+        if (cost < 0 || batch.Power != null) return false;
+        try
+        {
+            batch.Power = PlanMachine(batch.Machine, cost);
+            if (batch.Power == null || !batch.Power.Validate()) return false;
+            batch.Power.Debit(); result = batch.Power.Verify(); batch.Debited = result;
+            if (!result) batch.Failed = true;
+        }
+        catch (Exception ex) { batch.Failed = true; _log?.Invoke("[WARN] [NicokoboForge/Power] native direct debit failed: " + ex.Message); }
         return false;
     }
 
@@ -116,10 +206,12 @@ public static class ForgeExternalPowerApi
             slot.itemGridShape.Clone(), item.state.Clone(), slot.index,
             handler?.Pointer ?? IntPtr.Zero, handler?.transform.localPosition);
     }
-    private sealed class NativeBatch(GameItem machine, GameItem connector, GameInventory input, GameInventory output,
-        IReadOnlyList<ItemState> items, IReadOnlyList<ItemState> outputItems)
+    private sealed class NativeBatch(GameItem machine, GameItem? connector, GameInventory input, GameInventory output,
+        IReadOnlyList<ItemState> items, IReadOnlyList<ItemState> outputItems, bool direct)
     {
-        internal readonly GameItem Machine = machine, Connector = connector;
+        internal readonly GameItem Machine = machine;
+        internal readonly GameItem? Connector = connector;
+        internal readonly bool Direct = direct;
         internal readonly GameInventory Input = input, Output = output;
         internal readonly IReadOnlyList<ItemState> Items = items;
         internal readonly IReadOnlyList<ItemState> OutputItems = outputItems;
@@ -127,6 +219,31 @@ public static class ForgeExternalPowerApi
         internal readonly List<GameItem> Deferred = [];
         internal IForgePowerTransaction? Power;
         internal bool Debited, ZeroCost, Failed, Finished;
+        internal NativeMachinePowerSlot? PowerSlot;
+    }
+    // The IL2CPP furnace inlines its slot.childItem check and DrawPowerSource.
+    // Substitute only the callback's captured slot for this synchronous call.
+    // This detached adapter contains a reference, never a graph attachment:
+    // the real machine, battery slot and saved inventory remain in place.
+    private sealed class NativeMachinePowerSlot : IDisposable
+    {
+        private readonly MachineFurnace.__c__DisplayClass0_0 _context;
+        private readonly GameSlotInventory _original, _temporary;
+        private bool _disposed;
+        internal NativeMachinePowerSlot(MachineFurnace.__c__DisplayClass0_0 context, GameItem machine)
+        {
+            _context = context; _original = context.itemInventoryBattery;
+            _temporary = new GameSlotInventory { currentItem = machine };
+            context.itemInventoryBattery = _temporary;
+        }
+        public void Dispose()
+        {
+            if (_disposed) return; _disposed = true;
+            bool unchanged = _context.itemInventoryBattery?.Pointer == _temporary.Pointer;
+            if (unchanged) _context.itemInventoryBattery = _original;
+            _temporary.currentItem = null;
+            if (!unchanged) throw new InvalidOperationException("Native power slot changed during the batch");
+        }
     }
     [HarmonyPriority(int.MinValue)]
     private static bool BeforeNativeBatch(MachineFurnace.__c__DisplayClass0_0 __instance, out NativeBatch? __state)
@@ -135,7 +252,8 @@ public static class ForgeExternalPowerApi
         if (__instance == null) return true;
         var machine = __instance.furnace;
         var connector = MachineHelper.GetBatterySlot(machine)?.childItem;
-        if (!IsConnector(connector)) return true;
+        bool direct = TryGetMachineEnergy(machine, out _);
+        if (!direct && !IsConnector(connector)) return true;
         if (_native != null || machine.GetTagReadonly("NICOKOBO_FORGE_MACHINE_FAULT")?.valueString is { Length: > 0 }) return false;
         try
         {
@@ -145,11 +263,16 @@ public static class ForgeExternalPowerApi
             if (input == null || output == null || !GeneralHelper.IsItemOwned(machine)) return false;
             var items = input.childItems.ToArray().Select(item => CaptureSnapshot(item, input)).ToArray();
             var outputs = output.childItems.ToArray().Select(item => CaptureSnapshot(item, output)).ToArray();
-            __state = new(machine, connector!, input, output, items, outputs);
+            __state = new(machine, connector, input, output, items, outputs, direct);
             _native = __state;
+            if (direct) __state.PowerSlot = new(__instance, machine);
             return true;
         }
-        catch (Exception ex) { _log?.Invoke("[WARN] [NicokoboForge/Power] native batch preflight rejected: " + ex.Message); return false; }
+        catch (Exception ex)
+        {
+            __state?.PowerSlot?.Dispose(); _native = null; __state = null;
+            _log?.Invoke("[WARN] [NicokoboForge/Power] native batch preflight rejected: " + ex.Message); return false;
+        }
     }
     private static bool DeferConsumedDestroy(GameItem __instance)
     {
@@ -176,6 +299,8 @@ public static class ForgeExternalPowerApi
     private static void Finish(NativeBatch batch, bool failed)
     {
         if (batch.Finished) return;
+        try { batch.PowerSlot?.Dispose(); }
+        catch (Exception ex) { failed = true; FaultBatch(batch, "native power slot restore failed: " + ex.Message); }
         var restore = new List<Func<bool>> { () => RemoveNewOutputs(batch) };
         restore.AddRange(batch.Items.Concat(batch.OutputItems).Select(snapshot => (Func<bool>)(() => RestoreSnapshot(snapshot))));
         restore.Add(() => batch.Power?.Restore() ?? true);

@@ -6,7 +6,11 @@ Forge 0.6.33 的通用接入。玩法容量、网络身份、材料保留量、�
 
 `ForgeMachineRecipe.Transaction` 可规划 `IForgeBatchTransaction`，返回 null 拒绝当批。Validate 只读；Apply 收到实际创建并已放入原输出槽的产物。内容状态与材料、输出、本地或外部电量共用同一事务，写入前登记 Restore，所有补偿都尝试，无法确认时 Fault 后隔离机器。Dispose 在规划失败、成功和补偿后都执行。唯一额度须在 Apply 中确认真实产物后提交，不能在预览、登记或工厂创建时占用。
 
-`ForgeExternalPowerApi.Register(owner, connectorId, energy, plan)` 为所属电线声明读函数和 `IForgePowerTransaction`。无连接返回负数；有效但空电网返回 0。Forge 拦截原电池槽读电、扣电和所有已知充能入口，电线不写 energy/max/recharge；普通电池走原路径。内容选择实际电池，`ForgePowerBatchMath.Plan` 按剩余绝对电量降序、稳定实例 ID 同值排序，并在不足时不给部分计划。原版炉另在一次原生加工回调内保存输入/旧输出快照，失败恢复与电量补偿共同读回；不增加炉的加工机会。
+0.6.42 新增 `ForgeExternalPowerApi.RegisterMachine(owner, callbackId, energy, plan)`，直接按机器接管供电。`energy(machine)` 返回负数表示未接管，沿用本地电池；非负数独占当前机器供电，空电网、暂停或故障返回 0，不能回退到本地电池。多个提供者同时接管或查询抛异常时按已接管但无可用电量处理。规划须返回包含冻结、真实扣电、最终核对与补偿的 `IForgePowerTransaction`，无收据拒绝耗电批次。
+
+注册机器即使本地槽为空、模板要求电池，仍可由已接管且足量的外部供电加工；计划与最终读回忽略未参与的本地电池，逐批重新查询接管及收据。原生 `MachineHelper` 的可供电、是否有供电和周期扣电入口使用同一提供者。原生炉内联读取闭包的电池槽，Forge 在一次同步回调内临时替换闭包槽引用，临时槽仅引用机器句柄，不附着物品或改变保存图；结束先恢复槽，再核对输入／输出和实际扣电，失败共同补偿。
+
+原有 `ForgeExternalPowerApi.Register(owner, connectorId, energy, plan)` 仍支持其他内容方的连接物品。Forge 拦截这些物品的读电、扣电与充能入口；无容量连接物品不写 energy/max/recharge，普通电池保留原路径。内容选择实际电池，`ForgePowerBatchMath.Plan` 按剩余绝对电量降序、稳定实例 ID 同值排序，并在不足时不给部分计划。两类供电均不增加原版炉加工机会。
 
 原生电池工厂会在赋identifier之前调用供电初始化。null／empty／unknown ID不能查询外部provider或中断原方法；只有已登记的完整ID才被识别为电线。供电读取／连接判断／规划共用一次安全解析，直接使用捕获的provider，保持普通初始化与已识别电线的充能拒绝边界。
 

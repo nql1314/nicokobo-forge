@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using Il2Cpp;
 using Nicokobo.Forge.Registration;
 
@@ -13,7 +13,7 @@ internal static partial class ForgeMachineRuntime
         ForgeMachineInventory Inventory, IReadOnlyList<ItemReceipt> Takes,
         IReadOnlyList<LiquidChange> Liquids, IReadOnlyList<ForgeMachineLiquidPart>? Contents,
         LiquidChange? ContainerOutput, GameItem? Battery, int Energy, int Power,
-        IForgePowerTransaction? ExternalPower, IForgeBatchTransaction? Transaction);
+        IForgePowerTransaction? ExternalPower, IForgeBatchTransaction? Transaction, bool DirectPower);
     private const string FaultTag = "NICOKOBO_FORGE_MACHINE_FAULT";
     private static readonly HashSet<(int Slot, string Run, int Day, int Item)> Attempted = [];
     private static readonly HashSet<int> Quarantined = [];
@@ -27,7 +27,7 @@ internal static partial class ForgeMachineRuntime
         catch (Exception ex) { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] slot rebind failed: {ex.Message}"); }
     }
 
-    internal static void BeforeEndNight(ForgeLifecycleContext context)
+    internal static void AfterNativeNightCycles(ForgeLifecycleContext context)
     {
         var store = context.Store;
         if (!ForgeMachineRuntimeApi.RuntimeInstalled || store == null || store.Pointer == IntPtr.Zero ||
@@ -49,7 +49,7 @@ internal static partial class ForgeMachineRuntime
                     int id = machine.GetUniqueID();
                     if (id <= 0 || !Attempted.Add((night.saveSlotId, night.runID, night.Item3, id))) continue;
                     string status = Process(machine, profile);
-                    ForgeMachineRegistrationApi.Log($"[INFO] [NicokoboForge/Machine] machine={machine.identifier}; item={id}; status={status}");
+                    ForgeMachineRegistrationApi.Log($"[INFO] [NicokoboForge/Machine] machine={machine.identifier}; item={id}; nightOrder={profile.Definition.NightlyOrder}; status={status}");
                 }
                 catch (Exception ex)
                 { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] machine={machine.identifier}; failure={ex.Message}"); }
@@ -68,7 +68,8 @@ internal static partial class ForgeMachineRuntime
             if (item == null || item.Pointer == IntPtr.Zero) continue;
             if (ForgeMachineRegistrationApi.TryGet(item.identifier, out var profile) && profile != null) found.Add((item, profile));
         }
-        return found;
+        return found.OrderBy(entry => entry.Item2.Definition.NightlyOrder)
+            .ThenBy(entry => entry.Item1.GetUniqueID()).ToList();
     }
 
     internal static string ProcessActivated(GameItem machine, MachineProfile profile) =>
@@ -243,23 +244,24 @@ internal static partial class ForgeMachineRuntime
             int power = ForgeMachinePowerMath.CalculateCost(profile.Power.ResolveCost?.Invoke(context) ?? profile.Power.Cost,
                 count, profile.Power.PerOutput);
             var battery = inventory.Battery?.childItem;
-            bool external = battery != null && ForgeExternalPowerApi.IsConnector(battery);
-            int energy = battery == null ? -1 : external ? ForgeExternalPowerApi.GetEnergy(battery) : ForgePowerApi.ReadSource(battery) ?? -1;
+            bool direct = ForgeExternalPowerApi.TryGetMachineEnergy(machine, out int gridEnergy);
+            bool external = !direct && battery != null && ForgeExternalPowerApi.IsConnector(battery);
+            int energy = direct ? gridEnergy : battery == null ? -1 : external ? ForgeExternalPowerApi.GetEnergy(battery) : ForgePowerApi.ReadSource(battery) ?? -1;
             if ((profile.Template.Battery?.Required == true || power > 0) &&
-                (battery == null || battery.Pointer == IntPtr.Zero || !GeneralHelper.IsItemOwned(battery) ||
+                (direct ? energy < power : battery == null || battery.Pointer == IntPtr.Zero || !GeneralHelper.IsItemOwned(battery) ||
                  battery.parentInventory?.Pointer != inventory.Battery!.Pointer || energy < power ||
                  !ForgePowerApi.CanDrawSource(battery, power)))
             { status = "power-unavailable"; return false; }
-            IForgePowerTransaction? supply = external && power > 0
-                ? ForgeExternalPowerApi.Plan(machine, battery!, power) : null;
-            if (external && power > 0 && supply == null) { status = "external-power-unavailable"; return false; }
+            IForgePowerTransaction? supply = power > 0 ? direct ? ForgeExternalPowerApi.PlanMachine(machine, power) :
+                external ? ForgeExternalPowerApi.Plan(machine, battery!, power) : null : null;
+            if ((external || direct) && power > 0 && supply == null) { status = "external-power-unavailable"; return false; }
             IForgeBatchTransaction? participant = null;
             try
             {
                 participant = recipe.Transaction?.Invoke(context);
                 if (recipe.Transaction != null && participant == null)
                 { supply?.Dispose(); status = "recipe-transaction-unavailable"; return false; }
-                plan = new(context, recipe, inventory, takes, changes, contents, containerOutput, battery, energy, power, supply, participant);
+                plan = new(context, recipe, inventory, takes, changes, contents, containerOutput, direct ? null : battery, energy, power, supply, participant, direct);
                 if (!Unchanged(plan))
                 { supply?.Dispose(); participant?.Dispose(); plan = null; status = "input-changed"; return false; }
             }
@@ -271,6 +273,7 @@ internal static partial class ForgeMachineRuntime
 
     private static bool Unchanged(BatchPlan plan)
     {
+        if (plan.DirectPower && (!ForgeExternalPowerApi.TryGetMachineEnergy(plan.Context.Machine, out int available) || available < plan.Power)) return false;
         if (plan.Recipe.MachineCondition?.Invoke(plan.Context.Machine) == false) return false;
         foreach (var ingredient in plan.Recipe.ItemInputs)
             if (plan.Takes.Where(take => MatchesIngredient(ingredient, take.Item) &&

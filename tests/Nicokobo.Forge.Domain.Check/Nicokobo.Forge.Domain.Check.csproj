@@ -47,6 +47,7 @@
     <Compile Include="../../src/Nicokobo.Forge/Logging/ModLogLevel.cs" Link="ModLogLevel.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineLiquidMath.cs" Link="MachineLiquidMath.cs" />
     <Compile Include="../../src/Nicokobo.Forge/MachineBatchMath.cs" Link="MachineBatchMath.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/MachineNightCycle.cs" Link="MachineNightCycle.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeLiquidCompositionMath.cs" Link="ForgeLiquidCompositionMath.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeProductionValueMath.cs" Link="ForgeProductionValueMath.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeProductionValueApi.cs" Link="ForgeProductionValueApi.cs" />

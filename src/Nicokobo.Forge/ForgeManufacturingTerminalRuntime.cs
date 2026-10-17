@@ -57,7 +57,8 @@ internal static class ForgeManufacturingTerminalRuntime
                         IsNightShopAvailable: () => RNG.Roll(ForgeNumbers.ManufacturingTerminal.NightShopChancePercent),
                         Name: new(ForgeManufacturingTerminal.ChineseName, ForgeManufacturingTerminal.EnglishName),
                         ShortDescription: Description, FlavorText: Flavor),
-                    ProductionMarkupPercent: ForgeManufacturingTerminal.DefaultProductionMarkupPercent));
+                    ProductionMarkupPercent: ForgeManufacturingTerminal.DefaultProductionMarkupPercent)
+                { NightlyOrder = 500 });
             if (result.Status != SubmitStatus.Accepted) throw new InvalidOperationException(result.Reason);
             _installed = true;
             LootRegistry.AddEntry(ForgeManufacturingTerminal.OwnerId, TableMaster.toolTable,

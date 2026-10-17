@@ -61,6 +61,10 @@ public sealed record ForgeMachineLiquidIngredient(string SlotId,
     Func<ForgeMachineBatchContext, int>? ResolveMillilitres = null)
 {
     public ForgeRecipeGuideDisplay? Guide { get; init; }
+    /// <summary>Exact native water quality (1..3) for automatic restocking;
+    /// null leaves that target unspecified. This does not change Condition
+    /// or the liquid accepted by manual production.</summary>
+    public int? RestockWaterQuality { get; init; }
 }
 public sealed record ForgeMachineLiquidAmount(string LiquidId, int Millilitres,
     Func<ForgeMachineBatchContext, int>? ResolveMillilitres = null,
@@ -120,6 +124,9 @@ public sealed record ForgeMachineDefinition(string MachineId,
     NativeItemOptions? ItemOptions = null, int ProductionMarkupPercent = 0)
 {
     public ForgeRecipeGuideOptions Guide { get; init; } = new();
+    /// <summary>Nightly processing order, ascending; equal values use the live
+    /// item instance ID. Content providers assign their production tiers.</summary>
+    public int NightlyOrder { get; init; }
     /// <summary>Read-only nightly batch limit; null means one batch. Evaluated
     /// before processing and again before each extra batch. A lower live limit
     /// stops the cycle; increases take effect next night. Must return at least one.</summary>

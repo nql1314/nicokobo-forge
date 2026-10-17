@@ -36,17 +36,19 @@ namespace Nicokobo.Forge
         internal static MachineProfile Profile = new(new("lifecycle-machine",
             new(null, new(ForgeMachineOutputKind.Items, new(1, 1))), [], new()));
         internal static bool HasMachines => true;
+        internal static readonly Dictionary<string, MachineProfile> Profiles = [];
         internal static bool TryGet(string id, out MachineProfile? profile)
-        { profile = id == Profile.MachineId ? Profile : null; return profile != null; }
+        { profile = Profiles.GetValueOrDefault(id) ?? (id == Profile.MachineId ? Profile : null); return profile != null; }
         internal static void Log(string message) { }
     }
     internal static class ForgeMachineRuntimeApi { internal static bool RuntimeInstalled => ForgeMachineHooks.Installed; }
     internal static class ForgeMachineUi
     {
         internal static int Reads, Resets;
+        internal static readonly List<int> ReadOrder = [];
         internal static void Reset() => Resets++;
         internal static bool TryGet(GameItem item, out ForgeMachineInventory? inventory)
-        { Reads++; inventory = null; return false; }
+        { Reads++; ReadOrder.Add(item.GetUniqueID()); inventory = null; return false; }
         internal static SlotMarker? FindDropSlot(GameItem item, GameItem offered) => null;
     }
     internal static class NativeProductionValue
@@ -55,8 +57,9 @@ namespace Nicokobo.Forge
     { internal static bool Install(Action<string> log) => true; internal static void Uninstall() { } }
     internal static class ForgePowerApi
     {
-        internal static int? ReadSource(GameItem item) => null;
-        internal static bool CanDrawSource(GameItem item, int cost) => false;
+        internal static Func<GameItem, int?>? SourceEnergy;
+        internal static int? ReadSource(GameItem item) => SourceEnergy?.Invoke(item);
+        internal static bool CanDrawSource(GameItem item, int cost) => ReadSource(item) >= cost;
     }
     internal static class ForgeLiquidApi
     {

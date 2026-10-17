@@ -1,4 +1,4 @@
-using Il2Cpp;
+﻿using Il2Cpp;
 
 namespace Nicokobo.Forge;
 
@@ -126,6 +126,8 @@ internal static partial class ForgeMachineRuntime
                 if (change.Container.parentInventory?.Pointer != change.Slot.Pointer ||
                     !ForgeLiquidApi.Matches(ForgeLiquidApi.Capture(change.Container), change.After))
                     throw new InvalidOperationException("liquid commit mismatch");
+            if (plan.DirectPower && plan.Power > 0 && plan.ExternalPower?.Verify() != true)
+                throw new InvalidOperationException("direct machine power commit mismatch");
             if (plan.Battery != null && (plan.Battery.parentInventory?.Pointer != plan.Inventory.Battery?.Pointer ||
                 (plan.ExternalPower != null ? !plan.ExternalPower.Verify() :
                     !ForgeExternalPowerApi.IsConnector(plan.Battery) && ForgePowerApi.ReadSource(plan.Battery) != plan.Energy - plan.Power)))

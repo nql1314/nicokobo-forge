@@ -25,7 +25,7 @@ internal static class MachineCatalogChecks
         var auxiliary = new List<string> { "auxiliary_material" };
         var modules = new List<string> { "MODULE_TYPE_FURNACE" };
         var slots = new List<ForgeMachineContainerSlot> { new("water", new(3, 3)) };
-        var liquidInputs = new List<ForgeMachineLiquidIngredient> { new("water", 100) };
+        var liquidInputs = new List<ForgeMachineLiquidIngredient> { new("water", 100) { RestockWaterQuality = 2 } };
         var contents = new List<ForgeMachineLiquidAmount> { new("protein", 100) };
         var recipe = new ForgeMachineRecipe(owner + ".recipe", inputs,
             new ForgeMachineItemOutput("canister", Contents: contents))
@@ -49,7 +49,8 @@ internal static class MachineCatalogChecks
         Expect(first!.Definition.ProductionMarkupPercent == 25 &&
             first.Recipes[0].Value.ItemInputs.Count == 1 && first.Template.LiquidInputs.Count == 1 &&
             first.Template.Modules!.AllowedTypes.Count == 1 && first.Recipes[0].Value.LiquidInputs.Count == 1 &&
-            ((ForgeMachineItemOutput)first.Recipes[0].Value.Output).Contents!.Count == 1,
+            ((ForgeMachineItemOutput)first.Recipes[0].Value.Output).Contents!.Count == 1 &&
+            first.Recipes[0].Value.LiquidInputs[0].RestockWaterQuality == 2,
             "caller mutated a nested template or recipe list");
         Expect(first.IsFeedstock("raw_material") && first.Accepts("auxiliary_material") && !first.Accepts("ore"), "admission index");
         Expect(MachineAdmission.InputIds(first.Recipes.Select(entry => entry.Value))
@@ -102,6 +103,8 @@ internal static class MachineCatalogChecks
             extra with { Output = new ForgeMachineContainerOutput([new("water", 100)]) },
             extra with { LiquidInputs = [new("missing", 100)] },
             extra with { LiquidInputs = [new("water", 0)] },
+            extra with { LiquidInputs = [new("water", 100) { RestockWaterQuality = 0 }] },
+            extra with { LiquidInputs = [new("water", 100) { RestockWaterQuality = 4 }] },
             extra with { LiquidInputs = [new("water", 100), new("water", 100)] },
             extra with { Output = new ForgeMachineItemOutput("part", Contents: [new("protein", int.MaxValue)]) },
             extra with { Output = new ForgeMachineItemOutput("part", Contents: [new("protein", 10), new("protein", 10)]) }

@@ -8,6 +8,10 @@ Forge 负责原版机器 UI 模板、设施物品注册、槽位回调、过夜�
 
 `ForgeMachineDefinition.ProductionMarkupPercent` 是内容 Mod 为机器声明的生产倍率，合法范围为 0–1000%，省略时为 0%。Forge 将它复制到每次批处理的 `ForgeMachineBatchContext.ProductionMarkupPercent`，机器拥有者和追加配方都能读取同一值。Forge 只传递倍率，不定义或覆盖内容 Mod 的价格表。
 
+0.6.41 的 `ForgeMachineDefinition.NightlyOrder` 由内容方声明加工层级，按数值升序、同级实际实例 ID 升序加工；默认 0，全域制造终端为 500。夜间处理位于原生夜间循环后的 `AfterSleep`（order=-1000），早于连续模组闲置衰减；原生熔炉先完成并弹出产物，注册机器随后按层级取料。`ResolveNightlyBatchCount` 的原有次数与逐批事务不变；每次 `ProcessBatch` 都重新分派自动化前后回调，拒绝批次不重试。同夜实例去重与隔离账本继续生效。
+
+0.6.42 的 `ForgeExternalPowerApi.RegisterMachine` 可直接接管机器供电，包括本地电池槽为空或已装普通电池的机器。负数表示保留原生电池行为，非负数独占供电，0 不回退到本地电池；实际每批依赖 `IForgePowerTransaction`，无有效收据拒绝耗电加工。接管与电量在提交前重新检查，提交后核对收据；本地电池不进入该笔扣电与恢复。详细契约见[库存与供电事务](INVENTORY_POWER_TRANSACTIONS.md)。
+
 `ForgeMachineItemOutput.ResolveItemId`（0.6.28）可按本批上下文返回一个原生目录中的物品 ID，用于随机或条件产物。事务在资源规划后、创建产物和扣除资源前只调用一次；整批使用同一 ID，工厂产物及 `PrepareItem` 后的身份按它校验。返回空白／带首尾空白的 ID、工厂失败或输出仓放不下时，走现有恢复流程。该回调不能修改游戏资源；声明的 `ItemId` 仍提供默认手册图示，动态产物名称和范围由 `.Guide` 说明。手册读取不调用随机回调，修改选择规则时需同步 `RuleRevision`。
 
 ## 注册机器
@@ -81,7 +85,7 @@ var recipe = new ForgeMachineRecipe(ownerId + ".recipe.example",
     new ForgeMachineItemOutput("metal_ingot", Count: 1))
 {
     LiquidInputs = [new("water", 100,
-        Condition: container => ForgeLiquidApi.WaterQuality(container) >= 1)]
+        Condition: container => ForgeLiquidApi.WaterQuality(container) >= 1) { RestockWaterQuality = 1 }]
 };
 
 ForgeMachineRegistrationApi.RegisterMachine(ownerId,
@@ -96,6 +100,8 @@ ForgeMachineRegistrationApi.RegisterMachine(ownerId,
 默认模组仓直接保留熔炉的 `7×5` 环形定义（中心十字及四角空缺）；其他尺寸使用新建矩形仓，不缩放已有环形背景。电池默认 `1×1`，液体输入与容器输出设为 `1×1` 时使用净水器同款 `GameSlotInventory()` 和 `Items/water_container4` 的原生容器背景，装入后随物品尺寸扩展。容器名称默认取原生本地化键 `mech_purifier_label_container`（中文为“储水容器”）；`Label` 留空即可使用它，内容 Mod 无需自行画槽位或写供水标签。输出列保留原生“输出”标题。输入输出物品仓按声明尺寸使用原生网格组件。标题均使用原生 `TagElement`。电池和模组仓继续使用 `MachineHelper.SetupBatterySlot` / `SetupModuleBay`；原版模组装入、移出、加成和作业通知仍走游戏接口。仓库尺寸范围为 1–32；液体输入槽最多 8 个。
 
 注册会先校验整个声明，再暂存设施工厂。模板、模组类型、配方及其嵌套列表在注册时冻结。重复机器 ID 返回 `Conflict`；不匹配模板的配方返回 `Invalid`，不会部分发布。`Accepted` 只表示声明被接受；设施目录是否 `Applied` 仍需检查 `ForgeItemApi.Snapshot()`。
+
+液体原料的 `RestockWaterQuality` 为自动补货声明固定目标水级（1 普通、2 优质、3 纯水）。未声明使用 null；0 或越界值登记为 Invalid。该字段不改变手动加工的 `Condition`，物流仍须同时满足真实加工条件与严格水级，不能因更高水质满足最低条件而替代目标水。未声明且接收桶为空时，物流须等待玩家明确水级；已有余液可以提供匹配依据。
 
 机器声明允许空配方列表，供共享机器先注册、内容 Mod 后续追加；`RegisterAdditionalRecipes` 仍要求至少一条配方。
 
