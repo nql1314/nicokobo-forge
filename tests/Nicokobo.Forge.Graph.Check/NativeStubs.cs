@@ -95,7 +95,6 @@ namespace Il2Cpp
         public static object Deserialize(Type type, byte[] bytes, ES3Settings settings) => JsonSerializer.Deserialize(bytes, type, UnityEngine.JsonUtility.Options)!;
     }
     public static class MachineHelper { public static void LoadUpgrade(GameItem item) { } public static void OnLoad(GameItem item) { } }
-    public static class MachineHydroponic { public static void LoadHydroponicModuleInvData(GameItem item) { } }
     public static class SpriteHelper { public static void UpdateWaterContainerSprite(GameItem item) { } }
     public static class GeneralHelper
     { public static void LoadLockItem(GameItem item) { } public static void LoadNonOwnedToolTag(GameItem item) { } public static void LoadHazardousWasteTag(GameItem item) { } }

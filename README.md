@@ -1,14 +1,14 @@
 # Nicokobo Forge
 
-0.6.43 审查修复候选新增端点创建凭据。旧 Open 接口兼容；新接口调用者需配套更新 Forge。本候选只在独立副本准备，未安装或进行原生验收。
+0.6.47 新增历史日期存档分叉接入，并收窄单类供电及显示适配失败的影响范围。已适配 Build 26017150 的涡轮增压器与水培库存恢复接口；既有检查、Release 编译与本地打包通过，未安装游戏或执行原生验收。
 
 [English](#english) · [中文](#中文)
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.43** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Source version: **0.6.47** · Source baseline: **Probably Stolen Demo, Steam Build `26017150`**
 
-Matching Mechcore Protocol bundle: **1.0.0** (Synthesis 0.9.65, Aug 0.1.62, Matrix 1.1.7).
+Matching Mechcore Protocol source bundle: **1.0.5** (Synthesis 0.9.68, Aug 0.1.65, Matrix 1.1.9). API adaptations for Build 26017150, existing checks, Release builds and local packaging are complete. Native acceptance remains pending.
 
 Forge provides native registration, lifecycle events, machine templates and transactions, dialogue, visits, reading windows, Nico Workshop, image resources and save inspection for content mods. It also owns the Universal Manufacturing Terminal, workshop cards and ten base-game achievements. Content mods own their items, recipes, prices, rewards and story rules.
 
@@ -28,9 +28,9 @@ Registration acceptance, native application and successful game/save behavior ar
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.43** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 源码版本：**0.6.47** · 源码基线：**Probably Stolen Demo，Steam Build `26017150`**
 
-配套机核协议合集：**1.0.0**（合成扩展 0.9.65、机械飞升 0.1.62、模组矩阵 1.1.7）。
+配套机核协议合集源码：**1.0.5**（合成扩展 0.9.68、机械飞升 0.1.65、模组矩阵 1.1.9）。
 
 Forge 为内容 Mod 提供原生注册、生命周期、机器模板与资源事务、对话／来访／阅读窗、Nico 工坊、图片资源及存档读取，内置全域制造终端、全开局工坊名片与十项原版成就。内容 Mod 维护物品、配方、价格、奖励和剧情规则。
 

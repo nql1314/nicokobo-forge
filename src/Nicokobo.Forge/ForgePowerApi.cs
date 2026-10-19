@@ -5,7 +5,7 @@ namespace Nicokobo.Forge;
 
 /// <summary>Game power operations are isolated here; batch cost arithmetic is
 /// available without game state through ForgeMachinePowerMath.</summary>
-public static class ForgePowerApi
+public static partial class ForgePowerApi
 {
     public static int GetMachineCost(GameItem machine)
     {

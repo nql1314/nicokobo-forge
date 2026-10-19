@@ -4,9 +4,9 @@
 
 ## English
 
-Author: Nicokobo · Version: **@FORGE_VERSION@** · Target: **Probably Stolen Demo, Steam Build `25382790`**
+Author: Nicokobo · Version: **@FORGE_VERSION@** · Target: **Probably Stolen Demo, Steam Build `26017150`**
 
-Mechcore Protocol 1.0.0 uses Forge 0.6.36 with Synthesis 0.9.65, Aug 0.1.62 and Matrix 1.1.7. Install one matching Forge DLL across these packages.
+Mechcore Protocol 1.0.5 matches Forge 0.6.47 with Synthesis 0.9.68, Aug 0.1.65 and Matrix 1.1.9. Install one matching Forge DLL across these packages.
 
 Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
 
@@ -86,9 +86,9 @@ Released under the MIT License.
 
 ## 中文
 
-作者：Nicokobo · 配套版本：**@FORGE_VERSION@** · 适用：**Probably Stolen Demo，Steam Build `25382790`**
+作者：Nicokobo · 配套版本：**@FORGE_VERSION@** · 适用：**Probably Stolen Demo，Steam Build `26017150`**
 
-机核协议 1.0.0 配套 Forge 0.6.36、合成扩展 0.9.65、机械飞升 0.1.62 与模组矩阵 1.1.7。多个包附带 Forge 时只安装一份配套 DLL。
+机核协议 1.0.5 配套 Forge 0.6.47、合成扩展 0.9.68、机械飞升 0.1.65 与模组矩阵 1.1.9。多个包附带 Forge 时只安装一份配套 DLL。
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
 

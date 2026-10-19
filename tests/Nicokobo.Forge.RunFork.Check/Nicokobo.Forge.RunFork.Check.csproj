@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/Nicokobo.Forge/ForgeRunForkApi.cs" Link="Production/ForgeRunForkApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Runtime/OwnedCallbacks.cs" Link="Production/OwnedCallbacks.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeSaveReadbackApi.cs" Link="Production/ForgeSaveReadbackApi.cs" />
+    <Compile Include="../../BuildConfig/ForgeNumbers.cs" Link="Production/ForgeNumbers.cs" />
+  </ItemGroup>
+</Project>

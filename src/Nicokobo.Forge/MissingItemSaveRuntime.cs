@@ -305,7 +305,6 @@ internal static class MissingItemSaveRuntime
             var item = node.tempLink;
             if (item == null) continue;
             MachineHelper.LoadUpgrade(item);
-            MachineHydroponic.LoadHydroponicModuleInvData(item);
             SpriteHelper.UpdateWaterContainerSprite(item);
             GeneralHelper.LoadLockItem(item);
             GeneralHelper.LoadNonOwnedToolTag(item);

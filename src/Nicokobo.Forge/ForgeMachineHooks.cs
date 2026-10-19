@@ -37,12 +37,12 @@ internal static class ForgeMachineHooks
                 throw new InvalidOperationException("Native machine drop routing unavailable");
             if (!NativeHookSet.Install(AcceleratorOwner,
             [
-                new(typeof(ToolDirectory.__c__DisplayClass23_0), "_CreateTurboBooster_b__4",
+                new(typeof(ToolDirectory.__c__DisplayClass24_0), "_CreateTurboBooster_b__4",
                     [typeof(GameItem), typeof(GameItem)], typeof(void), typeof(ForgeMachineHooks), nameof(ActivateMachine)),
-                new(typeof(ToolDirectory.__c__DisplayClass24_0), "_CreateTurboBoosterAdv_b__7",
+                new(typeof(ToolDirectory.__c__DisplayClass25_0), "_CreateTurboBoosterAdv_b__7",
                     [typeof(GameItem), typeof(GameItem)], typeof(void), typeof(ForgeMachineHooks), nameof(ActivateMachine))
             ], log))
-                throw new InvalidOperationException("Native accelerator routing unavailable");
+                log("[WARN] [NicokoboForge/Machine] accelerator routing disabled; nightly production remains available");
             Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".rebind", ForgeLifecyclePhase.AfterLoad,
                 context => { ForgeMachineRuntime.BeforeLoadGame(); ForgeMachineRuntime.AfterLoadGame(context); },
                 ForgeNumbers.Machines.LifecyclePriority));
@@ -52,7 +52,7 @@ internal static class ForgeMachineHooks
             Lifecycle.Add(ForgeLifecycleApi.Subscribe(owner, owner + ".process", ForgeLifecyclePhase.AfterSleep,
                 ForgeMachineRuntime.AfterNativeNightCycles, -1000));
             Installed = true;
-            log("[INFO] [NicokoboForge/Machine] templates installed; shared lifecycle; machineDropRouting=1; acceleratorRouting=2; globalWindowHooks=0");
+            log("[INFO] [NicokoboForge/Machine] templates installed; shared lifecycle; machineDropRouting=1; globalWindowHooks=0");
             return true;
         }
         catch (Exception ex)

@@ -3,6 +3,12 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+if (args is ["native-power"])
+{
+    NativePowerActionChecks.Run();
+    return;
+}
+
 if (args is ["missing-sprites"])
 {
     MissingSpriteChecks.Run();
@@ -61,6 +67,7 @@ if (args is ["transfer-review"])
 
 MachineCatalogChecks.Run();
         PowerBatchChecks.Run();
+        NativePowerActionChecks.Run();
         PowerConnectorIdentityChecks.Run();
         InventoryAdmissionChecks.Run();
         NativeBatchFinalizationChecks.Run();

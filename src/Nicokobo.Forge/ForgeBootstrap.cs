@@ -22,6 +22,7 @@ internal static class ForgeBootstrap
             log.Callback);
         ForgeRunDataApi.SetEnabled(report.KnownBuild && report.RunDataSignaturesMatch);
         ForgeLifecycleApi.Configure(report.KnownBuild && report.RunDataSignaturesMatch, log.Callback);
+        ForgeRunForkApi.Install(report.KnownBuild && report.RunDataSignaturesMatch, log.Callback);
         ForgeModuleApi.Configure(report.KnownBuild && report.ModuleDirectorySignaturesMatch, log.Callback);
         ForgePresentationApi.Configure(report.KnownBuild && report.ModuleDirectorySignaturesMatch, log.Callback);
         ForgeInventoryApi.SetEnabled(report.KnownBuild &&

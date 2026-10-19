@@ -77,7 +77,9 @@ public static class ForgeSaveGraphApi
                 var item = node.tempLink ?? throw new InvalidDataException("Saved graph node not restored");
                 if (item.identifier != node.identifier || item.GetUniqueID() != node.uniqueId || item.unitCount != node.unitCount)
                     throw new InvalidDataException("Decoded graph identity/count mismatch");
-                MachineHelper.LoadUpgrade(item); MachineHydroponic.LoadHydroponicModuleInvData(item);
+                // Build 26017150 removed the hydroponic-specific module-inventory restore;
+                // the remaining generic machine fixups are the complete native load path.
+                MachineHelper.LoadUpgrade(item);
                 SpriteHelper.UpdateWaterContainerSprite(item); GeneralHelper.LoadLockItem(item);
                 GeneralHelper.LoadNonOwnedToolTag(item); GeneralHelper.LoadHazardousWasteTag(item);
                 LockHelper.LoadLockedContainer(item); MachineBrokenHelper.LoadBrokenMachine(item);

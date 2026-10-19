@@ -24,7 +24,7 @@ namespace Il2Cpp
             if (PlacementFixture) return FindPlacementSlot(item, maximum, shape);
             if (IsInsertLocked() || mayInventoryAddItemFunc?.Invoke(item) == false ||
                 childItems.Any(i => i.modifiedShape.Position == shape.Position)) return null;
-            return new() { item = item, inventory = this as GameGridInventory, numTransfer = maximum };
+            return new() { item = item, inventory = this, numTransfer = maximum };
         }
         public bool Expel(GameItem item)
         {
@@ -57,7 +57,7 @@ namespace Il2Cpp
     public sealed partial class SlotMarker
     {
         public GameItem? item, targetItem;
-        public GameGridInventory? inventory;
+        public GameInventory? inventory;
         public int AcceptCalls;
         public int TryAcceptOnce(int maximum)
         {
@@ -81,6 +81,15 @@ namespace Il2Cpp
             }
             item!.modifiedShape = new(99);
             return inventory!.UncheckedAccept(item) ? amount : 0;
+        }
+    }
+    public sealed partial class GameSlotInventory
+    {
+        public SlotMarker? LastTransfer;
+        public SlotMarker? TryFindOneValidInventorySlot(GameItem item)
+        {
+            if (IsInsertLocked() || childItems.Count != 0 || mayInventoryAddItemFunc?.Invoke(item) == false) return null;
+            return LastTransfer = new() { item = item, inventory = this, numTransfer = Math.Min(1, item.unitCount) };
         }
     }
 }

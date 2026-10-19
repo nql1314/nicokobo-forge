@@ -5,10 +5,10 @@
 | 内容职责 | Forge 提供的公共能力 |
 | --- | --- |
 | 物品、模组、制造注册 | `ForgeItemApi`、`ForgeModuleApi`、共享制造终端追加配方 |
-| 七类机器的批次观察 | 机器库存、`BeforeBatch`／`AfterBatch` 自动化回调；原生熔炉同步观察仍由内容侧接入 |
+| 十类补货／弹出机器的批次观察 | 注册机器库存、`BeforeBatch`／`AfterBatch` 自动化回调；熔炉、净水器、收集器和解序器的物流观察由内容侧接入 |
 | 固体与液体搬运 | `ForgeItemTransferApi.Move`、`ForgeLiquidTransferApi.Pour`、实例冻结与原生准入 |
 | 实体创建与失败补偿 | 创建凭据、库存图及事务能力；内容方验证容量、所有权与本次创建身份 |
-| 本地电池差额补电 | `ForgeExternalPowerApi` 与逐批电量事务；共享储量及容量规则由内容侧持有 |
+| 耗电设备天然接网 | `CanSupplyDevice`、`GetDevicePowerSource` 及原生动作／注册批次事务；内容物品通过 `RegisterConsumer` 与 `GetDeviceEnergy`／`TryDebitDevice` 接入。不要求补货／弹出模组或模组舱，本地优先、共享储量及容量规则由内容侧持有 |
 | 状态保存 | `ForgeRunDataApi.Read / Stage`；当前周目键为 `nicokobo.automated_logistics.runtime_v5` |
 | 原生详情与价值 | 实例原生提示、物品展示及计价接口 |
 

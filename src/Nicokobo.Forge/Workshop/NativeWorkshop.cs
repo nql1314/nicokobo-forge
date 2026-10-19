@@ -54,6 +54,8 @@ internal static class NativeWorkshop
         if (!NativeHookSet.Install(hookId, hooks, log)) return;
         try
         {
+            Leases.Add(ForgeRunForkApi.RegisterState(OwnerId, AchievementRules.SaveKey,
+                RebindForkState, _ => { Reset(); _bindRequested = true; }, _ => !_busy && !_observing));
             Leases.Add(ForgeLifecycleApi.Subscribe(OwnerId, OwnerId + ".workshop.after_load", ForgeLifecyclePhase.AfterLoad,
                 _ => { Reset(); _bindRequested = true; }));
             Leases.Add(ForgeLifecycleApi.Subscribe(OwnerId, OwnerId + ".workshop.after_night", ForgeLifecyclePhase.AfterNight, _ => _dirty = true));
@@ -169,6 +171,12 @@ internal static class NativeWorkshop
         _store.runID == _state.RunId && _store.saveSlotId == _state.SlotId;
 
     private static void ResetPrefix() => Reset();
+    private static string RebindForkState(string json, ForgeRunIdentity source, ForgeRunIdentity destination)
+    {
+        var state = AchievementRules.Decode(json, source.RunId, source.SlotId);
+        if (state.Pending != null) throw new InvalidOperationException("Workshop reward delivery is unresolved");
+        return AchievementRules.Encode(state with { RunId = destination.RunId, SlotId = destination.SlotId });
+    }
     private static void InitialPostfix() => _bindRequested = true;
     private static void Reset()
     {

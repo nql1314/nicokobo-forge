@@ -28,7 +28,7 @@
 | 库存读取与搬运预检 | `ForgeInventoryApi.CaptureDirect / PreviewWholeGridTransfer` 只读；`InventoryTransfer = false`，预检不提交搬运 |
 | 整批奖励落位预检 | `ForgeInventoryPlacementApi.PlanWholeGrid` 在托管占格图中规划未附着单件物品，再用真实库存校验准入；不创建临时原生库存或修改原物品，交付与保存留调用方 |
 | 单次物品搬运与倒液 | `ForgeItemTransferApi.Move` / `ForgeLiquidTransferApi.Pour` 走原生接受／转移路径并核对两端实际量；结果不确定时由调用方暂停，不代表完整网络或保存重载已验收 |
-| 内容状态及多源供电事务 | `IForgeBatchTransaction` / `IForgePowerTransaction` 与真实输入、输出和电量共用一次提交/补偿；网络、唯一额度和电池范围由内容持有 |
+| 内容状态及多源供电事务 | `IForgeBatchTransaction` / `IForgePowerTransaction` 与真实动作和电量共用一次提交／补偿；`RegisterConsumer` 声明所属耗电物品，`CanSupplyDevice`／`GetDevicePowerSource` 识别原生机器、工具、注册机与内容设备并读取真实供电物，`GetDeviceEnergy`／`TryDebitDevice` 接入实际动作。网络、唯一额度和电池策略由内容持有，不要求模组舱或物流模组 |
 | 隐藏真实库存与列表承载 | `ForgeInventoryEndpointApi` / `ForgeSaveGraphApi` / `ForgeListInventoryApi` 保存原生完整图、固定工厂拓扑和实际尺寸；原生跨进程行为须按最终候选验收。见[接入契约](INVENTORY_POWER_TRANSACTIONS.md) |
 | 内容所属网格的附加准入 | `ForgeInventoryAdmissionApi` 按根物品 ID 与库存 ID 在原生准入后增加托管限制，保留原生拒绝，不将转换委托写入原生准入字段。内容持有设备／对象图规则，真实拖放另验 |
 

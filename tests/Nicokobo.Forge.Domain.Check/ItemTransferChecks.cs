@@ -125,6 +125,36 @@ internal static class ItemTransferChecks
             source.overrideLockRemove = true;
             Expect(ForgeItemTransferApi.Move(item, target, 9).Status == "locked-or-source", "Source removal lock was bypassed");
         }
+        foreach (bool throws in new[] { false, true })
+        {
+            var (source, _, item) = Setup();
+            var target = new GameSlotInventory { Pointer = new(107) };
+            if (throws) target.onSlotAddItemFunc = _ => throw new InvalidOperationException("Single-slot callback failed");
+            var result = ForgeItemTransferApi.Move(item, target, 9);
+            Expect(!result.Indeterminate && (throws
+                ? result.Moved == 0 && result.Status == "rejected-restored" && item.unitCount == 9 &&
+                    item.parentInventory == source && target.childItems.Count == 0 && target.LastTransfer!.item!.DestroyCalls == 1
+                : result.Moved == 1 && item.unitCount == 8 && target.childItems.Single().unitCount == 1),
+                "Single-slot admission or its rejected split did not conserve source units");
+            if (!throws)
+            {
+                Expect(ForgeItemTransferApi.Move(item, target, 1).Status == "no-slot" && item.unitCount == 8,
+                    "Occupied single-slot input accepted another unit");
+                var inserted = target.childItems.Single();
+                var outgoing = new GameGridInventory { Pointer = new(108), TransferFixture = true };
+                var removed = ForgeItemTransferApi.Move(inserted, outgoing, 1);
+                Expect(removed.Moved == 1 && !removed.Indeterminate && target.childItems.Count == 0 &&
+                    outgoing.childItems.Single().Pointer == inserted.Pointer,
+                    "Single-slot output could not move through the existing grid overload");
+            }
+        }
+        {
+            var (_, _, item) = Setup();
+            var target = new GameSlotInventory { Pointer = new(109), ThrowAfterAttach = true };
+            var result = ForgeItemTransferApi.Move(item, target, 1);
+            Expect(result.Moved == 1 && !result.Indeterminate && item.unitCount == 8 && target.childItems.Single().unitCount == 1,
+                "A confirmed single-slot attachment was refunded after its native callback threw");
+        }
         Console.WriteLine($"Item transfers: {checks} offline checks passed");
     }
 }

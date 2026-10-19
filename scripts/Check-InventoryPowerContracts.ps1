@@ -50,7 +50,7 @@ try {
     Assert-InventoryPowerMethod 'Il2Cpp.PowerHelper' 'CanDrawPowerSource' 'System.Boolean' @('Il2Cpp.GameItem', 'System.Int32')
     Assert-InventoryPowerMethod 'Il2Cpp.PowerHelper' 'DrawPowerSource' 'System.Boolean' @('Il2Cpp.GameItem', 'System.Int32')
     Assert-InventoryPowerMethod 'Il2Cpp.PowerHelper' 'ChargeBattery' 'System.Void' @('Il2Cpp.GameItem')
-    Assert-InventoryPowerMethod 'Il2Cpp.PowerHelper' 'ChargeBattery' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
+    Assert-InventoryPowerMethod 'Il2Cpp.PowerHelper' 'ChargeBattery' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32', 'System.Boolean')
     Assert-InventoryPowerMethod 'Il2Cpp.PowerHelper' 'ChargeAllRechargable' 'System.Void' @('Il2CppSystem.Collections.Generic.List`1<Il2Cpp.GameItem>')
     Assert-InventoryPowerMethod 'Il2Cpp.PowerHelper' 'SetPowerSourceAt' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32')
     Assert-InventoryPowerMethod 'Il2Cpp.PowerHelper' 'InitPowerSourceItem' 'System.Void' @('Il2Cpp.GameItem', 'System.Int32', 'System.Int32')
@@ -64,6 +64,36 @@ try {
     Assert-InventoryPowerMethod 'Il2Cpp.MachineHelper' 'TryDrawCyclePower' 'System.Boolean' @('Il2Cpp.GameItem', 'Il2Cpp.GameSlotInventory')
     Assert-InventoryPowerMethod 'Il2Cpp.GameSlotInventory' '.ctor' 'System.Void' @()
     Assert-InventoryPowerMethod 'Il2Cpp.MachineFurnace/__c__DisplayClass0_0' '_Furnace_b__5' 'System.Void' @('Il2Cpp.GameItem', 'Il2Cpp.GameInventory', 'Il2Cpp.SlotMarker')
+    $inventoryPowerSlotCallback = @('Il2Cpp.GameItem', 'Il2Cpp.GameInventory', 'Il2Cpp.SlotMarker')
+    foreach ($inventoryPowerNativeTarget in @(
+        @('MachinePurifier/__c__DisplayClass1_0', '_WaterPurifier_b__5'),
+        @('MachineMoistureFarm/__c__DisplayClass0_0', '_MoistureFarm_b__4'),
+        @('MachineDesequencer/__c__DisplayClass5_0', '_Desequencer_b__5'),
+        @('MachineDesequencer/__c__DisplayClass5_0', '_Desequencer_b__8'),
+        @('MachineWineRack/__c__DisplayClass3_0', '_AgeWell_b__5'),
+        @('MachineFridge/__c__DisplayClass26_0', '_Fridge_b__4'),
+        @('MachineFridge/__c__DisplayClass26_0', '_Fridge_b__5'),
+        @('MachineProjector/__c__DisplayClass1_0', '_Projector_b__5'),
+        @('MachineAlarm/__c__DisplayClass1_0', '_Alarme_b__3'),
+        @('MachineAlarm/__c__DisplayClass1_0', '_Alarme_b__5'),
+        @('HusbandryDirectory/__c__DisplayClass1_0', '_VacuumRobot_b__12'),
+        @('HusbandryDirectory/__c__DisplayClass1_0', '_VacuumRobot_b__18')
+    )) {
+        Assert-InventoryPowerMethod ('Il2Cpp.' + $inventoryPowerNativeTarget[0]) $inventoryPowerNativeTarget[1] 'System.Void' $inventoryPowerSlotCallback
+    }
+    Assert-InventoryPowerMethod 'Il2Cpp.MachineBottlePrinter/__c__DisplayClass6_0' 'Method_Internal_Void_String_Int32_0' 'System.Void' @('System.String', 'System.Int32')
+    Assert-InventoryPowerMethod 'Il2Cpp.MachineBoxDispenser/__c__DisplayClass0_0' '_BoxDispenser_b__1' 'System.Void' @()
+    Assert-InventoryPowerMethod 'Il2Cpp.HusbandryDirectory/__c__DisplayClass1_0' 'Method_Internal_Boolean_GameInventory_PDM_0' 'System.Boolean' @('Il2Cpp.GameInventory')
+    Assert-InventoryPowerMethod 'Il2Cpp.HusbandryDirectory/__c__DisplayClass1_0' 'Method_Internal_Void_PDM_0' 'System.Void' @()
+    Assert-InventoryPowerMethod 'Il2Cpp.HusbandryDirectory/__c__DisplayClass1_0' '_VacuumRobot_b__16' 'System.Boolean' $inventoryPowerSlotCallback
+    Assert-InventoryPowerMethod 'Il2Cpp.HusbandryDirectory/__c__DisplayClass1_0' '_VacuumRobot_b__17' 'System.Boolean' $inventoryPowerSlotCallback
+    Assert-InventoryPowerMethod 'Il2Cpp.ToolDirectory/__c__DisplayClass25_0' '_CreateTurboBoosterAdv_b__4' 'System.Void' $inventoryPowerSlotCallback
+    Assert-InventoryPowerMethod 'Il2Cpp.MiscItemDirectory/__c__DisplayClass75_0' '_AugScanner_b__2' 'System.Void' $inventoryPowerSlotCallback
+    Assert-InventoryPowerMethod 'Il2Cpp.MiscItemDirectory/__c__DisplayClass75_0' '_AugScanner_b__0' 'System.Boolean' $inventoryPowerSlotCallback
+    Assert-InventoryPowerMethod 'Il2Cpp.MiscItemDirectory/__c__DisplayClass75_0' '_AugScanner_b__1' 'System.Boolean' $inventoryPowerSlotCallback
+    Assert-InventoryPowerMethod 'Il2Cpp.MachineTurboBoosterAdv' 'UpdateSprite' 'System.Void' @('Il2Cpp.GameItem', 'Il2Cpp.GameSlotInventory')
+    Assert-InventoryPowerMethod 'Il2Cpp.AugScanner' 'CreateTooltip' 'System.Void' @('Il2Cpp.RichTextBuilder', 'Il2Cpp.GameItem')
+    Assert-InventoryPowerMethod 'Il2Cpp.AugScanner' 'GetBatterySlot' 'Il2Cpp.GameSlotInventory' @('Il2Cpp.GameItem')
     Assert-InventoryPowerMethod 'Il2Cpp.PlayerStore' 'FindAllItem' 'Il2CppSystem.Collections.Generic.List`1<Il2Cpp.GameItem>' @('System.Boolean')
     Assert-InventoryPowerMethod 'Il2Cpp.PlayerStore' 'SaveGame' 'System.Void' @()
     Assert-InventoryPowerMethod 'Il2Cpp.PlayerStore' 'LoadGame' 'System.Void' @()

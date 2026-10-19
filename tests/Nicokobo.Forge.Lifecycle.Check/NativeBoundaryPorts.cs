@@ -46,8 +46,8 @@ namespace Il2Cpp
     public static class MachineFurnace { public static GameItem Furnace() => new(); }
     public static class ToolDirectory
     {
-        public sealed class __c__DisplayClass23_0 { public void _CreateTurboBooster_b__4(GameItem a, GameItem b) { } }
-        public sealed class __c__DisplayClass24_0 { public void _CreateTurboBoosterAdv_b__7(GameItem a, GameItem b) { } }
+        public sealed class __c__DisplayClass24_0 { public void _CreateTurboBooster_b__4(GameItem a, GameItem b) { } }
+        public sealed class __c__DisplayClass25_0 { public void _CreateTurboBoosterAdv_b__7(GameItem a, GameItem b) { } }
     }
     public static class WaterHelper
     { public static void EmptyContainer(GameItem item) { } public static void AddLiquid(GameItem item, string id, int amount) { } }
@@ -113,10 +113,11 @@ namespace Nicokobo.Forge.Runtime
     internal static class NativeHookSet
     {
         internal static readonly Dictionary<string, IReadOnlyList<NativeHook>> Installed = [];
+        internal static string? FailTarget;
         internal static bool Install(string id, IReadOnlyList<NativeHook> hooks, Action<string>? log)
         {
             foreach (var hook in hooks)
-                if (hook.TargetType.GetMethod(hook.Method) == null) return false;
+                if (hook.Method == FailTarget || hook.TargetType.GetMethod(hook.Method) == null) return false;
             Installed[id] = hooks;
             return true;
         }

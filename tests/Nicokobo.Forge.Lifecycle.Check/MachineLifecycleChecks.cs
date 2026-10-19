@@ -7,7 +7,12 @@ internal static class MachineLifecycleChecks
 {
     internal static void Run(Action<bool, string> require)
     {
-        require(ForgeMachineHooks.Install(true, _ => { }), "Production machine lifecycle installer failed");
+        NativeHookSet.FailTarget = nameof(GameItem.TryFindOneValidInventorySlot);
+        require(!ForgeMachineHooks.Install(true, _ => { }), "Missing core drop routing must still reject the machine runtime");
+        NativeHookSet.FailTarget = "_CreateTurboBooster_b__4";
+        require(ForgeMachineHooks.Install(true, _ => { }), "A missing accelerator must not disable registered machine lifecycle or production");
+        require(!NativeHookSet.Installed.ContainsKey("nicokobo.forge.machines.accelerators"), "A failed accelerator must not keep partial hooks");
+        NativeHookSet.FailTarget = null;
         var store = PlayerStore.Instance;
         store.DuringNight = () => Boundary.Call(typeof(ModHook), nameof(ModHook.FireOnGoingSleepLate), store, true);
         store.Items.Add(new());

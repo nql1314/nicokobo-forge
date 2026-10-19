@@ -8,7 +8,15 @@ Forge 0.6.33 的通用接入。玩法容量、网络身份、材料保留量、�
 
 0.6.42 新增 `ForgeExternalPowerApi.RegisterMachine(owner, callbackId, energy, plan)`，直接按机器接管供电。`energy(machine)` 返回负数表示未接管，沿用本地电池；非负数独占当前机器供电，空电网、暂停或故障返回 0，不能回退到本地电池。多个提供者同时接管或查询抛异常时按已接管但无可用电量处理。规划须返回包含冻结、真实扣电、最终核对与补偿的 `IForgePowerTransaction`，无收据拒绝耗电批次。
 
-注册机器即使本地槽为空、模板要求电池，仍可由已接管且足量的外部供电加工；计划与最终读回忽略未参与的本地电池，逐批重新查询接管及收据。原生 `MachineHelper` 的可供电、是否有供电和周期扣电入口使用同一提供者。原生炉内联读取闭包的电池槽，Forge 在一次同步回调内临时替换闭包槽引用，临时槽仅引用机器句柄，不附着物品或改变保存图；结束先恢复槽，再核对输入／输出和实际扣电，失败共同补偿。
+注册机器即使本地槽为空、模板要求电池，仍可由已接管且足量的外部供电加工；计划与最终读回忽略未参与的本地电池，逐批重新查询接管及收据。原生 `MachineHelper` 的可供电、是否有供电和周期扣电入口使用同一提供者。原生机器内联读取闭包的电池槽，Forge 在一次同步回调内临时替换闭包槽引用，临时槽仅引用机器句柄，不附着物品或改变保存图；结束先恢复槽，再核对实际扣电及动作状态，失败共同补偿。内容方可以另行要求真实本地电池；自动化物流采用本地优先、仅补差额的策略。
+
+0.6.45 起，`CanSupplyMachine(GameItem)` 只读识别全部 11 类正常原生用电机器和已登记 Forge 机器；`GetMachinePowerSource(GameItem)` 返回真实电池，注册机优先从登记的实际库存取得，原生机读取原窗口 `(0,1)`。资格不要求模组舱或任何物流模组，也不把物流补货名单当供电名单。
+
+0.6.46 扩展为耗电设备：`RegisterConsumer(ownerId, itemId, source)` 登记内容所属物品及其真实供电物解析器；解析元数据不要求外部供电钩子已启用，安装失败／卸载时释放 lease。`CanSupplyDevice`／`GetDevicePowerSource` 覆盖原生 11 台机器、2 件便携工具、已登记机器及内容声明的设备，旧机器接口保留为别名。内容方在实际动作调用 `ForgePowerApi.GetDeviceEnergy(device)` 与 `TryDebitDevice(device, cost)`：未被电网认领时读取并扣本地电池，已认领时必须验证并提交供电收据，缺电／拒绝不能触发内容效果。`Status` 为实际扣电结果；`Before`／`After` 是可用电量观察值，大储量电网可令两次读数同时受电池容量限制，不能以其差值判断扣电守恒。
+
+高级涡轮增压器沿用每次充能及完成阈值，义体扫描仪在原生激活动作前预借并验证 25 电，防止其忽略 Draw 返回后免费标记顾客。May／Can／UI 查询只读；扫码动作失败恢复顾客 `isAugScanned` 与电量。合成扩展高科技眼镜已清除原生顾客扫描委托，只在自己的逐状态检查入口调用设备扣电，不会叠加原生 25 电扫描。拾荒机器人保留每台每晚一次作业及 25 电成本。
+
+原生动作在 `CanDraw` 阶段准备并核对收据，再由对应的真实 `Draw` 确认，防止忽略 Draw 返回值的原生代码在扣电失败后继续出货。纯读查询与 Draw 后的剩余电量查询不重复扣电；普通缺电沿用原生停机／关闭效用分支。机器、子库存图、状态、独立特征、锁与相关效用字段纳入实际动作的补偿，跨夜进度与原位液体不要求符合熔炉的“消耗并产出”判据。清洁机器人沿用真实清洁／焚烧 helper 的独立事务边界，不额外调用生产或推进日程。
 
 原有 `ForgeExternalPowerApi.Register(owner, connectorId, energy, plan)` 仍支持其他内容方的连接物品。Forge 拦截这些物品的读电、扣电与充能入口；无容量连接物品不写 energy/max/recharge，普通电池保留原路径。内容选择实际电池，`ForgePowerBatchMath.Plan` 按剩余绝对电量降序、稳定实例 ID 同值排序，并在不足时不给部分计划。两类供电均不增加原版炉加工机会。
 
@@ -22,7 +30,7 @@ Forge 0.6.33 的通用接入。玩法容量、网络身份、材料保留量、�
 
 原生 `FireOnGameLoadedLate` 在 `LoadGame` 方法体内同步发出，不能等 LoadGame postfix 才解除端点的加载锁。端点在共享 `AfterGameLoadedLate` dispatcher 中以 `int.MinValue` 顺序清旧缓存并解除加载锁，再由内容重建端点；不使用另一个无序的 Late postfix 清理图。此准备不修改准入登记，随后的 LoadGame 返回与 finalizer 不再清理刚恢复的根。跨进程重复加载仍须验证完整库存图与UID，不能只读相同的内容状态 JSON。
 
-原生炉最终提交读回由 `NativeBatchFinalization` 保护：包括输入／输出句柄和参与者 Verify 的任何异常都尝试全部补偿、Fault，并无条件 Dispose／清除批次上下文。补偿或 Fault 回调抛异常不能跳过后续资源与清理。
+原生动作最终提交读回由 `NativeBatchFinalization` 保护：包括物品句柄和参与者 Verify 的任何异常都尝试全部补偿、Fault，并无条件 Dispose／清除批次上下文。补偿或 Fault 回调抛异常不能跳过后续资源与清理。
 
 原生 `GameItem.Destroy` 为抽象方法，CLR生成wrapper的非abstract标志不能用于选择补丁目标。当前游戏的具体实现为 `GameItemElement.Destroy`，所有当前派生类型的销毁 override 都纳入元数据检查，运行时另核对真实methodPointer非零。事务只延迟快照中原实例的破坏：核对UID／identifier／parent后先执行原Expel，保留窗口、UID与Unity handler；失败恢复原槽形状、列表序号与handler本地位置并读回，成功先清除批次上下文再销毁。新物品及普通电池路径不受这条延迟影响。
 

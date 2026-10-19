@@ -8,7 +8,7 @@ namespace Il2Cpp
 {
     public sealed partial class GameItem;
     public partial class GameInventory : PixelElement;
-    public sealed class GameSlotInventory : GameInventory;
+    public sealed partial class GameSlotInventory : GameInventory;
 }
 
 internal static class MachineCatalogChecks

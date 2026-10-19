@@ -10,6 +10,13 @@ public sealed record ForgeItemTransferResult(int Moved, bool Indeterminate, stri
 public static class ForgeItemTransferApi
 {
     public static ForgeItemTransferResult Move(GameItem item, GameGridInventory destination, int maximum)
+        => MoveCore(item, destination, maximum, () => destination.TryFindOneValidInventorySlot(item, false));
+
+    public static ForgeItemTransferResult Move(GameItem item, GameSlotInventory destination, int maximum)
+        => MoveCore(item, destination, maximum, () => destination.TryFindOneValidInventorySlot(item));
+
+    private static ForgeItemTransferResult MoveCore(GameItem item, GameInventory destination, int maximum,
+        Func<SlotMarker?> findSlot)
     {
         if (!ForgeCapabilities.Current.KnownGameBuild || maximum <= 0 ||
             item == null || item.Pointer == IntPtr.Zero || destination == null || destination.Pointer == IntPtr.Zero)
@@ -20,7 +27,7 @@ public static class ForgeItemTransferApi
         int before = item.unitCount;
         int requested = Math.Min(maximum, before);
         if (requested <= 0) return new(0, false, "empty");
-        var slot = destination.TryFindOneValidInventorySlot(item, false);
+        var slot = findSlot();
         if (slot == null || slot.Pointer == IntPtr.Zero || slot.item?.Pointer != item.Pointer ||
             slot.inventory?.Pointer != destination.Pointer || !slot.IsValid() || slot.numTransfer <= 0)
             return new(0, false, "no-slot");

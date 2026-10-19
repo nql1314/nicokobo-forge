@@ -4,6 +4,51 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.47 — 2026-10-19
+
+- 新增 `ForgeRunForkApi`，在历史日期重新执行原生初次保存时，验证并统一重绑已登记内容状态；保留进度、UID、随机状态和领取收据，写入后核对目标槽的身份与完整 JSON。内置工坊、Aug 与扒窃状态接入，显式旧档恢复只重绑内存，不主动保存。
+- 按设备拆分外部供电事务与显示适配，单类钩子失败只关闭对应接网能力；加速器适配失败不关闭注册机器的夜间加工。互操作程序集诊断哈希读取失败时继续核对签名，保留原生构建门控。
+- 配套机核协议合集 1.0.5，源码基线更新为 Build 26017150；适配涡轮增压器闭包／电池字段与水培库存恢复接口，并更新构建门控。P0、领域检查、Release 编译与本地打包通过；未安装游戏或执行原生测试。
+
+### English
+
+- Add `ForgeRunForkApi` to validate and rebind registered state when a historical save receives a new native run/slot identity. Preserve progress, UIDs, random state and grant receipts, then verify the destination file's identity and complete JSON. Built-in Workshop, Aug and theft state are integrated; explicit old-branch repair only rebinds memory without saving.
+- Isolate external-power transactions and presentation by device. A failed adapter disables only its own grid admission; a failed turbo adapter leaves registered nightly processing available. Unreadable diagnostic interop hashes no longer stop signature validation; the native build gate still applies.
+- Matches Mechcore Protocol 1.0.5 and updates the source baseline to Build 26017150. Adapt Turbo Booster closures, battery fields and hydroponic inventory restoration, and update the build gate. P0/domain checks, Release builds and local packaging passed; no game installation or native testing this round.
+
+## 0.6.46 — 2026-10-17
+
+- 最终 P0 通过，包含 70 项库存／电力元数据契约、69 项供电事务状态检查和 127 项生产适配／设备扣电检查；核心与默认示例 Release 编译通过。
+- 新增耗电设备声明 `RegisterConsumer`、资格／真实电池读取 `CanSupplyDevice`／`GetDevicePowerSource`，以及 `ForgePowerApi.GetDeviceEnergy`／`TryDebitDevice`；内容方不必注册配方机器即可使用同一电网收据，无电网时保留本地电池路径。原机器 API 保留。
+- 原生高级涡轮增压器与义体扫描仪补齐供电，后者预借验证后才执行原扫描；只读查询不扣电，失败恢复电量及顾客扫描状态。
+- 供合成扩展拾荒机器人、高科技眼镜和其他内容方耗电设备使用；不要求物流模组或模组舱。未打包、安装或执行本候选原生验收。
+
+### English
+
+- Added owned power-consumer declarations, real source resolution and per-operation device debits. Content devices share external power receipts and retain local battery operation without a grid provider; existing machine APIs remain available.
+- Added native Advanced Turbo Booster and Aug Scanner adapters, preserving query-only checks and compensating energy and scan state on failure. No packaging, installation or native acceptance was performed.
+
+## 0.6.45 — 2026-10-17
+
+- 补齐 11 类正常原生用电机器的同步供电适配，提供只读 `CanSupplyMachine`／`GetMachinePowerSource`，让自动化物流无需补货／弹出模组或模组舱即可接网。
+- 原生动作使用借电、实际 Draw 确认、读回及失败恢复；保留原位液体、跨夜进度、冷藏特征和效用状态。清洁与焚烧使用各自原生操作边界。
+- P0 检查通过，包含 63 项库存／电力元数据契约、69 项供电事务状态检查及 88 项生产适配离线检查；核心与默认示例 Release 编译通过。未打包、安装或执行本候选原生验收。
+
+### English
+
+- Added controlled power adapters for all eleven native powered machines and read-only machine/source queries. Grid admission is independent of logistics modules and module bays.
+- Native operations retain their costs and progression, with reservation, draw confirmation and rollback for power and operation state. No packaging, installation or native acceptance was performed.
+
+## 0.6.44 — 2026-10-17
+
+- `ForgeItemTransferApi.Move` 新增单槽库存重载，保留网格签名，共用原生准入、数量守恒读回和拒绝恢复；用于自动化物流原生密码解序器输入补货。
+- 物品搬运 28 项检查及核心 Release 编译通过。未打包、安装或执行本候选原生测试；新三类原生设备沿用本地电池供电。
+
+### English
+
+- Added a single-slot inventory overload to `ForgeItemTransferApi.Move`, retaining the grid signature and sharing native admission, conservation readback and rejected-transfer recovery.
+- All 28 item-transfer checks and the core Release build pass. No packaging, installation or native acceptance was performed; the newly supported native machines retain local battery power.
+
 ## 0.6.39 — 2026-10-16
 
 - 工坊内置名片、成就领奖与胜利记录取消主动存档及保存重试，统一随游戏正常过夜存档保存。

@@ -29,8 +29,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Native item graph adapter checks failed' }
 & dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.Domain.Check\Nicokobo.Forge.Domain.Check.csproj') -c Release -p:NuGetAudit=false
 if ($LASTEXITCODE -ne 0) { throw 'Domain checks failed' }
 
+& dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.NativePower.Check\Nicokobo.Forge.NativePower.Check.csproj') -c Release -p:NuGetAudit=false
+if ($LASTEXITCODE -ne 0) { throw 'Native machine power adapter checks failed' }
+
 & dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.Lifecycle.Check\Nicokobo.Forge.Lifecycle.Check.csproj') -c Release -p:NuGetAudit=false
 if ($LASTEXITCODE -ne 0) { throw 'Lifecycle checks failed' }
+
+& dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.RunFork.Check\Nicokobo.Forge.RunFork.Check.csproj') -c Release -p:NuGetAudit=false
+if ($LASTEXITCODE -ne 0) { throw 'Run-fork migration checks failed' }
 
 & dotnet run --project (Join-Path $projectRoot 'tests\Nicokobo.Forge.HookGuard.Check\Nicokobo.Forge.HookGuard.Check.csproj') `
     -c Release "-p:GameDir=$resolvedGameDir" -p:NuGetAudit=false

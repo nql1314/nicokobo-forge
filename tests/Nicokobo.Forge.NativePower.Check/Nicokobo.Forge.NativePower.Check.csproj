@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><UseAppHost>false</UseAppHost></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/Nicokobo.Forge/ForgeExternalPowerApi.cs" Link="Production/ForgeExternalPowerApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeExternalPowerNative.cs" Link="Production/ForgeExternalPowerNative.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgePowerApi.cs" Link="Production/ForgePowerApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgePowerConsumers.cs" Link="Production/ForgePowerConsumers.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Runtime/EnergyDebit.cs" Link="Production/EnergyDebit.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/NativePowerAction.cs" Link="Production/NativePowerAction.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/NativeBatchFinalization.cs" Link="Production/NativeBatchFinalization.cs" />
+  </ItemGroup>
+</Project>
