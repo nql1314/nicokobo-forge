@@ -44,7 +44,6 @@ internal static class ForgeNumbers
         internal const int DragQuietMilliseconds = 250;
         internal const int CardRetrySeconds = 5;
         internal const int MaxSaveBytes = 64 * 1024 * 1024;
-        internal const int MaxRewardItems = 10;
     }
 
     // Forge 内置共享制造终端；具体配方由内容 Mod 追加。

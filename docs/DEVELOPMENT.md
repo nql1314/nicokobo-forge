@@ -47,6 +47,12 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 
 构建需要能编译 `net6.0` 的 .NET SDK、.NET 6 运行时、本地游戏、MelonLoader 及游戏互操作程序集。脚本使用目标游戏目录的引用，签名核对不初始化游戏类。
 
+### 启动时的多版本选择
+
+本机 MelonLoader 0.7.3 的 `MelonPreprocessor` 在加载程序集前汇总本次扫描目录中的候选，按内部 `AssemblyName.Name` 分组并保留最高 `AssemblyVersion`；Forge 与其他 Mod 共用此规则。版本按数字段比较，`0.6.48` 高于 `0.6.9`，不比较文件名、显示名称或修改时间。相同程序集版本保留扫描到的第一份，不保证它是较新的构建；程序集名称不同则分别处理。实现见 [MelonLoader v0.7.3 源码](https://github.com/LavaGang/MelonLoader/blob/v0.7.3/MelonLoader/Melons/MelonPreprocessor.cs)。
+
+Forge 和自维护内容 Mod 的工程 `<Version>` 会生成程序集版本，需与 `MelonInfo` 声明同步，不能把 `AssemblyVersion` 固定为旧值。该选择由加载器在 Forge 初始化前完成，普通 Forge Mod 无需另装去重钩子。安装脚本清理旧 DLL 属于文件整理，自动选版本身不删除或改名任何文件。
+
 单独的玩家前置包使用 `scripts/Pack-ModSite.ps1`，从已验证版本的 Release DLL 更新 `dist/nicokobo-forge/` 和固定文件名的 `dist/nicokobo-forge.zip`。安装说明由 `docs/RELEASE_README.md` 模板生成，版本从实际 DLL 读取；默认输入同时校验核心工程版本，`-ForgeDll` 可选择与内容 Mod 配套的明确 DLL。发布目录内维护的 `change.log` 等文件随目录一起压缩，ZIP 保留 `nicokobo-forge/` 顶层目录。
 
 同一入口还把可选兼容补丁放进 Forge 包：默认取 `dist/compatibility/nicokobo-compatibility-patches/` 中已发布的 `Nicokobo.CompatibilityPatches-*.dll`，没有打包产物时回退到 `compatibility/Nicokobo.CompatibilityPatches/bin/Release/`，两者都不存在时警告并跳过，`-CompatibilityDll` 可显式指定。该文件按程序集版本改名并清理同前缀旧文件，同步到内容发布目录；`mods-melonloader/Build-MechcoreProtocol.ps1` 按同一规则把该 DLL 复制进 `dist/mechcore-protocol/`，并在缺少时省略机核 README 的可选章节；Forge 和机核协议本身都不安装、不加载它。

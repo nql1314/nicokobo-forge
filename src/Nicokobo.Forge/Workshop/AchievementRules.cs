@@ -143,14 +143,13 @@ internal static class AchievementRules
             var definition = Definitions.FirstOrDefault(x => x.Id == pending.NodeId);
             if (card ? state.CardGranted : definition == null || !state.Completed.ContainsKey(pending.NodeId) || state.Claimed.Contains(pending.NodeId))
                 throw new InvalidDataException("Invalid pending reward owner");
-            if (pending.Items == null || pending.Items.Length > ForgeNumbers.Achievements.MaxRewardItems ||
+            if (pending.Items == null ||
                 pending.Items.Any(x => x.Uid <= 0 || x.Units != 1 || string.IsNullOrWhiteSpace(x.ItemId)) ||
                 pending.Items.Select(x => x.Uid).Distinct().Count() != pending.Items.Length)
                 throw new InvalidDataException("Invalid reward identities");
-            var rewards = card ? new[] { new AchievementReward(CardId, "", "") } : definition!.Rewards;
-            var expected = rewards.SelectMany(x => Enumerable.Repeat(x.ItemId, x.Count)).OrderBy(x => x, StringComparer.Ordinal);
-            if (!pending.Items.Select(x => x.ItemId).OrderBy(x => x, StringComparer.Ordinal).SequenceEqual(expected))
-                throw new InvalidDataException("Reward manifest mismatch");
+            // Recover the recorded delivery, even if the catalog's rewards have since changed.
+            if (card && (pending.Items.Length != 1 || pending.Items[0].ItemId != CardId))
+                throw new InvalidDataException("Invalid pending card reward");
         }
         return state;
     }

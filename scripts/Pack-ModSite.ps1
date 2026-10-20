@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ForgeDll = '',
     [string]$ModDistRoot = '',
     [string]$CompatibilityDll = ''
@@ -72,7 +72,7 @@ if ($useLocalBuild) {
     }
 }
 
-$distDllName = "Nicokobo.Forge-$version.dll"
+$distDllName = "【Nicokobo 前置框架】Nicokobo.Forge-$version.dll"
 
 $distRoot = Join-Path $projectRoot 'dist'
 $packageRoot = Join-Path $distRoot 'nicokobo-forge'
@@ -111,7 +111,7 @@ if (Test-Path -LiteralPath $CompatibilityDll -PathType Leaf) {
     if ($compatibilityVersion -notmatch '^\d+\.\d+\.\d+$') {
         throw "Unexpected compatibility version in $($compatibilitySourceDll): $($compatibilityAssembly.Version)"
     }
-    $compatibilityFileName = "Nicokobo.CompatibilityPatches-$compatibilityVersion.dll"
+    $compatibilityFileName = "【Nicokobo 前置框架】Nicokobo.CompatibilityPatches-$compatibilityVersion.dll"
 }
 else {
     Write-Warning "Optional compatibility patches missing; the Forge package is written without them: $CompatibilityDll"
@@ -150,11 +150,11 @@ $destinationDll = Join-Path $packageRoot $distDllName
 if ($sourceDll -ne $destinationDll) {
     Copy-PackageFile -From $sourceDll -To $destinationDll
 }
-Get-ChildItem -LiteralPath $packageRoot -File -Filter 'Nicokobo.Forge*.dll' |
+Get-ChildItem -LiteralPath $packageRoot -File -Filter '*Nicokobo.Forge*.dll' |
     Where-Object { $_.Name -ne $distDllName } |
     ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 # Optional compatibility patches: bundled but never loaded by Forge, and cleared when absent.
-Get-ChildItem -LiteralPath $packageRoot -File -Filter 'Nicokobo.CompatibilityPatches*.dll' |
+Get-ChildItem -LiteralPath $packageRoot -File -Filter '*Nicokobo.CompatibilityPatches*.dll' |
     Where-Object { [string]::IsNullOrEmpty($compatibilityFileName) -or $_.Name -ne $compatibilityFileName } |
     ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
 if (-not [string]::IsNullOrEmpty($compatibilityFileName)) {
@@ -194,10 +194,10 @@ if ($modDistRoot -ne $expectedDistRoot) {
         Copy-PackageFile -From $file.FullName -To (Join-Path $modPackageRoot $file.Name)
     }
     Remove-Item -LiteralPath (Join-Path $modPackageRoot 'CHANGELOG.md') -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -LiteralPath $modPackageRoot -File -Filter 'Nicokobo.Forge*.dll' |
+    Get-ChildItem -LiteralPath $modPackageRoot -File -Filter '*Nicokobo.Forge*.dll' |
         Where-Object { $_.Name -ne $distDllName } |
         ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
-    Get-ChildItem -LiteralPath $modPackageRoot -File -Filter 'Nicokobo.CompatibilityPatches*.dll' |
+    Get-ChildItem -LiteralPath $modPackageRoot -File -Filter '*Nicokobo.CompatibilityPatches*.dll' |
         Where-Object { [string]::IsNullOrEmpty($compatibilityFileName) -or $_.Name -ne $compatibilityFileName } |
         ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
     $modArchivePath = Join-Path $modDistRoot 'nicokobo-forge.zip'

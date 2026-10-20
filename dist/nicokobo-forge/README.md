@@ -4,23 +4,25 @@
 
 ## English
 
-Author: Nicokobo · Version: **0.6.47** · Target: **Probably Stolen Demo, Steam Build `26017150`**
+Author: Nicokobo · Version: **0.6.48** · Target: **Probably Stolen Demo, Steam Build `26017150`**
 
-Mechcore Protocol 1.0.5 matches Forge 0.6.47 with Synthesis 0.9.68, Aug 0.1.65 and Matrix 1.1.9. Install one matching Forge DLL across these packages.
+Mechcore Protocol 1.0.6 matches Forge 0.6.48 with Synthesis 0.9.69, Aug 0.1.66 and Matrix 1.1.10. These packages share the same Forge assembly.
 
 Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
 
 ### Installation and updates
 
 1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
-2. Copy `Nicokobo.Forge-0.6.47.dll` and required content mod DLLs into `Mods/`.
-3. Remove older DLLs of the same assemblies. Keep one matching Forge DLL when multiple packages include it; versioned filenames can stay unchanged.
+2. Copy `【Nicokobo 前置框架】Nicokobo.Forge-0.6.48.dll` and required content mod DLLs into `Mods/`.
+3. With MelonLoader 0.7.3, several versions of Forge or another mod may coexist: before loading, the loader groups DLLs by internal assembly name and selects only the highest assembly version. Older DLLs stay on disk; filenames and modification times do not affect selection.
+
+This compares `AssemblyVersion`, not the displayed mod version. If two files have the same assembly version, the loader keeps the first one it scans. A different internal assembly name is a separate mod even if the display name matches. For third-party mods that do not update their assembly version, keep the intended file manually.
 
 Forge can run alone for its workshop and native achievements.
 
 #### Optional compatibility patches
 
-`Nicokobo.CompatibilityPatches-0.1.3.dll` is optional and separate from Forge. It defers Wage's Perks **1.3.4** startup mounts until localization is initialized, preventing early text-read crashes. Copy it to `Mods/` only for that version; remove it to disable. Forge does not install or load it automatically. Missing or mismatched targets disable the patch and log the reason without affecting other mods.
+`【Nicokobo 前置框架】Nicokobo.CompatibilityPatches-0.1.3.dll` is optional and separate from Forge. It defers Wage's Perks **1.3.4** startup mounts until localization is initialized, preventing early text-read crashes. Copy it to `Mods/` only for that version; remove it to disable. Forge does not install or load it automatically. Missing or mismatched targets disable the patch and log the reason without affecting other mods.
 
 
 ### In-game tools
@@ -46,6 +48,8 @@ Every start receives a workshop card. Press `N` or double-click the card to open
 Claiming and confirming Established Proprietor doubles NPC purchase budgets for current and future customers in that run; sales still deduct remaining funds. This stacks with the Aug ×2 budget for ×4 total. Confirmed old reward records apply after loading; new runs must qualify again.
 
 ### Save recovery after uninstalling a mod
+
+Pending Workshop rewards use their saved delivery manifest, preserving undelivered rewards when the current catalog changes. Claim ownership, item UID and quantity checks still apply.
 
 From Forge 0.6.32, cleanup covers ordinary items registered through Forge with a saved provider record. It requires missing native registration, no current Forge declaration and a confirmed absent provider DLL. Unregistered third-party items, saves without records, installed providers that fail to load/register and uncertain provider status retain their items.
 
@@ -84,23 +88,25 @@ Released under the MIT License.
 
 ## 中文
 
-作者：Nicokobo · 配套版本：**0.6.47** · 适用：**Probably Stolen Demo，Steam Build `26017150`**
+作者：Nicokobo · 配套版本：**0.6.48** · 适用：**Probably Stolen Demo，Steam Build `26017150`**
 
-机核协议 1.0.5 配套 Forge 0.6.47、合成扩展 0.9.68、机械飞升 0.1.65 与模组矩阵 1.1.9。多个包附带 Forge 时只安装一份配套 DLL。
+机核协议 1.0.6 配套 Forge 0.6.48、合成扩展 0.9.69、机械飞升 0.1.66 与模组矩阵 1.1.10。各包共用同一 Forge 程序集。
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
 
 ### 安装与更新
 
 1. 安装 [MelonLoader](https://melonwiki.xyz/)，关闭游戏。
-2. 将 `Nicokobo.Forge-0.6.47.dll` 和所需内容 Mod DLL 放入 `Mods/`。
-3. 移出同程序集旧 DLL。多个包附带 Forge 时只保留一份配套文件，版本号文件名可保留。
+2. 将 `【Nicokobo 前置框架】Nicokobo.Forge-0.6.48.dll` 和所需内容 Mod DLL 放入 `Mods/`。
+3. 使用 MelonLoader 0.7.3 时，Forge 或其他 Mod 的多个版本可以共存：加载前按 DLL 内部的程序集名称分组，只选程序集版本最高的一份。旧 DLL 留在磁盘，文件名与修改时间不参与选择。
+
+比较依据为 `AssemblyVersion`，并非 Mod 显示的版本号。同程序集版本相同时保留扫描到的第一份；内部程序集名称不同，即使显示名称相同，也会视作不同 Mod。第三方 Mod 若未更新程序集版本，需手动保留所需文件。
 
 Forge 可单独使用内置工坊与原版成就。
 
 #### 可选兼容补丁
 
-`Nicokobo.CompatibilityPatches-0.1.3.dll` 为独立可选组件，将 Wage's Perks **1.3.4** 的启动挂载延后至本地化初始化完成，避免过早读取文本导致崩溃。使用该版本时才复制到 `Mods/`，移出即可停用；Forge 不会自动安装或加载。目标缺失或版本不符时补丁自行停用并记录原因，不影响其他 Mod。
+`【Nicokobo 前置框架】Nicokobo.CompatibilityPatches-0.1.3.dll` 为独立可选组件，将 Wage's Perks **1.3.4** 的启动挂载延后至本地化初始化完成，避免过早读取文本导致崩溃。使用该版本时才复制到 `Mods/`，移出即可停用；Forge 不会自动安装或加载。目标缺失或版本不符时补丁自行停用并记录原因，不影响其他 Mod。
 
 
 ### 游戏内功能

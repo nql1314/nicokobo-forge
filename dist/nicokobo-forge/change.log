@@ -4,6 +4,16 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.48 — 2026-10-20
+
+- 工坊待发放奖励按存档中的交付清单恢复，不再因当前奖励目录或件数调整而拒绝读档；保留领取归属、物品 UID、单件数量及名片身份检查。
+- 配套机核协议 1.0.6；内容包共用 Forge 0.6.48，多个包同时安装时只保留一份 Forge DLL。
+
+### English
+
+- Recover pending Workshop rewards from the saved delivery manifest instead of rejecting them after reward-catalog or count changes. Ownership, item UID, single-unit and workshop-card identity checks remain.
+- Matches Mechcore Protocol 1.0.6. Content packages share Forge 0.6.48; install only one Forge DLL across packages.
+
 ## 0.6.47 — 2026-10-19
 
 - 新增 `ForgeRunForkApi`，在历史日期重新执行原生初次保存时，验证并统一重绑已登记内容状态；保留进度、UID、随机状态和领取收据，写入后核对目标槽的身份与完整 JSON。内置工坊、Aug 与扒窃状态接入，显式旧档恢复只重绑内存，不主动保存。

@@ -1,12 +1,12 @@
 # Nicokobo Forge
 
-0.6.47 新增历史日期存档分叉接入，并收窄单类供电及显示适配失败的影响范围。已适配 Build 26017150 的涡轮增压器与水培库存恢复接口；既有检查、Release 编译与本地打包通过，未安装游戏或执行原生验收。
+0.6.48 按保存的交付清单恢复工坊待发放奖励，保留交易与身份检查。配套机核协议 1.0.6，目标 Build 26017150；本次不包含游戏安装或原生测试。
 
 [English](#english) · [中文](#中文)
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.47** · Source baseline: **Probably Stolen Demo, Steam Build `26017150`**
+Author: Nicokobo · Source version: **0.6.48** · Source baseline: **Probably Stolen Demo, Steam Build `26017150`**
 
 Matching Mechcore Protocol source bundle: **1.0.5** (Synthesis 0.9.68, Aug 0.1.65, Matrix 1.1.9). API adaptations for Build 26017150, existing checks, Release builds and local packaging are complete. Native acceptance remains pending.
 
@@ -14,7 +14,7 @@ Forge provides native registration, lifecycle events, machine templates and tran
 
 Built-in workshop cards, achievement records and rewards take effect in the current session and are persisted by the game's normal night save. The workshop never requests an extra save.
 
-Install MelonLoader, close the game and copy the matching `Nicokobo.Forge-<version>.dll` into `Mods/`. Keep one DLL per assembly when several packages include Forge. The separate Wage's Perks 1.3.4 compatibility DLL is optional; see [compatibility](compatibility/README.md).
+Install MelonLoader, close the game and copy the matching `Nicokobo.Forge-<version>.dll` into `Mods/`. MelonLoader 0.7.3 automatically loads only the highest assembly version when several DLLs share an assembly name, including Forge and other mods; older files can stay in place. Selection uses internal assembly metadata, not filenames or modification times. The separate Wage's Perks 1.3.4 compatibility DLL is optional; see [compatibility](compatibility/README.md).
 
 - [Player features and installation template](docs/RELEASE_README.md)
 - [Documentation index](docs/README.md), [scope](docs/SCOPE.md) and [API responsibilities](docs/API_BOUNDARIES.md)
@@ -28,7 +28,7 @@ Registration acceptance, native application and successful game/save behavior ar
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.47** · 源码基线：**Probably Stolen Demo，Steam Build `26017150`**
+作者：Nicokobo · 源码版本：**0.6.48** · 源码基线：**Probably Stolen Demo，Steam Build `26017150`**
 
 配套机核协议合集源码：**1.0.5**（合成扩展 0.9.68、机械飞升 0.1.65、模组矩阵 1.1.9）。
 
@@ -36,7 +36,7 @@ Forge 为内容 Mod 提供原生注册、生命周期、机器模板与资源事
 
 内置工坊的名片、成就记录与领奖结果在当前会话立即生效，统一随游戏正常过夜存档保存；工坊不触发额外存档。
 
-安装 MelonLoader，关闭游戏后将配套 `Nicokobo.Forge-<版本>.dll` 放入 `Mods/`。多个包附带 Forge 时只保留一份同次构建的 DLL。Wage's Perks 1.3.4 的独立兼容补丁按需安装，见[兼容补丁说明](compatibility/README.md)。玩家功能与完整安装说明维护在[发布 README 模板](docs/RELEASE_README.md)，打包时填写实际 DLL 版本。
+安装 MelonLoader，关闭游戏后将配套 `Nicokobo.Forge-<版本>.dll` 放入 `Mods/`。MelonLoader 0.7.3 启动时会对同程序集名称的 DLL 只加载程序集版本最高的一份，适用于 Forge 和其他 Mod；旧文件可保留。选择依据是 DLL 内部的程序集名称与版本，不看文件名或修改时间。Wage's Perks 1.3.4 的独立兼容补丁按需安装，见[兼容补丁说明](compatibility/README.md)。玩家功能与完整安装说明维护在[发布 README 模板](docs/RELEASE_README.md)，打包时填写实际 DLL 版本。
 
 | 入口 | 用途 |
 | --- | --- |

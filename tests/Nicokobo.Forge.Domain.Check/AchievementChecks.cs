@@ -87,7 +87,12 @@ internal static class AchievementChecks
         Expect(!AchievementRules.ReceiptsMatch(manifest, manifest.Items[..9]), "Partial delivery recognized as complete");
         Expect(!AchievementRules.ReceiptsMatch(manifest, manifest.Items.Concat(manifest.Items[..1])), "Duplicate delivery UID accepted");
         Expect(!AchievementRules.ReceiptsMatch(manifest, manifest.Items.Select(x => x with { Units = 2 })), "Altered units accepted");
-        Reject(() => AchievementRules.Decode(AchievementRules.Encode(state with { Pending = manifest with { Items = manifest.Items[..9] } }), "run-a", 0), "Partial manifest accepted");
+        var historicalManifest = manifest with { Items = [.. manifest.Items, new("serum_green", 110, 1)] };
+        var historicalPending = AchievementRules.Decode(AchievementRules.Encode(state with { Pending = historicalManifest }), "run-a", 0).Pending!;
+        Expect(historicalPending.Items.SequenceEqual(historicalManifest.Items), "Saved reward manifest was rejected or rewritten by current reward counts");
+        Expect(!AchievementRules.ReceiptsMatch(historicalPending, historicalManifest.Items[..^1]), "Historical reward delivery lost its receipt check");
+        Reject(() => AchievementRules.Decode(AchievementRules.Encode(state with { Pending = manifest with { Items = [manifest.Items[0], manifest.Items[0]] } }), "run-a", 0), "Duplicate pending reward UID accepted");
+        Reject(() => AchievementRules.Decode(AchievementRules.Encode(empty with { Pending = new(AchievementRules.CardNode, []) }), "run-a", 0), "Empty pending card accepted");
         var claimed = AchievementRules.Claim(pendingState);
         Expect(claimed.Claimed.SetEquals(new[] { "rat_800g" }) && claimed.Pending == null, "Recovery did not finalize exactly one claim");
         Reject(() => AchievementRules.Claim(claimed), "Repeat claim accepted");
