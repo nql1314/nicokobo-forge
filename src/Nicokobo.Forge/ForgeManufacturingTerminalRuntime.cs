@@ -54,7 +54,10 @@ internal static class ForgeManufacturingTerminalRuntime
                     new(0, context => ForgePowerApi.GetMachineCost(context.Machine)),
                     ConfigureItem: Configure,
                     ItemOptions: new(NightShopStockPolicy.Repeatable,
-                        IsNightShopAvailable: () => RNG.Roll(ForgeNumbers.ManufacturingTerminal.NightShopChancePercent),
+                        IsNightShopAvailable: () =>
+                            ForgeMachineRegistrationApi.TryGet(ForgeManufacturingTerminal.ItemId, out var profile) &&
+                            profile is { Recipes.Count: > 0 } &&
+                            RNG.Roll(ForgeNumbers.ManufacturingTerminal.NightShopChancePercent),
                         Name: new(ForgeManufacturingTerminal.ChineseName, ForgeManufacturingTerminal.EnglishName),
                         ShortDescription: Description, FlavorText: Flavor),
                     ProductionMarkupPercent: ForgeManufacturingTerminal.DefaultProductionMarkupPercent)

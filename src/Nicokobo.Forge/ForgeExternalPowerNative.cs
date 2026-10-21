@@ -271,8 +271,16 @@ public static partial class ForgeExternalPowerApi
         }
     }
 
+    private static TagSystem CloneNativeState(TagSystem state)
+    {
+        var snapshot = new TagSystem();
+        foreach (var pair in state.dict) snapshot.dict.Add(pair.Key, pair.Value.Clone());
+        return snapshot;
+    }
+
     private static ItemState CaptureSnapshot(GameItem item, GameInventory parent)
     {
+        parent = parent.Cast<GameInventory>();
         var slot = item.GetIncompleteSlotInInventory();
         if (slot?.item?.Pointer != item.Pointer || slot.inventory?.Pointer != parent.Pointer || slot.itemGridShape == null || slot.index < 0)
             throw new InvalidOperationException("Native operation item has no original inventory slot");
@@ -281,7 +289,7 @@ public static partial class ForgeExternalPowerApi
         var features = new List<ItemFeature>();
         if (item.itemFeatures != null) foreach (var feature in item.itemFeatures) features.Add(feature);
         return new(item, parent, item.unitCount, item.GetUniqueID(), item.identifier, item.unitValue,
-            slot.itemGridShape.Clone(), item.state.Clone(), features.ToArray(),
+            slot.itemGridShape.Clone(), CloneNativeState(item.state), features.ToArray(),
             item.spriteAtlasPath, item.spritePath, item.spriteChanged, () => item.mayInventoryRemoveItemFunc = remove,
             slot.index, handler?.Pointer ?? IntPtr.Zero, handler?.transform.localPosition);
     }
@@ -301,6 +309,7 @@ public static partial class ForgeExternalPowerApi
         void Inventory(GameInventory? inventory)
         {
             if (inventory == null || !seen.Add(inventory.Pointer)) return;
+            inventory = inventory.Cast<GameInventory>();
             bool insert = inventory.overrideLockInsert, remove = inventory.overrideLockRemove;
             var admission = inventory.mayInventoryAddItemFunc;
             var onAdd = inventory.onSlotAddItemFunc; var onEnd = inventory.onSlotAddItemEndFunc; var onLate = inventory.onSlotAddItemLateFunc;
@@ -350,7 +359,7 @@ public static partial class ForgeExternalPowerApi
             () => __instance.GetUniqueID() == snapshot.Id && __instance.identifier == snapshot.Identifier &&
                 (__instance.parentInventory == null || batch.Inventories.Any(inv => inv.Inventory.Pointer == __instance.parentInventory.Pointer)),
             () => __instance.parentInventory == null,
-            () => __instance.parentInventory!.Expel(__instance),
+            () => __instance.parentInventory!.Cast<GameInventory>().Expel(__instance),
             reason => { batch.Failed = true; _log?.Invoke("[WARN] [NicokoboForge/Power] " + reason); });
         return false;
     }
@@ -403,7 +412,7 @@ public static partial class ForgeExternalPowerApi
 
     private static bool DetachNative(GameItem item)
     {
-        var parent = item.parentInventory;
+        var parent = item.parentInventory?.Cast<GameInventory>();
         if (parent == null) return true;
         bool locked = parent.overrideLockRemove;
         parent.overrideLockRemove = false;
@@ -430,7 +439,7 @@ public static partial class ForgeExternalPowerApi
         if (snapshot.Handler != IntPtr.Zero && handler?.Pointer != snapshot.Handler) return false;
         snapshot.RestoreCallbacks();
         item.itemFeatures.Clear(); foreach (var feature in snapshot.Features) item.itemFeatures.Add(feature);
-        item.state = snapshot.State.Clone(); item.SyncModifiedState(); item.SetUnitCount(snapshot.Units); item.unitValue = snapshot.Value;
+        item.state = CloneNativeState(snapshot.State); item.SyncModifiedState(); item.SetUnitCount(snapshot.Units); item.unitValue = snapshot.Value;
         item.SetSpriteAndShape(snapshot.SpriteAtlas, snapshot.SpritePath); item.spriteChanged = snapshot.SpriteChanged;
         item.modifiedShape = snapshot.Shape.Clone();
         if (snapshot.LocalPosition is { } before) handler!.transform.localPosition = before;

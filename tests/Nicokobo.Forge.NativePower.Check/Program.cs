@@ -51,6 +51,7 @@ foreach (string name in names)
 // not direct inventory children. Include nested containers and module state.
 {
     var world = new World("desequencer"); supply.Reset(world);
+    world.Machine.state.GetTag("night-progress").valueInt = 60;
     var feature = new ItemFeature(); world.Payload.itemFeatures.Add(feature);
     var nested = new GameItemElement { identifier = "drink", unitValue = 33 };
     var bottleInventory = new GameGridInventory(); var bottleLayout = new GridPixelElement(1, 1);
@@ -87,7 +88,7 @@ foreach (string name in names)
         !world.Payload.state.dict.ContainsKey("LOCKED_TAG") && world.Payload.spritePath == "original-sprite" &&
         world.Payload.handler.transform.localPosition == originalPosition,
         "Rollback must restore independent features, removal delegate, tags, sprite, and position");
-    Check(!nested.state.dict.ContainsKey("CONTAINER_TEMP_TAG") && nested.itemFeatures.Count == 0 && !world.Machine.state.dict.ContainsKey("night-progress"),
+    Check(!nested.state.dict.ContainsKey("CONTAINER_TEMP_TAG") && nested.itemFeatures.Count == 0 && world.Machine.state.GetTag("night-progress").valueInt == 60,
         "Nested container state and machine progress must be compensated through the real window layout");
     Check(product.Destroyed && world.Output.childItems.Count == 0 && !world.Output.overrideLockInsert && !world.Output.overrideLockRemove,
         "Rollback must recall new output and restore inventory lock policy");
@@ -359,7 +360,8 @@ internal sealed class Supply
 internal sealed class World
 {
     internal readonly GameItemElement Machine, Payload = new() { identifier = "payload" };
-    internal readonly GameGridInventory Parent = new(), Input = new(), Output = new();
+    internal readonly GameGridInventory Parent = new(), Output = new();
+    internal readonly GameInventory Input;
     internal readonly GameSlotInventory Battery = new();
     internal readonly object Context;
     internal readonly string Prefix;
@@ -367,6 +369,7 @@ internal sealed class World
     internal World(string id)
     {
         Machine = new() { identifier = id };
+        Input = id == "desequencer" ? new GameSlotInventory() : new GameGridInventory();
         var layout = new GridPixelElement(5, 2); layout.Put(0, 1, Battery); layout.Put(2, 1, Input); layout.Put(3, 1, Output);
         Machine.children.Add(new PixelWindow(layout)); Parent.UncheckedAccept(Machine); Input.UncheckedAccept(Payload); Battery.Owner = Machine;
         Battery.UncheckedAccept(new GameItemElement { identifier = "local-battery", Energy = 9 });

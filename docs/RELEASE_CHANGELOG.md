@@ -4,6 +4,20 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.49 — 2026-10-21
+
+- 全域制造终端仅在当前已注册配方目录非空时参加夜店上架抽取；有配方时沿用 40% 概率，后续追加配方可直接生效。
+- 修复接网密码解序器完成卡片、消耗空白卡时的访问冲突：原生单槽库存可能持有网格库存的托管包装，原先直接调用包装的 `Expel` 会进入错误的原生实现。
+- 外部供电事务在捕获库存、保存原始落点、移除材料和回滚搬移时重新绑定 `GameInventory`，由原生虚方法选择实际库存实现；保留原物品 UID、消耗记录及电量补偿。
+- 状态快照逐项复制原生标签，避免原生 `TagSystem.Clone()` 的浅复制随加工过程变化，导致失败后进度或标签无法恢复。
+
+### English
+
+- The Universal Manufacturing Terminal enters the night-shop roll only while its current registered recipe catalog is nonempty. With recipes it retains the 40% chance; later additions are read at stock generation.
+- Fix an access violation when a grid-powered Desequencer consumes a blank card after finishing a keycard. A native single-item slot can carry a managed grid-inventory wrapper, causing direct `Expel` calls to enter the wrong native implementation.
+- Rebind inventory wrappers to `GameInventory` when capturing inventories and original parents, detaching consumed inputs, and compensating transfers. Native virtual dispatch selects the actual inventory implementation while preserving item UIDs, consumption records, and power compensation.
+- Clone individual native tags in transaction snapshots so the shallow native `TagSystem.Clone()` cannot mutate saved progress or tag values before compensation.
+
 ## 0.6.48 — 2026-10-20
 
 - 工坊待发放奖励按存档中的交付清单恢复，不再因当前奖励目录或件数调整而拒绝读档；保留领取归属、物品 UID、单件数量及名片身份检查。

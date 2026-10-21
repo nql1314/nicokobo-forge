@@ -56,6 +56,7 @@ namespace Il2Cpp
         private static long _next;
         public IntPtr Pointer { get; } = new(++_next);
         public T? TryCast<T>() where T : class => this as T;
+        public T Cast<T>() where T : class => TryCast<T>() ?? throw new InvalidCastException();
     }
     public sealed class PixelWindow(PixelElement child) : PixelElement { public PixelElement childElement = child; }
     public sealed class GridPixelElement(int width, int height) : PixelElement
@@ -89,7 +90,7 @@ namespace Il2Cpp
         public Dictionary<string, TagState> dict = [];
         public TagState GetTag(string id)
         { if (!dict.TryGetValue(id, out var tag)) dict[id] = tag = new(); return tag; }
-        public TagSystem Clone() => new() { dict = dict.ToDictionary(pair => pair.Key, pair => pair.Value.Clone()) };
+        public TagSystem Clone() => new() { dict = new(dict) };
     }
     public class GameItem : PixelElement
     {

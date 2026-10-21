@@ -61,7 +61,7 @@ G 键入口与阅读界面由 Forge 提供；内容 Mod 不再各自监听 G。`
 
 ### Forge 内置全域制造终端
 
-Forge 0.6.19 自行注册 `ForgeManufacturingTerminal.ItemId`，owner 为 `ForgeManufacturingTerminal.OwnerId`。物品、图标、售价、基础电耗、槽位与供货归 Forge，内容 Mod 只调用 `RegisterAdditionalRecipes(ownerId, ForgeManufacturingTerminal.ItemId, recipes)` 追加自己的配方。无内容 Mod 时也有机器，配方为空，不加工。默认 3×3 外部占格、9×6 输入／输出、7×5 原生环形模组舱，基础价值 400、电耗 25，每晚一批。
+Forge 0.6.19 自行注册 `ForgeManufacturingTerminal.ItemId`，owner 为 `ForgeManufacturingTerminal.OwnerId`。物品、图标、售价、基础电耗、槽位与供货归 Forge，内容 Mod 只调用 `RegisterAdditionalRecipes(ownerId, ForgeManufacturingTerminal.ItemId, recipes)` 追加自己的配方。无内容 Mod 时也有机器，配方为空，不加工。夜间商店每次生成库存时检查当前登记配方，无配方时不上架；至少有一条配方后沿用 40% 上架机会。默认 3×3 外部占格、9×6 输入／输出、7×5 原生环形模组舱，基础价值 400、电耗 25，每晚一批。
 
 `ConfigureManufacturingTerminalMarkup(ownerId, percent)` 在追加配方前设置这台共享机器的生产增值率，默认 15%，范围 0–1000%。首个设置者认领该配置，其他提供者修改返回 `Conflict`；所有追加配方读取同一批次倍率。合成扩展用此入口传入已加载配方文件中的 K05 自定义倍率。
 

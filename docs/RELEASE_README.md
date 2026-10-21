@@ -6,9 +6,11 @@
 
 Author: Nicokobo · Version: **@FORGE_VERSION@** · Target: **Probably Stolen Demo, Steam Build `26017150`**
 
-Mechcore Protocol 1.0.6 matches Forge 0.6.48 with Synthesis 0.9.69, Aug 0.1.66 and Matrix 1.1.10. These packages share the same Forge assembly.
+Mechcore Protocol 1.0.7 matches Forge 0.6.49 with Synthesis 0.9.70, Aug 0.1.66 and Matrix 1.1.10. These packages share the same Forge assembly.
 
 Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
+
+In 0.6.49, the Universal Manufacturing Terminal enters the 40% night-shop roll only when at least one recipe is registered. Grid-powered Desequencers also retain correct input removal and transaction recovery when a card finishes.
 
 ### Installation and updates
 
@@ -33,7 +35,7 @@ Forge can run alone for its workshop and native achievements.
 
 Forge owns K05: 3×3 footprint, separate 9×6 input/output grids, a 7×5 ring-shaped module bay, base value 400 and base power 25. It processes one batch per night. Synthesis, Aug and Automated Logistics add recipes; Forge alone has none.
 
-Night-shop stock has a 40% listing chance, including while owned. Purchases do not restock immediately; full shelves skip it, and daytime NPC supply excludes it.
+The terminal is excluded from night-shop stock while no recipes are registered. With at least one recipe, it has a 40% listing chance, including while owned. Purchases do not restock immediately; full shelves skip it, and daytime NPC supply excludes it.
 
 Two known legacy Synthesis terminal IDs migrate on loading, preserving identity, state, shape and internal item relationships. The next normal save uses the current ID.
 
@@ -92,7 +94,7 @@ Released under the MIT License.
 
 作者：Nicokobo · 配套版本：**@FORGE_VERSION@** · 适用：**Probably Stolen Demo，Steam Build `26017150`**
 
-机核协议 1.0.6 配套 Forge 0.6.48、合成扩展 0.9.69、机械飞升 0.1.66 与模组矩阵 1.1.10。各包共用同一 Forge 程序集。
+机核协议 1.0.7 配套 Forge 0.6.49、合成扩展 0.9.70、机械飞升 0.1.66 与模组矩阵 1.1.10。各包共用同一 Forge 程序集。
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
 
@@ -119,7 +121,7 @@ Forge 可单独使用内置工坊与原版成就。
 
 K05 全域制造终端由 Forge 提供：外部 3×3，输入／输出仓各 9×6，模组仓为 7×5 环形；基础价值 400、基础耗电 25，每晚一批。合成扩展、机械飞升和自动化物流追加配方；仅装 Forge 时没有制造配方。
 
-夜店每次生成库存有 40% 上架机会，持有后仍可出现；购买不即时补货，货架满时跳过，不参加白天 NPC 供货。
+没有已注册配方时不在夜店上架；至少有一条配方后，每次生成库存有 40% 上架机会，持有后仍可出现。购买不即时补货，货架满时跳过，不参加白天 NPC 供货。
 
 读档迁移两个已知旧合成扩展终端 ID，保留身份、状态、占格和内部物品关系，下次正常保存使用当前 ID。
 
