@@ -4,6 +4,22 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.50 — 2026-10-22
+
+- 修复受影响 IL2CPP/Harmony 后端的托管桥接自回环，避免修改物品数量或来客进货时发生栈溢出；保留原生 detour 和 trampoline。
+- 当 `GameItem.SetUnitCount(int)` 与 `SetAmount(int)` 确实共用非零原生入口时，统一其补丁记录、查询与原生 patcher；不同 owner 仍可独立卸载。
+- 保留库存数量缓存与工坊观察的正常前后置钩子，不通过数量护栏、截断原调用或移除观察钩子规避问题。
+- 随包更新可选兼容补丁至 0.1.7：适配深空装机 2.6 的旧字段／backing-field 别名，修复恢复与维修比较参数未传入原校验的问题；保留原记录和完整校验，启用时须移出旧 PCExpansionLegacyFix。
+- 同逻辑的 0.6.49 候选已在 27-Mod 隔离组合中通过 87 项重点原生检查及 325 项顾客刷新检查；包含两种数量入口、64 次交替写入及两名手机装配商的实际到店进货。本版升级发布标识，不将旧版本测试结果标作新版本重测。
+
+### English
+
+- Fix managed bridge recursion in the affected IL2CPP/Harmony backend to prevent stack overflows during item quantity changes and visitor restocking, retaining the native detour and trampoline.
+- Share patch records, queries and one native patcher when `GameItem.SetUnitCount(int)` and `SetAmount(int)` resolve to the same nonzero native entry. Owners can still unpatch independently.
+- Retain the inventory-count cache and Workshop observation prefixes/postfixes. Quantity guards, truncated original calls and removed observation hooks are not used.
+- Bundle optional Compatibility Patches 0.1.7 for PC Expansion 2.6 scalar/backing-field aliases and correct argument propagation into storage/repair validators. Preserve source records and full validation; remove the old PCExpansionLegacyFix before enabling this patch.
+- The same behavior in the 0.6.49 candidate passed 87 focused native checks and 325 visitor-reroll checks with 27 Mods in isolation, including both setters, 64 alternating writes and two actual phone-assembler arrivals. This version updates release metadata; those results retain their tested version identities.
+
 ## 0.6.49 — 2026-10-21
 
 - 全域制造终端仅在当前已注册配方目录非空时参加夜店上架抽取；有配方时沿用 40% 概率，后续追加配方可直接生效。

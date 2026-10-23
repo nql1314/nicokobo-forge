@@ -50,6 +50,18 @@ internal static class LiquidTransferChecks
         }
         {
             var (source, target) = Setup();
+            source.Liquid = new(10_000_000, [new("water", 10_000_000)]);
+            target.Liquid = new(2_000_000, [new("water", 0)]);
+            WaterFeatureHelper.UpdateWaterFeature(source, true);
+            var result = ForgeLiquidTransferApi.Pour(source, target, 500_000);
+            Expect(result.PartsMoved == 500_000 && source.Liquid!.TotalParts == 9_500_000 && target.Liquid!.TotalParts == 500_000,
+                "Automatic liquid restocking must consume only its requested amount");
+            Expect(source.WaterFeature.IsExposed() && source.WaterFeature.DisplayedPurity == 10000,
+                "A bounded restock must preserve the supply tank's identified pure-water label");
+            Expect(!target.WaterFeature.IsExposed(), "A newly filled vessel must not gain free identification");
+        }
+        {
+            var (source, target) = Setup();
             WaterHelper.Transfer = (from, to) => { PourHalf(from, to); throw new InvalidOperationException("Native callback failed after transfer"); };
             var result = ForgeLiquidTransferApi.Pour(source, target);
             Expect(result.PartsMoved == 40 && !result.Indeterminate && result.Status == "poured-readback",

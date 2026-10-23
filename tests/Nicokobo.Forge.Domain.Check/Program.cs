@@ -3,6 +3,13 @@ using Nicokobo.Forge.LogisticsExtension;
 using Nicokobo.Forge.Logging;
 using Nicokobo.Forge;
 
+if (args is ["liquid"])
+{
+    LiquidWriteChecks.Run();
+    LiquidTransferChecks.Run();
+    return;
+}
+
 if (args is ["native-power"])
 {
     NativePowerActionChecks.Run();
@@ -59,6 +66,7 @@ if (args is ["transfer-review"])
         ItemTransferChecks.Run();
         InventoryPlacementChecks.Run();
         LiquidTransferChecks.Run();
+        LiquidWriteChecks.Run();
         WorkshopDeliveryChecks.Run();
     }
     catch (Exception ex) { Console.Error.WriteLine(ex.Message); Environment.ExitCode = 1; }
@@ -92,6 +100,7 @@ SaveReadbackChecks.Run();
 ItemTransferChecks.Run();
 InventoryPlacementChecks.Run();
 LiquidTransferChecks.Run();
+LiquidWriteChecks.Run();
 WorkshopDeliveryChecks.Run();
 
 static void Expect(bool condition, string message)

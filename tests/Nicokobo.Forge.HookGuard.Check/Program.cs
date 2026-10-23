@@ -5,8 +5,11 @@ using Il2CppInterop.Runtime.Startup;
 using Nicokobo.Forge.Runtime;
 using Nicokobo.Forge;
 
-// Standalone fixtures only: no game classes, native detour provider, or game startup.
-Il2CppInteropRuntime.Create(new RuntimeConfiguration { UnityVersion = new Version(2021, 3, 45) });
+// Standalone fixtures and a recording provider: no game or machine-code detours.
+if (!args.Contains("--baseline") && !Il2CppHookCompatibility.Install(Console.WriteLine))
+    throw new Exception("Compatibility must install before Il2CppInteropRuntime.Create");
+var detours = new RecordingDetourProvider();
+Il2CppInteropRuntime.Create(new RuntimeConfiguration { UnityVersion = new Version(2021, 3, 45), DetourProvider = detours });
 var valid = UnityVersionHandler.NewMethod();
 var missingEntry = UnityVersionHandler.NewMethod();
 valid.MethodPointer = new IntPtr(1); // A sentinel; it must never be passed to a detour.
@@ -51,7 +54,8 @@ try
     Expect(!NativeHookSet.Install(id, [Hook(nameof(Fixture.Valid)), Hook(nameof(Fixture.NativeAbstract))], messages.Add) &&
         messages.Any(x => x.Contains(nameof(Fixture.NativeAbstract)) && x.Contains("abstract native method")),
         "A native abstract wrapper must reject the whole set before detouring any sentinel entry");
-    Console.WriteLine($"Native hook guard checks passed: {checks}; standalone metadata fixtures only.");
+    checks += HookBridgeChecks.Run(detours, args.Contains("--baseline"));
+    Console.WriteLine($"Native hook guard checks passed: {checks}; standalone metadata and bridge fixtures only.");
 }
 finally
 {

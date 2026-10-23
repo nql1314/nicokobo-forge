@@ -40,6 +40,7 @@
     <Compile Include="../../src/Nicokobo.Forge/ForgeItemTransferApi.cs" Link="ForgeItemTransferApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeInventoryPlacementApi.cs" Link="ForgeInventoryPlacementApi.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeLiquidTransferApi.cs" Link="ForgeLiquidTransferApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeLiquidWrite.cs" Link="ForgeLiquidWrite.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeRecipeGuideModels.cs" Link="ForgeRecipeGuideModels.cs" />
     <Compile Include="../../src/Nicokobo.Forge/RecipeGuideQuery.cs" Link="RecipeGuideQuery.cs" />
     <Compile Include="../../src/Nicokobo.Forge/Registration/RecipeGuideCatalog.cs" Link="RecipeGuideCatalog.cs" />

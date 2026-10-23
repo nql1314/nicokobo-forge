@@ -2,7 +2,7 @@ using Il2Cpp;
 
 namespace Nicokobo.Forge;
 
-public static class ForgeLiquidApi
+public static partial class ForgeLiquidApi
 {
     public static bool IsContainer(GameItem item) => item != null && item.Pointer != IntPtr.Zero &&
         item.unitCount == 1 && item.IsTag("LIQUID_CONTAINER_TAG") &&
@@ -48,17 +48,6 @@ public static class ForgeLiquidApi
     internal static bool Matches(ForgeMachineLiquidSnapshot? current, ForgeMachineLiquidSnapshot expected) =>
         current != null && current.CapacityParts == expected.CapacityParts &&
         current.Contents.SequenceEqual(expected.Contents);
-
-    internal static bool Write(GameItem container, ForgeMachineLiquidSnapshot expected)
-    {
-        if (expected.TotalParts > expected.CapacityParts || expected.Contents.Any(part => part.Parts < 0 ||
-            part.Value < 0 || part.QualityBasis < 0 || part.QualityBasis != null && part.Value == null)) return false;
-        WaterHelper.EmptyContainer(container);
-        foreach (var part in expected.Contents)
-            if (part.Parts > 0) WaterHelper.AddLiquid(container, part.LiquidId, part.Parts);
-        ForgeLiquidValueRuntime.Store(container, expected);
-        return Matches(Capture(container), expected);
-    }
 
     internal static decimal ConsumedValue(GameItem container, ForgeMachineLiquidSnapshot before,
         ForgeMachineLiquidSnapshot after)

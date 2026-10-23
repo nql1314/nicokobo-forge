@@ -1,5 +1,35 @@
 # Nicokobo Forge 当前进度
 
+## 2026-10-22 液体扣减后的水质识别保留
+
+修复液体灌装器扣水及物流限量补水共用的 `ForgeLiquidApi.Write`：原生 `EmptyContainer` 会把容器水质识别取消，逐组分 `AddLiquid` 不恢复该状态，导致实际组分按比例保留后仍可能显示默认“沟渠水”标签。写回前记录已识别状态与原生纯度，写回后仍有余液且纯度读数不变时恢复识别，再恢复液体价值账本。未识别水不会自动揭示，真实纯度变化与倒空保留原生规则。
+
+生产写回方法拆到 `ForgeLiquidWrite.cs`，直接接入现有领域检查的原生接口替身；旧逻辑在已识别纯水由 2344 ml 扣到 1844 ml 的断言上失败，修复后通过。验证：61 项液体写回检查、22 项液体搬运检查及 `scripts/Build-P0.ps1` 全部通过，Forge 核心与四个示例 Release 编译通过。检查日志保留既有 net6.0 生命周期及 HookGuard 的 DiagnosticSource 引用警告；本轮没有打包、安装、启动游戏或验证存档重载。
+
+## 2026-10-22 发布版本与变更日志整理
+
+当前源码版本升级为 Forge **0.6.50**、兼容补丁 **0.1.7**；内容侧合成扩展 **0.9.71**、Mod 管理器 **1.2.9**，机核协议合集说明为 **1.0.8**。本次同步程序集／MelonInfo 标识、当前 README 和中英文变更日志，不增加业务行为；兼容补丁打包入口补上独立 `change.log`。
+
+前轮同逻辑功能候选实际版本为 Forge 0.6.49、兼容补丁 0.1.6、合成扩展 0.9.70、Mod 管理器 1.2.8。在 27-Mod 隔离组合中，`native-09-windowed` 的 87 项重点检查和 `native-10-stock` 的 325 项顾客刷新检查均通过：覆盖真实数量修改和到店进货、装机旧字段恢复及机箱／主板维修回读、机器人原生点击回调和管理器真实 GUI 绘制。正式文件未变，探针／Bootstrap 已清理。证据：`D:/workzone/probably-stolen/_build/native-test/20261022-changes-e8338cd1/final-verification.json`。
+
+这些结果保留原受测版本身份，不表示本次版本号调整后重跑了原生测试；完整 ES3 保存重载、维修扣料全流程和机房订货分支仍未覆盖。本次不重新打包或安装正式游戏。
+
+## 2026-10-22 数量修改桥接递归与原生入口别名（候选原生验证）
+
+用户的 00:58 会话使用 `Il2CppInterop 1.5.1-ci.845+f03c8f4`；清空 `SetUnitCount` 两组补丁后仍出现桥接栈溢出。上游 [184b996](https://github.com/BepInEx/Il2CppInterop/commit/184b996) 明确修复该版本的托管 Detour 破坏后续 `CopyOriginal` 问题。本机同版游戏的 Cpp2IL 元数据中，`GameItem.SetUnitCount(int)` 与 `SetAmount(int)` 共用 RVA `0x7E3CC0`；用户诊断另记录霓虹旧货修补了 `SetAmount`，单看前者的补丁表不能覆盖这个入口。
+
+Forge 在 `OnEarlyInitializeMelon` 中安装进程级修复：验证受影响后端的完整指令尾部，仅移除额外的托管 Detour，保留原生 detour／trampoline，与上游回退范围一致；已采用原生路径的后端不添加此回退。只有两个数量方法的签名与非零原生地址确实相同时，才把 Harmony 的补丁记录、查询和 patcher 统一到 `SetAmount`，使不同 owner 共用一个原生后端，按 owner 卸载仍隔离。修复安装失败时 Forge 不安装原生适配器；进程内仍有其他 Mod 时不撤销这个基础修复。
+
+离线夹具使用实际加载器 HarmonySupport、合成原生方法元数据及记录型 detour provider，不启动游戏或改写游戏机器码。关闭修复的基线在受影响后端断言失败；启用后新增 30 项桥接检查通过，含运行时创建前安装、重复安装、独立／零地址不合并、两种名称的读写查询、两组 Forge 式观察加第三方观察、按 owner 卸载／重新安装、零补丁重建及合法嵌套修改。九次原方法调用均执行，最高桥接深度 3，活动原生 detour 始终只有 1；原有 14 项入口检查亦通过，共 44 项。
+
+`Build-P0.ps1` 的契约、领域、生命周期、Hook 等既有检查及核心／默认示例 Release 编译通过；测试工程保留既有 net6.0 和 DiagnosticSource 警告。源码版本仍为 0.6.49 候选。
+
+用户明确要求后，在 Build `26017150` 的独立产品名／存档目录副本中执行原生验证，保留正式安装的 25 个 Mod，并加入附件中的 PCExpansion 2.6 与 PCExpansionLegacyFix 1.7.3。兼容 DLL 仅将 `PatchGuardCompat.TryInstall` 和 `ItemCountHookCompat.TryInstall` 改为直接返回，关闭旧注册护栏、摘钩和单层探针；其余 46 个方法保持一致。电池、维修和储物兼容钩子实际安装；岁物品包本地未安装，熔炉修复代码保留，未验证其夜间行为。
+
+`native-03` 共 43 项原生检查通过：真实物品由 `SetUnitCount` 写成 7、由 `SetAmount` 写成 4，返回的物品句柄、所有权数量读回、缓存即时失效和工坊 dirty 回调均正确；两种入口交替修改 64 次均执行。两名普通电话装机来客经原生 `StartApprochingStore → OnArrived → OnNextClientArrived → PhoneAssemblerNpc.AddStock → NpcStockOffers.Stock` 各入柜 3 件商品，每件数量为 1；重复到店不增货、不丢 UID。共 4 次到店／供货调用完整返回，无栈溢出，正常退出。Forge 两组数量观察和机核观察始终存在，两种名称共享补丁表及原生 patcher，旧数量护栏／摘钩／探针未安装。
+
+证据目录：`D:\workzone\nicokobo-forge\artifacts\_build\native-test\20261022-quantity-81e17cb5`。前两轮分别停在隔离加载器过滤和到店夹具缺少 walking 状态，修正夹具后通过，未修改 Forge 候选代码。`final-verification.json` 确认正式 Mods、UserData、全部存档文件及附件兼容 DLL 未变；受测 Forge 与编译产物一致，探针和隔离 Bootstrap 已移出，测试进程为 0，清理无错误。未更新正式安装、打包或发布；未覆盖玩家原 48-Mod 旧档、机房预订送货分支 `ServerRoomOrderStock`、真实鼠标手势或完整 ES3 保存读回。
+
 ## 2026-10-21 全域制造终端无配方时不上架
 
 全域制造终端的夜店可用性回调在每次生成库存时读取当前机器配方目录：没有已注册配方时直接跳过，至少有一条配方后才执行原有 40% 概率抽取。追加配方不依赖初始化时的空目录快照。

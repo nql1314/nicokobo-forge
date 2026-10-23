@@ -8,6 +8,11 @@ internal static class ForgeBootstrap
 {
     internal static void Initialize(HarmonyLib.Harmony harmony, ModLogger log, string? gameRoot)
     {
+        if (!Runtime.Il2CppHookCompatibility.Install(log.Callback))
+        {
+            log.Error("[NicokoboForge] Native adapters disabled because the IL2CPP hook repair could not be installed.");
+            return;
+        }
         ForgeApi.SetLogger(log.Callback);
         NativeItemRegistry.SetLogger(log.Callback);
         NativeEffectRegistry.SetLogger(log.Callback);

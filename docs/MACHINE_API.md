@@ -156,6 +156,8 @@ var recipe = new ForgeMachineRecipe(ownerId + ".recipe.liquid", [],
 
 液体声明单位为整数毫升，底层使用 `1000 part = 1 ml`。不指定 `LiquidId` 时按当前混合比例扣减，用最大余数分配剩余 part，保证总量精确；指定 ID 时只扣该组分。输入不足、组分不存在、动态体积非正、整数溢出或输出容量不足都取消本批。液体读取和写后校验覆盖原版液体目录的每个组分，撤回时恢复原组分，而非补成纯水。
 
+液体写回前已经检测的水，在写回后仍有余液且原生纯度读数不变时保留已检测状态，避免扣水或限量倒液后退回默认标签。未检测水不自动揭示水质；实际纯度改变或容器倒空时沿用原生识别规则。
+
 `ResolveMillilitres(context)` 支持按本批实际材料价值计算扣水和灌装量。`ForgeMachineItemOutput.Contents` 可以灌装新生成的容器物品：内容方注册的产物工厂应返回空容器，每个产物分别获得声明体积。`ForgeMachineContainerOutput.Contents` 则灌入输出槽中的现有容器，允许在模板条件许可下混合已有液体。
 
 `ForgeMachineContainerOutput.ResolveContents(context)` 可返回按实际输入组分生成的液体 part 列表。声明此委托时 `Contents` 必须为空；委托在 `context.Liquids` 的前后扣除快照确定后执行，只能读取状态。`ForgeLiquidCompositionMath.Consumed(before, after)` 提取实际取出的组分与比例价值，`ReplaceComponent(contents, sourceId, targetId)` 只替换指定组分、保留其它组分并合并目标组分。组分 ID、正体积、非负价值、唯一性和输出剩余容量均在资源变更前检查；混入已有液体和失败恢复仍走统一事务。内容 Mod 自己决定转换规则、显示名称、合成纯度门槛和价格加成。

@@ -54,7 +54,13 @@ Check(throwing.Failed && throwing.PendingCount == 0, "installation failure did n
 Check(throwing.Observe(LocalizationState.Succeeded) == 0, "installation failure retried");
 
 string gameDir = args[0];
-using var wage = AssemblyDefinition.ReadAssembly(Path.Combine(gameDir, "Mods", "WagePerks.dll"));
+ScalarAliasChecks.Run(Check);
+string? wagePath = Directory.EnumerateFiles(Path.Combine(gameDir, "Mods"), "*.dll")
+    .FirstOrDefault(path => Path.GetFileName(path).Contains("WagePerks", StringComparison.OrdinalIgnoreCase));
+using var wage = wagePath == null ? null : AssemblyDefinition.ReadAssembly(wagePath);
+if (wage?.CustomAttributes.Single(a => a.AttributeType.FullName == "MelonLoader.MelonInfoAttribute")
+    .ConstructorArguments[2].Value as string == "1.3.4")
+{
 var info = wage.CustomAttributes.Single(a => a.AttributeType.FullName == "MelonLoader.MelonInfoAttribute");
 Check((string)info.ConstructorArguments[2].Value == "1.3.4", "installed WagePerks is not the supported version");
 var priority = wage.CustomAttributes.SingleOrDefault(a => a.AttributeType.FullName == "MelonLoader.MelonPriorityAttribute");
@@ -86,6 +92,8 @@ Check(directoryCallback.IsPublic && directoryCallback.IsStatic && directoryCallb
     "existing directory callback contract changed");
 foreach (string directory in new[] { "Il2Cpp.ContainerItemDirectory", "Il2Cpp.AmenitiesItemDirectory", "Il2Cpp.ModItemDirectory" })
     Check(registryTypes.Contains(directory), $"original directory initialization hook is missing: {directory}");
+}
+else Console.WriteLine("Wage's Perks 1.3.4 target-contract checks skipped: this optional target is not installed.");
 using var native = AssemblyDefinition.ReadAssembly(Path.Combine(gameDir, "MelonLoader", "Il2CppAssemblies", "Assembly-CSharp.dll"));
 var has = native.MainModule.Types.Single(t => t.FullName == "Il2Cpp.Directory`1")
     .Methods.Single(m => m.Name == "Has" && m.Parameters.Count == 1 &&
@@ -105,7 +113,7 @@ Check(!binary.MainModule.AssemblyReferences.Any(r => r.Name is "WagePerks" or "N
 Check(binary.Name.Name == "Nicokobo.CompatibilityPatches", "unified assembly name changed");
 var modInfo = binary.CustomAttributes.Single(a => a.AttributeType.FullName == "MelonLoader.MelonInfoAttribute");
 Check((string)modInfo.ConstructorArguments[1].Value == "Nicokobo Compatibility Patches", "unified Mod name changed");
-Check((string)modInfo.ConstructorArguments[2].Value == "0.1.5" && binary.Name.Version == new Version(0, 1, 5, 0), "Mod and assembly versions differ");
+Check((string)modInfo.ConstructorArguments[2].Value == "0.1.7" && binary.Name.Version == new Version(0, 1, 7, 0), "Mod and assembly versions differ");
 Check(!binary.MainModule.Types.Any(t => t.Namespace.EndsWith(".AugOpeningReputation", StringComparison.Ordinal)),
     "retired reputation patch is still compiled into the compatibility DLL");
 Check(!binary.MainModule.Types.Any(t => t.Namespace.EndsWith(".AugOpeningInventory", StringComparison.Ordinal)),
@@ -125,4 +133,55 @@ Check(dicePostfix.ReturnType.FullName == "System.Void" && dicePostfix.Parameters
     dicePostfix.Parameters[0].Name == "__args" && dicePostfix.Parameters[0].ParameterType.FullName == "System.Object[]" &&
     dicePostfix.Parameters[1].Name == "__runOriginal" && dicePostfix.Parameters[1].ParameterType.FullName == "System.Boolean",
     "compiled dice Harmony postfix contract changed");
+var pcPatch = binary.MainModule.Types.Single(t => t.FullName ==
+    "Nicokobo.CompatibilityPatches.Patches.PCExpansionScalars.PCExpansionScalarsPatch");
+foreach (string name in new[] { "BeforeApply", "BeforeCompare" })
+    Check(pcPatch.Methods.Single(m => m.Name == name).ReturnType.FullName == "System.Void",
+        "field compatibility must not short-circuit original restoration or validation");
+var gameItem = native.MainModule.Types.Single(t => t.FullName == "Il2Cpp.GameItem");
+Check(gameItem.Properties.Single(p => p.Name == "isDebugMenu").SetMethod == null &&
+    gameItem.Properties.Single(p => p.Name == "_isDebugMenu_k__BackingField").SetMethod != null,
+    "native readonly-property/backing-field contract changed");
+string targetDirectory = args.Length > 2 ? args[2] : Path.Combine(gameDir, "Mods");
+var pcPath = Path.Combine(targetDirectory, "PCExpansion.dll");
+if (File.Exists(pcPath))
+{
+    using var pc = AssemblyDefinition.ReadAssembly(pcPath);
+    Check(pc.Name.Version == new Version(2, 6, 0, 0), "local PC Expansion version changed");
+    var codec = pc.MainModule.Types.Single(t => t.FullName == "PCExpansion.WorkroomItemCodec");
+    var apply = codec.Methods.Single(m => m.Name == "ApplyScalars");
+    Check(apply.IsStatic && apply.ReturnType.FullName == "System.Void" && apply.Parameters.Count == 2 &&
+        apply.Parameters[0].ParameterType.FullName == "System.Object" &&
+        apply.Parameters[1].ParameterType.FullName == "System.Collections.Generic.Dictionary`2<System.String,System.Text.Json.JsonElement>",
+        "PC Expansion restore signature changed");
+    var equivalent = codec.Methods.Single(m => m.Name == "Equivalent");
+    Check(equivalent.IsStatic && equivalent.ReturnType.FullName == "System.Boolean" && equivalent.Parameters.Count == 2 &&
+        equivalent.Parameters.All(p => p.ParameterType.FullName == "PCExpansion.WorkroomItemCodec/Snapshot"),
+        "PC Expansion full readback contract changed");
+    var preserved = pc.MainModule.Types.Single(t => t.FullName == "PCExpansion.WorkroomMachineRepair")
+        .Methods.Single(m => m.Name == "VerifyPreserved");
+    Check(preserved.IsStatic && preserved.ReturnType.FullName == "System.Void" && preserved.Parameters.Count == 2 &&
+        preserved.Parameters.All(p => p.ParameterType.FullName == "PCExpansion.WorkroomItemCodec/Node"),
+        "PC Expansion repair readback contract changed");
+    ScalarAliasChecks.RunPCExpansion(pcPath, gameDir, Check);
+}
+var brewingPath = Path.Combine(targetDirectory, "BrewingExpansion.dll");
+if (File.Exists(brewingPath))
+{
+    using var brewing = AssemblyDefinition.ReadAssembly(brewingPath);
+    var chargeCalls = brewing.MainModule.GetMemberReferences().OfType<MethodReference>()
+        .Where(m => m.DeclaringType.FullName == "Il2Cpp.PowerHelper" && m.Name == "ChargeBattery").ToArray();
+    Check(chargeCalls.Length > 0 && chargeCalls.All(m => m.Parameters.Select(p => p.ParameterType.FullName)
+        .SequenceEqual(new[] { "Il2Cpp.GameItem", "System.Int32", "System.Boolean" })),
+        "local Brewing Expansion still references an obsolete battery-charge overload");
+    Console.WriteLine("Local Brewing Expansion already uses the current three-parameter battery API; no replacement installed.");
+}
+var shuPath = Path.Combine(targetDirectory, "PSItemPack_Shu.dll");
+if (File.Exists(shuPath))
+{
+    using var shu = AssemblyDefinition.ReadAssembly(shuPath);
+    var bubble = shu.MainModule.Types.Single(t => t.FullName == "ShuMerchant.ItemPack.ShuNianBubble");
+    Check(!bubble.Methods.Any(m => m.Name == "PlaceIntoFurnace"), "local Shu package regained the old furnace insertion path");
+    Console.WriteLine("Local Shu package has no legacy PlaceIntoFurnace target; old forced-player-delivery patch not installed.");
+}
 Console.WriteLine($"Nicokobo Compatibility Patches: {checks} checks passed.");

@@ -7,6 +7,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Patches\WagePerksStartup\DeferredStartupPatches.cs" Link="Production\DeferredStartupPatches.cs" />
+    <Compile Include="..\Patches\PCExpansionScalars\ScalarAliases.cs" Link="Production\ScalarAliases.cs" />
     <Reference Include="Mono.Cecil"><HintPath>$(GameDir)\MelonLoader\net6\Mono.Cecil.dll</HintPath></Reference>
+    <Reference Include="0Harmony"><HintPath>$(GameDir)\MelonLoader\net6\0Harmony.dll</HintPath></Reference>
+    <Reference Include="Nicokobo.CompatibilityPatches"><HintPath>..\bin\Release\Nicokobo.CompatibilityPatches.dll</HintPath></Reference>
   </ItemGroup>
 </Project>

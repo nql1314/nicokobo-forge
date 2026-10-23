@@ -6,7 +6,7 @@
 
 Author: Nicokobo · Version: **@FORGE_VERSION@** · Target: **Probably Stolen Demo, Steam Build `26017150`**
 
-Mechcore Protocol 1.0.7 matches Forge 0.6.49 with Synthesis 0.9.70, Aug 0.1.66 and Matrix 1.1.10. These packages share the same Forge assembly.
+Mechcore Protocol 1.0.8 matches Forge 0.6.50 with Synthesis 0.9.71, Aug 0.1.66 and Matrix 1.1.10. These packages share the same Forge assembly.
 
 Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
 
@@ -25,7 +25,7 @@ Forge can run alone for its workshop and native achievements.
 @COMPAT_SECTION_BEGIN_EN@
 #### Optional compatibility patches
 
-`@COMPAT_DLL@` is optional and separate from Forge. It defers Wage's Perks **1.3.4** startup mounts until localization is initialized, preventing early text-read crashes. Copy it to `Mods/` only for that version; remove it to disable. Forge does not install or load it automatically. Missing or mismatched targets disable the patch and log the reason without affecting other mods.
+`@COMPAT_DLL@` is optional and separate from Forge. It retains the Wage's Perks **1.3.4** startup and Destiny Dice registration fixes, and supports PC Expansion **2.6** storage/repair scalar aliases while retaining full validation. Copy it to `Mods/` only when using a supported target; remove it to disable. Remove the old `PCExpansionLegacyFix` before using the PC Expansion fix. Forge does not install or load it automatically. Missing or mismatched targets disable only their patch and log the reason.
 @COMPAT_SECTION_END_EN@
 
 
@@ -94,7 +94,7 @@ Released under the MIT License.
 
 作者：Nicokobo · 配套版本：**@FORGE_VERSION@** · 适用：**Probably Stolen Demo，Steam Build `26017150`**
 
-机核协议 1.0.7 配套 Forge 0.6.49、合成扩展 0.9.70、机械飞升 0.1.66 与模组矩阵 1.1.10。各包共用同一 Forge 程序集。
+机核协议 1.0.8 配套 Forge 0.6.50、合成扩展 0.9.71、机械飞升 0.1.66 与模组矩阵 1.1.10。各包共用同一 Forge 程序集。
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
 
@@ -111,7 +111,7 @@ Forge 可单独使用内置工坊与原版成就。
 @COMPAT_SECTION_BEGIN@
 #### 可选兼容补丁
 
-`@COMPAT_DLL@` 为独立可选组件，将 Wage's Perks **1.3.4** 的启动挂载延后至本地化初始化完成，避免过早读取文本导致崩溃。使用该版本时才复制到 `Mods/`，移出即可停用；Forge 不会自动安装或加载。目标缺失或版本不符时补丁自行停用并记录原因，不影响其他 Mod。
+`@COMPAT_DLL@` 为独立可选组件，保留 Wage's Perks **1.3.4** 的启动与命运骰子注册修复，并兼容深空装机 **2.6** 的储物／维修字段别名，保留完整回读校验。使用对应目标版本时才复制到 `Mods/`，移出即可停用；启用装机修复前须移出旧 `PCExpansionLegacyFix`。Forge 不会自动安装或加载。目标缺失或版本不符时仅停用对应补丁并记录原因。
 @COMPAT_SECTION_END@
 
 

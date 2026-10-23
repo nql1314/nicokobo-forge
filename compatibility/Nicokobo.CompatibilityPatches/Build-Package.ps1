@@ -16,6 +16,7 @@ $version = [string]$projectXml.Project.PropertyGroup.Version
 $assemblyName = [string]$projectXml.Project.PropertyGroup.AssemblyName
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot "bin\Release\$assemblyName.dll") -Destination (Join-Path $packageRoot "$assemblyName-$version.dll") -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'README.md') -Destination (Join-Path $packageRoot 'README.md') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'change.log') -Destination (Join-Path $packageRoot 'change.log') -Force
 Get-ChildItem -LiteralPath $packageRoot -Filter "$assemblyName-*.dll" -File |
     Where-Object Name -ne "$assemblyName-$version.dll" |
     ForEach-Object { Remove-Item -LiteralPath $_.FullName }

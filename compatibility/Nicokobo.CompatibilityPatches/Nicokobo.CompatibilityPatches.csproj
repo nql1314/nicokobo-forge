@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>Nicokobo.CompatibilityPatches</AssemblyName>
     <RootNamespace>Nicokobo.CompatibilityPatches</RootNamespace>
-    <Version>0.1.5</Version>
+    <Version>0.1.7</Version>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
   </PropertyGroup>

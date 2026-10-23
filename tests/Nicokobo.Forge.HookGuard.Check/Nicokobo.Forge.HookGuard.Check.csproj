@@ -5,10 +5,17 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/Nicokobo.Forge/Runtime/NativeHookSet.cs" Link="NativeHookSet.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/Runtime/Il2CppHookCompatibility.cs" Link="Il2CppHookCompatibility.cs" />
     <Compile Include="../../src/Nicokobo.Forge/ForgeHookApi.cs" Link="ForgeHookApi.cs" />
     <Reference Include="0Harmony"><HintPath>$(GameDir)\MelonLoader\net6\0Harmony.dll</HintPath></Reference>
     <Reference Include="Il2CppInterop.Common"><HintPath>$(GameDir)\MelonLoader\net6\Il2CppInterop.Common.dll</HintPath></Reference>
     <Reference Include="Il2CppInterop.Runtime"><HintPath>$(GameDir)\MelonLoader\net6\Il2CppInterop.Runtime.dll</HintPath></Reference>
+    <Reference Include="Il2CppInterop.HarmonySupport"><HintPath>$(GameDir)\MelonLoader\net6\Il2CppInterop.HarmonySupport.dll</HintPath></Reference>
+    <Reference Include="MonoMod.Utils"><HintPath>$(GameDir)\MelonLoader\net6\MonoMod.Utils.dll</HintPath></Reference>
+    <Reference Include="MonoMod.RuntimeDetour"><HintPath>$(GameDir)\MelonLoader\net6\MonoMod.RuntimeDetour.dll</HintPath></Reference>
+    <Reference Include="Mono.Cecil"><HintPath>$(GameDir)\MelonLoader\net6\Mono.Cecil.dll</HintPath></Reference>
+    <Reference Include="Mono.Cecil.Rocks"><HintPath>$(GameDir)\MelonLoader\net6\Mono.Cecil.Rocks.dll</HintPath></Reference>
+    <Reference Include="Il2Cppmscorlib"><HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\Il2Cppmscorlib.dll</HintPath></Reference>
     <Reference Include="Microsoft.Extensions.Logging.Abstractions"><HintPath>$(GameDir)\MelonLoader\net6\Microsoft.Extensions.Logging.Abstractions.dll</HintPath></Reference>
   </ItemGroup>
 </Project>
