@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><UseAppHost>false</UseAppHost></PropertyGroup>
-  <ItemGroup><Compile Include="../../src/Nicokobo.Forge/ForgeSaveGraphApi.cs" Link="Production/ForgeSaveGraphApi.cs" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../BuildConfig/ForgeNumbers.cs" Link="Production/ForgeNumbers.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeSaveGraphApi.cs" Link="Production/ForgeSaveGraphApi.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/MissingItemSaveMigration.cs" Link="Production/MissingItemSaveMigration.cs" />
+    <Compile Include="../../src/Nicokobo.Forge/ForgeSaveReadbackApi.cs" Link="Production/ForgeSaveReadbackApi.cs" />
+  </ItemGroup>
 </Project>

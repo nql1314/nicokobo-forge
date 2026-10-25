@@ -53,6 +53,7 @@ internal sealed class MachineCatalog
     private readonly HashSet<string> _reserved = new(StringComparer.Ordinal);
     private string? _terminalMarkupOwner;
     private long _guideRevision;
+    private MachineRecipeOrder? _processingOrder;
     internal bool HasMachines { get { lock (_gate) return _machines.Count > 0; } }
     internal bool TryGet(string? id, out MachineProfile? profile)
     {
@@ -73,6 +74,18 @@ internal sealed class MachineCatalog
             .OrderBy(machine => machine.MachineId, StringComparer.Ordinal)
             .SelectMany(machine => machine.Recipes.Select(recipe => RecipeGuidePresentation.Build(machine, recipe)))
             .ToArray()));
+    }
+
+    internal IReadOnlyList<RegisteredMachineRecipe> ProcessingRecipes(MachineProfile profile, string? preferredRecipeId)
+    {
+        lock (_gate)
+        {
+            var recipes = _machines.Values.SelectMany(machine => machine.Recipes).Select(entry => entry.Value);
+            var order = _machines.TryGetValue(profile.MachineId, out var registered) && ReferenceEquals(profile, registered)
+                ? _processingOrder ??= new(recipes)
+                : new MachineRecipeOrder(recipes.Concat(profile.Recipes.Select(entry => entry.Value)));
+            return order.Order(profile.Recipes, preferredRecipeId);
+        }
     }
 
     internal SubmitResult Register(string owner, ForgeMachineDefinition? definition,
@@ -106,6 +119,7 @@ internal sealed class MachineCatalog
             _machines[frozen.MachineId] = new(owner, frozen,
                 frozen.Recipes.Select(recipe => new RegisteredMachineRecipe(owner, recipe)));
             _guideRevision++;
+            _processingOrder = null;
             return new(SubmitStatus.Accepted, "Machine template and recipes staged");
         }
     }
@@ -125,6 +139,7 @@ internal sealed class MachineCatalog
             _machines[id] = new(existing.OwnerId, existing.Definition,
                 existing.Recipes.Concat(frozen.Select(recipe => new RegisteredMachineRecipe(owner, recipe))));
             _guideRevision++;
+            _processingOrder = null;
             return new(SubmitStatus.Accepted, "Additional recipes staged");
         }
     }

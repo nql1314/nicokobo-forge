@@ -53,6 +53,5 @@ internal sealed class NativePowerAction(Func<int, IForgePowerTransaction?> plan)
 
     internal bool Verify() => !Failed && (_cost == null || _drawn && CheckReceipt());
     internal bool Restore() => _receipt?.Restore() ?? true;
-    internal void Fault(string reason) => _receipt?.Fault(reason);
     public void Dispose() => _receipt?.Dispose();
 }

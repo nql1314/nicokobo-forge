@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
+using System.Text.Json;
 using Il2Cpp;
+using Il2CppInterop.Runtime;
 using Nicokobo.Forge;
 
 int checks = 0;
@@ -28,6 +30,63 @@ var document = JsonNode.Parse(graph)!.AsObject(); document["forgeItemFeatures"] 
 Reject(() => ForgeSaveGraphApi.Decode(document.ToJsonString()), "Malformed feature payload is rejected");
 document.Remove("forgeItemFeatures");
 Check(ForgeSaveGraphApi.Decode(document.ToJsonString()).Nested.Single().uniqueId == 11, "Existing native-only graphs remain readable");
+
+// Reproduce native inventory saves: features live outside SaveItemNode JSON.
+bag.AddItemFeature(new() { identifier = "damaged", actualValue = 37, isDisabled = true });
+var inventory = new GameItem { uniqueId = 1 };
+var removedMachine = new GameItem { uniqueId = 20, identifier = "missing" };
+removedMachine.AddItemFeature(new() { identifier = "machine-condition", actualValue = 9 });
+inventory.Nested.Add(removedMachine); removedMachine.Nested.Add(bag);
+store.savedItemFeatureList = new();
+var savedNodes = SaveManager.EncodeNodes(inventory);
+store.savedItemFeatureList.Add(new() { parentItemUniqueId = 999, identifier = "unrelated" });
+string nativeInventory = UnityEngine.JsonUtility.ToJson(new SaveState { saveItems = savedNodes });
+var plan = MissingItemSaveMigration.Plan(new Dictionary<string, string?> { ["mainInvJSON"] = nativeInventory }, [], 100,
+    (id, _) => id != "missing");
+Check(plan.RemovedNodes == 1 && plan.Recoveries.Count == 1, "Removing a provider extracts the complete registered container subtree");
+string receipt = ForgeSaveGraphApi.CaptureRecoveryFeatures(plan.Recoveries.Single(), store.savedItemFeatureList);
+Check(store.savedItemFeatureList.Count == 4, "Capturing a recovery must leave the native table intact for other inventory items");
+store.savedItemFeatureList.Clear(); // LoadGame clears its table before deferred delivery.
+var returned = ForgeSaveGraphApi.Decode(receipt);
+Check(returned.uniqueId == 10 && returned.itemFeatures.Single() is { identifier: "damaged", actualValue: 37, isDisabled: true, parentItemUniqueId: 10 },
+    "Recovered container keeps its saved feature value and disabled flag after native load clears the table");
+Check(returned.Nested.Single().itemFeatures.Single() is { identifier: "genuine", actualValue: 160, isDisabled: false, parentItemUniqueId: 11 },
+    "Recovered contents keep their own features without inheriting removed or unrelated item features");
+returned.Destroy(); // No space: discard the live attempt and persist the receipt.
+string persisted = JsonSerializer.Serialize(new[] { receipt });
+string reloaded = JsonSerializer.Deserialize<string[]>(persisted)!.Single();
+var retryPlan = MissingItemSaveMigration.Plan(plan.Inventories.ToDictionary(pair => pair.Key, pair => (string?)pair.Value),
+    [reloaded], plan.Cash, (id, _) => id != "missing");
+Check(retryPlan.Refund == 0 && retryPlan.RemovedNodes == 0, "A pending delivery must not repeat provider removal or refund on reload");
+string retry = ForgeSaveGraphApi.CaptureRecoveryFeatures(retryPlan.Recoveries.Single(), store.savedItemFeatureList);
+Check(retry == receipt, "A pending receipt must retain its feature payload when the new native save table is empty");
+Check(ForgeSaveGraphApi.Decode(retry).Nested.Single().itemFeatures.Single().actualValue == 160,
+    "Delivery after a full inventory and another save/load must restore the original condition value");
+
+// Another provider can disappear while the first recovery is still pending.
+var split = MissingItemSaveMigration.Plan(new Dictionary<string, string?>(), [retry], plan.Cash, (id, _) => id != "fanny_pack");
+Check(split.RemovedNodes == 1 && split.Recoveries.Count == 1, "Removing the pending container must retain its registered contents");
+Reject(() => ForgeSaveGraphApi.Decode(split.Recoveries.Single()), "Features for removed parents must be rejected before native decode");
+string splitReceipt = ForgeSaveGraphApi.CaptureRecoveryFeatures(split.Recoveries.Single(), store.savedItemFeatureList);
+var splitItem = ForgeSaveGraphApi.Decode(splitReceipt);
+Check(splitItem.uniqueId == 11 && splitItem.itemFeatures.Single() is { identifier: "genuine", actualValue: 160 },
+    "Splitting a pending recovery must keep only the surviving node's feature records");
+
+string emptyReceipt = ForgeSaveGraphApi.CaptureRecoveryFeatures(plan.Recoveries.Single(), store.savedItemFeatureList);
+var emptyState = UnityEngine.JsonUtility.FromJson(emptyReceipt, Il2CppType.Of<SaveState>()).Cast<SaveState>();
+var emptyItem = SaveManager.DecodeNodes(emptyState.saveItems);
+foreach (var item in ForgeSaveGraphApi.Items(emptyItem)) item.AddItemFeature(new() { identifier = "factory-default" });
+ForgeSaveGraphApi.RestoreFeatures(emptyState, ForgeSaveGraphApi.DecodeFeatures(emptyReceipt, emptyState));
+Check(ForgeSaveGraphApi.Items(emptyItem).All(item => item.itemFeatures.Count == 0),
+    "An explicitly empty saved feature table must replace factory defaults on every recovered node");
+ES3.FailSerialize = true;
+Reject(() => ForgeSaveGraphApi.CaptureRecoveryFeatures(plan.Recoveries.Single(), existing),
+    "Recovery feature serialization failure must be reported before committing cleanup");
+ES3.FailSerialize = false;
+Check(existing.Count == 1 && existing.Single().parentItemUniqueId == 999,
+    "A failed recovery capture must not consume or change the native feature table");
+Reject(() => ForgeSaveGraphApi.CaptureRecoveryFeatures(plan.Recoveries.Single(), null),
+    "Missing feature data must not be silently committed as an empty recovery table");
 PlayerStore.instance = null;
 Reject(() => ForgeSaveGraphApi.Encode(bag), "Encoding without an existing player context cannot create a singleton");
 Console.WriteLine($"PASS {checks} native graph adapter checks.");

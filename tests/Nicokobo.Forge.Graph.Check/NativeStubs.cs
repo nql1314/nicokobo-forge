@@ -55,7 +55,12 @@ namespace Il2Cpp
     public sealed class SaveItemNode
     {
         public string identifier = "";
-        public int uniqueId, unitCount, parentId;
+        public int uniqueId, unitCount, unitValue;
+        public long uuid;
+        public string itemType = "GameItem";
+        public long[] childItems = [];
+        public int[] childItemInventoryNode = [];
+        public string[] _keys = ["IS_OWNED_TAG"];
         [JsonIgnore] public GameItem? tempLink;
     }
     public sealed class SaveState { public Il2CppSystem.Collections.Generic.List<SaveItemNode> saveItems = new(); }
@@ -73,16 +78,21 @@ namespace Il2Cpp
             foreach (var item in GraphUtils.Walk((GameItem)root))
             {
                 foreach (var feature in item.itemFeatures) PlayerStore.instance!.savedItemFeatureList!.Add(feature);
-                var parent = GraphUtils.Walk((GameItem)root).FirstOrDefault(x => x.Nested.Contains(item));
-                result.Add(new() { identifier = item.identifier, uniqueId = item.uniqueId, unitCount = item.unitCount, parentId = parent?.uniqueId ?? 0 });
+                result.Add(new()
+                {
+                    identifier = item.identifier, uniqueId = item.uniqueId, unitCount = item.unitCount, uuid = item.uniqueId + 1000L,
+                    childItems = item.Nested.Select(child => child.uniqueId + 1000L).ToArray(),
+                    childItemInventoryNode = item.Nested.Select(_ => 1).ToArray()
+                });
             }
             return result;
         }
         public static GameItem DecodeNodes(Il2CppSystem.Collections.Generic.List<SaveItemNode> nodes)
         {
             foreach (var node in nodes) node.tempLink = new() { identifier = node.identifier, uniqueId = node.uniqueId, unitCount = node.unitCount };
-            foreach (var node in nodes.Where(x => x.parentId != 0)) nodes.Single(x => x.uniqueId == node.parentId).tempLink!.Nested.Add(node.tempLink!);
-            return nodes.Single(x => x.parentId == 0).tempLink!;
+            foreach (var node in nodes)
+                foreach (long childId in node.childItems) node.tempLink!.Nested.Add(nodes.Single(child => child.uuid == childId).tempLink!);
+            return nodes[0].tempLink!;
         }
     }
     public static class DirectoryMaster { public static bool Has<T>(string id) => id != "missing"; }

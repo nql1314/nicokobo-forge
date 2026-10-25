@@ -127,7 +127,7 @@ internal static class NativePowerActionChecks
         Check(!action.Prepare(30) && action.Failed && drift.DebitCalls == 1,
             "Repeated CanDraw must read the existing receipt and reject changed energy without replanning");
         Check(!drift.Complete(action) && drift.Grid == 69 && drift.Local == 17 && drift.Material == 6 &&
-            drift.Output == 0 && drift.FaultCalls == 1 && drift.DisposeCalls == 1,
+            drift.Output == 0 && drift.Reports == 1 && drift.FaultCalls == 0 && drift.DisposeCalls == 1,
             "Unrecognized grid changes must remain uncertain rather than overwrite another write during compensation");
 
         foreach (bool draw in new[] { false, true })
@@ -152,9 +152,9 @@ internal static class NativePowerActionChecks
             Check(!uncertain.Complete(action) && uncertain.Grid == 70 && uncertain.Local == 17 &&
                 uncertain.Material == 6 && uncertain.Output == 0,
                 $"{failure}: failed grid compensation must not prevent restoration of other native resources");
-            Check(uncertain.FaultCalls == 1 && uncertain.DisposeCalls == 1 && uncertain.LocalRestoreCalls == 1 &&
-                uncertain.LastFault == "native batch rollback uncertain",
-                $"{failure}: uncertain external energy must fault its owner and release the receipt");
+            Check(uncertain.Reports == 1 && uncertain.FaultCalls == 0 && uncertain.DisposeCalls == 1 && uncertain.LocalRestoreCalls == 1 &&
+                uncertain.LastReport == "native batch rollback failed",
+                $"{failure}: failed restoration must be reported without disabling the provider or retaining the receipt");
         }
 
         foreach (bool commit in new[] { false, true })
@@ -165,8 +165,8 @@ internal static class NativePowerActionChecks
                 "Disposal failure must be tested after a real prepared or drawn external debit");
             cleanupFailure.Work();
             Check(cleanupFailure.Complete(action) == commit && cleanupFailure.DisposeCalls == 1 &&
-                cleanupFailure.FaultCalls == 1 && cleanupFailure.LastFault!.StartsWith("native batch cleanup failed:"),
-                "A throwing Dispose must fault the provider without changing the commit decision or skipping cleanup");
+                cleanupFailure.Reports == 1 && cleanupFailure.FaultCalls == 0 && cleanupFailure.LastReport!.StartsWith("native batch cleanup failed:"),
+                "A throwing Dispose must report the failure without disabling the provider or changing the commit decision");
             Check(cleanupFailure.Grid == (commit ? 70 : 100) && cleanupFailure.Local == 17 &&
                 cleanupFailure.Material == (commit ? 0 : 6) && cleanupFailure.Output == (commit ? 1 : 0),
                 "Cleanup failure must preserve a confirmed debit, or preserve the already verified rollback");
@@ -185,8 +185,8 @@ internal static class NativePowerActionChecks
     private sealed class NativeOperation(Failure failure = Failure.None, int verifyFailureAt = 1)
     {
         internal int Grid = 100, Local = 17, Material = 6, Output;
-        internal int PlanCalls, ValidateCalls, DebitCalls, VerifyCalls, RestoreCalls, DisposeCalls, FaultCalls, LocalRestoreCalls;
-        internal string? LastFault;
+        internal int PlanCalls, ValidateCalls, DebitCalls, VerifyCalls, RestoreCalls, DisposeCalls, FaultCalls, LocalRestoreCalls, Reports;
+        internal string? LastReport;
         internal bool Refunded => Grid == 100 && Local == 17 && Material == 6 && Output == 0;
 
         internal IForgePowerTransaction? Plan(int cost)
@@ -205,7 +205,7 @@ internal static class NativePowerActionChecks
             () => { Material = 6; return true; },
             action.Restore,
             () => { LocalRestoreCalls++; Local = 17; return true; }
-        ], action.Fault, action.Dispose);
+        ], reason => { Reports++; LastReport = reason; }, action.Dispose);
 
         private sealed class Receipt(NativeOperation operation, int cost, Failure failure, int verifyFailureAt) : IForgePowerTransaction
         {
@@ -242,7 +242,7 @@ internal static class NativePowerActionChecks
                 operation.Grid = _before;
                 return operation.Grid == _before;
             }
-            public void Fault(string reason) { operation.FaultCalls++; operation.LastFault = reason; }
+            public void Fault(string reason) { operation.FaultCalls++; }
             public void Dispose()
             {
                 operation.DisposeCalls++;

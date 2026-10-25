@@ -35,6 +35,8 @@ public static class ForgeMachineRegistrationApi
         Catalog.ConfigureManufacturingTerminalMarkup(ownerId, percent);
 
     internal static bool HasMachines => Catalog.HasMachines;
+    internal static IReadOnlyList<RegisteredMachineRecipe> ProcessingRecipes(MachineProfile profile, string? preferredRecipeId) =>
+        Catalog.ProcessingRecipes(profile, preferredRecipeId);
     internal static bool TryGet(string machineId, out MachineProfile? profile) => Catalog.TryGet(machineId, out profile);
     internal static void Log(string message) => _log?.Invoke(message);
     internal static bool Install(bool knownBuild, Action<string> log)

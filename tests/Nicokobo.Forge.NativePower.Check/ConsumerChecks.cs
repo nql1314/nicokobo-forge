@@ -52,9 +52,11 @@ internal static class ConsumerChecks
             "Failed debit readback restores both stores instead of granting the device action");
         Check(supply.Commits == 1 && !supply.Busy, "A restored operation releases the receipt without recording consumption");
         supply.FailRestore = true;
-        Check(ForgePowerApi.TryDebitDevice(device, 5).Status == ForgeEnergyDebitStatus.Faulted && supply.Faults == 1 && !supply.Busy,
-            "A failed power compensation is reported as a fault and releases the lease");
+        Check(ForgePowerApi.TryDebitDevice(device, 5).Status == ForgeEnergyDebitStatus.Faulted && supply.Faults == 0 && !supply.Busy,
+            "Failed power compensation reports its result and releases the lease without disabling the supplier");
         supply.FailRestore = supply.FailVerify = false;
+        Check(ForgePowerApi.TryDebitDevice(device, 5).Status == ForgeEnergyDebitStatus.Committed && supply.Grid == 85 && supply.Faults == 0,
+            "The next device operation uses actual remaining power after failed compensation");
         slot.Expel(local);
         plans = supply.Plans;
         Check(ForgePowerApi.TryDebitDevice(device, 5).Status == ForgeEnergyDebitStatus.Invalid && supply.Plans == plans,

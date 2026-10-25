@@ -27,6 +27,7 @@ var names = new[] { "furnace", "water_purifier", "moisture_farm", "desequencer",
 foreach (string name in names)
 {
     var world = new World(name); supply.Reset(world);
+    world.Machine.state.GetTag("NICOKOBO_FORGE_MACHINE_FAULT").SetString("legacy operation failure");
     var originalSlot = world.ReadSlot(); var originalBattery = world.Battery.childItem;
     Callback.Native(world.Prefix, world.Context, () =>
     {
@@ -39,12 +40,29 @@ foreach (string name in names)
         }
     });
     Check(supply.Source.Energy == 16 && supply.Debits == 1 && supply.Disposals == 1 && !supply.Busy,
-        name + " must debit once and release its real receipt");
+        name + " must ignore a saved failure marker, debit once and release its real receipt");
     Check(world.Payload.state.GetTag("progress").valueInt == 1 && world.ReadSlot().Pointer == originalSlot.Pointer &&
         world.Battery.childItem?.Pointer == originalBattery?.Pointer && world.Machine.parentInventory == world.Parent,
         name + " must commit its in-place work and restore the original captured slot");
     Check(ForgeExternalPowerApi.CanSupplyMachine(world.Machine) && ForgeExternalPowerApi.GetMachinePowerSource(world.Machine)?.Pointer == originalBattery?.Pointer,
         name + " must be naturally eligible without a module bay or logistics modules");
+}
+
+{
+    var world = new World("bottle_printer"); supply.Reset(world); supply.RejectRestore = true;
+    Callback.Native(world.Prefix, world.Context, () =>
+        PowerHelper.CanDrawPowerSource(world.ReadSlot().childItem!, 4));
+    Check(!world.Machine.state.dict.ContainsKey("NICOKOBO_FORGE_MACHINE_FAULT") &&
+        supply.Faults == 0 && !supply.Busy,
+        "An incomplete rollback must release the operation without disabling the printer or its supplier");
+    supply.RejectRestore = false;
+    Callback.Native(world.Prefix, world.Context, () =>
+    {
+        PowerHelper.DrawPowerSource(world.ReadSlot().childItem!, 4);
+        world.Payload.state.GetTag("progress").valueInt = 1;
+    });
+    Check(world.Payload.state.GetTag("progress").valueInt == 1 && supply.Source.Energy == 12 && supply.Disposals == 2,
+        "The next printer operation must use the remaining actual energy after an incomplete rollback");
 }
 
 // Full graph compensation: the machine owns a PixelWindow containing a grid,
@@ -333,10 +351,10 @@ internal sealed class Supply
 {
     internal GameItem Source = new GameItemElement { identifier = "grid-source", Energy = 20 };
     internal GameItem Machine = null!;
-    internal bool Busy, RejectPlan, Enabled = true;
-    internal int Plans, Debits, Disposals, FailVerifyAt;
+    internal bool Busy, RejectPlan, RejectRestore, Enabled = true;
+    internal int Plans, Debits, Disposals, FailVerifyAt, Faults;
     internal void Reset(World world)
-    { Machine = world.Machine; Source.Energy = 20; Busy = false; RejectPlan = false; Enabled = true; Plans = Debits = Disposals = FailVerifyAt = 0; }
+    { Machine = world.Machine; Source.Energy = 20; Busy = false; RejectPlan = RejectRestore = false; Enabled = true; Plans = Debits = Disposals = FailVerifyAt = Faults = 0; }
     internal int Energy(GameItem machine) => !Enabled || machine != Machine ? -1 : PowerHelper.GetAvailableEnergyFromItem(Source, false);
     internal IForgePowerTransaction? Plan(GameItem machine, int cost)
     {
@@ -352,8 +370,8 @@ internal sealed class Supply
         public bool Validate() => !_debited && owner.Source.Energy == _before;
         public void Debit() { if (!PowerHelper.DrawPowerSource(owner.Source, cost)) throw new Exception("source empty"); _debited = true; owner.Debits++; }
         public bool Verify() => ++_verifications != owner.FailVerifyAt && _debited && owner.Source.Energy == _before - cost;
-        public bool Restore() { owner.Source.Energy = _before; _debited = false; return true; }
-        public void Fault(string reason) { }
+        public bool Restore() { if (owner.RejectRestore) return false; owner.Source.Energy = _before; _debited = false; return true; }
+        public void Fault(string reason) { owner.Faults++; owner.Enabled = false; }
         public void Dispose() { owner.Busy = false; owner.Disposals++; }
     }
 }

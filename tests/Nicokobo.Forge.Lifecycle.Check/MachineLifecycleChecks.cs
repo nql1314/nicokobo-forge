@@ -18,22 +18,104 @@ internal static class MachineLifecycleChecks
         store.Items.Add(new());
         Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, true);
         int reads = ForgeMachineUi.Reads, resets = ForgeMachineUi.Resets;
-        var quarantine = (HashSet<int>)typeof(ForgeMachineRuntime).GetField("Quarantined", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
-        quarantine.Add(42);
         Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.LoadGame), store, false);
-        require(ForgeMachineUi.Resets == resets && quarantine.Contains(42), "Refused LoadGame cleared live machine UI or quarantine");
+        require(ForgeMachineUi.Resets == resets, "Refused LoadGame cleared live machine UI");
         Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, true);
         require(ForgeMachineUi.Reads == reads, "Refused LoadGame cleared the actual same-day machine attempt ledger");
         Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.LoadGame), store, true);
-        require(ForgeMachineUi.Resets == resets + 1 && quarantine.Count == 0, "Executed LoadGame did not reset machine state exactly once");
+        require(ForgeMachineUi.Resets == resets + 1, "Executed LoadGame did not reset machine state exactly once");
         require(ForgeMachineUi.Reads == reads + 1, "Executed LoadGame did not rebind live machine slots after reset");
         Boundary.Call(typeof(PlayerStore), nameof(PlayerStore.EndNight), store, true);
         require(ForgeMachineUi.Reads == reads + 2, "Executed LoadGame retained an earlier session's nightly attempt ledger");
         CheckMixedRecipePlanning(require);
+        CheckRecipePriority(require);
         CheckDirectPowerPlanning(require);
         CheckReceiptCleanup(require);
         CheckNightOrder(require);
         store.DuringNight = null;
+    }
+
+    private static void CheckRecipePriority(Action<bool, string> require)
+    {
+        var input = new GameInventory { Pointer = (IntPtr)1101 };
+        var output = new GameInventory { Pointer = (IntPtr)1102 };
+        var template = new ForgeMachineTemplate(new(9, 6), new(ForgeMachineOutputKind.Items, new(9, 6)))
+            { Battery = null, Modules = null };
+        var machine = new GameItem { Pointer = (IntPtr)1103, identifier = "priority-machine" };
+        var inventory = new ForgeMachineInventory(null, null, input, output, new Dictionary<string, GameSlotInventory>(), null);
+        GameItem Stock(string id, int count, int uid) => new()
+            { Pointer = (IntPtr)uid, identifier = id, unitCount = count, parentInventory = input };
+        var wire = Stock("wire", 50, 1104);
+        var plastic = Stock("plastic", 50, 1105);
+        var electronic = Stock("common_electronic", 2, 1106);
+        var silicon = Stock("silicon", 2, 1107);
+        input.childItems = [wire, plastic, electronic, silicon];
+        var basic = new ForgeMachineRecipe("basic", [new("wire", 2), new("plastic", 2)], new ForgeMachineItemOutput("common_electronic"));
+        var advanced = new ForgeMachineRecipe("advanced", [new("common_electronic", 1), new("silicon", 1)], new ForgeMachineItemOutput("advanced_circuit"));
+        Nicokobo.Forge.Registration.MachineProfile Profile(params ForgeMachineRecipe[] recipes) =>
+            new(new(machine.identifier, template, recipes, new()));
+        var selected = new List<string>();
+        try
+        {
+            ForgeMachineRuntime.ExecuteBoundary = () => "processed";
+            ForgeMachineRuntime.ObserveExecution = (recipe, _) => selected.Add(recipe.RecipeId);
+            foreach (var recipes in new[] { new[] { basic, advanced }, new[] { advanced, basic } })
+                foreach (bool reverse in new[] { false, true })
+                {
+                    if (reverse) input.childItems.Reverse();
+                    require(ForgeMachineRuntime.ProcessBatch(machine, Profile(recipes), inventory) == "processed" && selected[^1] == "advanced",
+                        "Complete advanced circuits must precede basic electronics regardless of registration order, input order or surplus raw materials");
+                }
+            selected.Clear();
+            ForgeMachineAutomationApi.Observe = (phase, context) =>
+            { if (phase == ForgeMachineAutomationPhase.BeforeBatch) context.PreferredRecipeId = "basic"; };
+            ForgeMachineRuntime.ProcessBatch(machine, Profile(basic, advanced), inventory);
+            require(selected[^1] == "advanced", "A preferred low-tier variant must leave complete advanced recipes available");
+            ForgeMachineAutomationApi.Observe = null;
+            selected.Clear();
+            ForgeMachineRuntime.ObserveExecution = (recipe, context) =>
+            {
+                selected.Add(recipe.RecipeId);
+                foreach (var take in context.Items) take.Item.unitCount -= take.Count;
+            };
+            var profile = Profile(basic, advanced);
+            for (int batch = 0; batch < 3; batch++) ForgeMachineRuntime.ProcessBatch(machine, profile, inventory);
+            require(selected.SequenceEqual(new[] { "advanced", "advanced", "basic" }) &&
+                electronic.unitCount == 0 && silicon.unitCount == 0 && wire.unitCount == 48 && plastic.unitCount == 48,
+                "Each batch must use remaining advanced materials before falling back to basic production");
+            ForgeMachineRuntime.ObserveExecution = (recipe, _) => selected.Add(recipe.RecipeId);
+            electronic.unitCount = silicon.unitCount = 1;
+            var gated = advanced with { MachineCondition = _ => false };
+            ForgeMachineRuntime.ProcessBatch(machine, Profile(basic, gated), inventory);
+            require(selected[^1] == "basic", "An unavailable advanced machine condition must leave basic recipes usable");
+            ForgeMachineAutomationApi.Observe = (phase, context) =>
+            { if (phase == ForgeMachineAutomationPhase.BeforeBatch) context.RecipeId = "basic"; };
+            ForgeMachineRuntime.ProcessBatch(machine, profile, inventory);
+            require(selected[^1] == "basic", "An explicit logistics selection must override automatic priority");
+            electronic.unitCount = 0;
+            ForgeMachineAutomationApi.Observe = (phase, context) =>
+            { if (phase == ForgeMachineAutomationPhase.BeforeBatch) context.RecipeId = "advanced"; };
+            int attempts = selected.Count;
+            require(ForgeMachineRuntime.ProcessBatch(machine, profile, inventory) != "processed" && selected.Count == attempts,
+                "An incomplete explicit recipe must not silently manufacture a different product");
+            ForgeMachineAutomationApi.Observe = null;
+            var fish = Stock("fish", 100, 1108);
+            var cheese = Stock("cheese", 1, 1109);
+            input.childItems = [fish, cheese];
+            var floss = new ForgeMachineRecipe("floss", [new("fish", 3)], new ForgeMachineItemOutput("floss"));
+            var meal = new ForgeMachineRecipe("meal", [new("fish", 1), new("cheese", 1)], new ForgeMachineItemOutput("meal"));
+            ForgeMachineRuntime.ProcessBatch(machine, Profile(floss, meal), inventory);
+            require(selected[^1] == "meal", "A complete multi-ingredient food recipe must precede bulk single-ingredient processing");
+            cheese.unitCount = 0;
+            ForgeMachineRuntime.ProcessBatch(machine, Profile(floss, meal), inventory);
+            require(selected[^1] == "floss", "Missing secondary food ingredients must allow the basic recipe");
+        }
+        finally
+        {
+            ForgeMachineRuntime.ExecuteBoundary = null;
+            ForgeMachineRuntime.ObserveExecution = null;
+            ForgeMachineAutomationApi.Observe = null;
+        }
     }
 
     private static void CheckNightOrder(Action<bool, string> require)
@@ -105,6 +187,7 @@ internal static class MachineLifecycleChecks
         var output = new GameInventory { Pointer = (IntPtr)902 };
         var inventory = new ForgeMachineInventory(null, null, null, output, new Dictionary<string, GameSlotInventory>(), null);
         var machine = new GameItem { Pointer = (IntPtr)901, identifier = "cleanup-machine" };
+        machine.state.dict["NICOKOBO_FORGE_MACHINE_FAULT"] = new("legacy", "legacy") { valueString = "previous operation failed" };
         var template = new ForgeMachineTemplate(null, new(ForgeMachineOutputKind.Items, new(1, 1)))
             { Battery = null, Modules = null, ManualSlot = false };
         var planner = typeof(ForgeMachineRuntime).GetMethod("TryPlan", BindingFlags.NonPublic | BindingFlags.Static)!;

@@ -253,7 +253,7 @@ public static partial class ForgeExternalPowerApi
         var connector = readSlot()?.childItem;
         bool direct = TryGetMachineEnergy(machine, out _);
         if (!direct && !IsConnector(connector)) return true;
-        if (_native != null || machine.GetTagReadonly("NICOKOBO_FORGE_MACHINE_FAULT")?.valueString is { Length: > 0 }) return false;
+        if (_native != null) return false;
         try
         {
             if (!CanSupplyMachine(machine) || !GeneralHelper.IsItemOwned(machine)) return false;
@@ -373,7 +373,7 @@ public static partial class ForgeExternalPowerApi
     {
         if (batch.Finished) return;
         try { batch.PowerSlot?.Dispose(); }
-        catch (Exception ex) { failed = true; FaultBatch(batch, "native power slot restore failed: " + ex.Message); }
+        catch (Exception ex) { failed = true; ReportBatchFailure("native power slot restore failed: " + ex.Message); }
         var restore = new List<Func<bool>> { () => RecallNativeWrites(batch) };
         restore.AddRange(batch.Items.Select(snapshot => (Func<bool>)(() => RestoreSnapshot(snapshot))));
         restore.Add(() => RestoreNativeOrder(batch));
@@ -382,7 +382,7 @@ public static partial class ForgeExternalPowerApi
         restore.Add(batch.Power.Restore);
         bool committed = NativeBatchFinalization.Complete(() => !failed && !batch.Failed && batch.Power.Verify() && batch.VerifyEffects() &&
             batch.Items.All(item => item.Item.GetUniqueID() == item.Id && item.Item.identifier == item.Identifier),
-            restore, reason => FaultBatch(batch, reason), () =>
+            restore, ReportBatchFailure, () =>
             {
                 batch.Finished = true; if (ReferenceEquals(_native, batch)) _native = null;
                 batch.Power.Dispose();
@@ -390,7 +390,7 @@ public static partial class ForgeExternalPowerApi
         if (committed)
             foreach (var item in batch.Deferred)
                 try { if (item.parentInventory == null) item.Destroy(); }
-                catch (Exception ex) { FaultBatch(batch, "committed input cleanup failed: " + ex.Message); }
+                catch (Exception ex) { ReportBatchFailure("committed input cleanup failed: " + ex.Message); }
     }
 
     private static bool RecallNativeWrites(NativeBatch batch)
@@ -494,15 +494,8 @@ public static partial class ForgeExternalPowerApi
         return batch.Items.All(item => item.Item.GetIncompleteSlotInInventory()?.index == item.Index);
     }
 
-    private static void FaultBatch(NativeBatch batch, string reason)
+    private static void ReportBatchFailure(string reason)
     {
-        try { batch.Power.Fault(reason); } catch { }
-        try
-        {
-            var tag = batch.Machine.state.GetTag("NICOKOBO_FORGE_MACHINE_FAULT");
-            tag.Enable(); tag.SetString(reason); batch.Machine.SyncModifiedState();
-        }
-        catch { }
-        try { _log?.Invoke("[ERROR] [NicokoboForge/Power] native machine and external supply quarantined: " + reason); } catch { }
+        try { _log?.Invoke("[WARN] [NicokoboForge/Power] " + reason); } catch { }
     }
 }

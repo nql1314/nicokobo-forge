@@ -4,6 +4,44 @@
 
 Changes and validation scope by version. See [README](README.md) for installation.
 
+## 0.6.53 — 2026-10-25
+
+- 共用机器批次运行时自动选择配方时，优先尝试加工链更深的产物；同层级依次比较偏好配方、原料种类及用量，每批根据剩余材料重新判断。
+- 新增 `PreferRecipe`，保留精炼机矿石／废料配比偏好，同时允许高级配方参与选择；物流显式 `SelectRecipe` 仍限定本次加工目标。
+- 加工链跨已注册机器及提供者计算，追加配方后刷新排序；手册登记顺序不变，排序不执行生产或随机输出回调。
+- 配套机核协议 1.0.10（合成扩展 0.9.73），继续附带可选兼容补丁 0.1.7。
+
+### English
+
+- Prefer deeper production-chain recipes during automatic selection in the shared machine batch runtime. Within a tier, compare the preferred recipe, ingredient variety and quantities; re-evaluate remaining materials after each batch.
+- Add `PreferRecipe` to retain the refiner's ore/scrap preference without excluding higher-tier processing. An explicit logistics `SelectRecipe` still restricts the current batch to its selected recipe.
+- Compute production chains across registered machines and providers and refresh ordering after recipe additions. Preserve handbook registration order; sorting does not invoke production or random-output callbacks.
+- Match Mechcore Protocol 1.0.10 with Synthesis 0.9.73 and continue bundling optional Compatibility Patches 0.1.7.
+
+## 0.6.52 — 2026-10-24
+
+- 移除原生机器、自定义机器及供电设备在回滚失败后保留的故障锁定；旧存档中的机器故障标记不再阻止后续加工。
+- 操作失败仍尝试恢复材料、产物及电量并记录错误，但不再通过参与者故障回调关闭机器或外部供电。后续操作重新检查当前实际状态。
+- 保留资源不足、无效物品、当次事务冻结和重入校验。
+
+### English
+
+- Remove failure locks left on native machines, registered machines and powered devices after unsuccessful rollback. Saved machine-failure markers no longer block later processing.
+- Continue restoring materials, products and energy and reporting errors, without invoking participant fault callbacks to disable machines or external power. Later operations check the current actual state.
+- Retain resource availability, item validity, active transaction freezes and reentry checks.
+
+## 0.6.51 — 2026-10-23
+
+- 部分扣水写回后，在实际纯度未变化且仍有余液时保留原有水质识别，避免已识别纯水显示为默认沟渠水；未识别水、真实纯度变化及倒空保留原生规则。
+- 卸载内容 Mod 后返还缺失容器内的正常物品时，随待返还记录保存原生物品特征；库存满而延迟交付、跨次保存或再次拆分记录后仍保留这些特征。
+- 继续附带可选兼容补丁 0.1.7。
+
+### English
+
+- After partial water writeback, retain existing water identification when liquid remains and actual purity is unchanged, preventing identified pure water from displaying the default gutter-water label. Unidentified water, changed purity and emptied vessels retain native behavior.
+- Preserve native item features in pending recovery records when returning surviving items from missing mod containers, including deferred delivery to full inventories, later saves and further graph splits.
+- Continue bundling optional Compatibility Patches 0.1.7.
+
 ## 0.6.50 — 2026-10-22
 
 - 修复受影响 IL2CPP/Harmony 后端的托管桥接自回环，避免修改物品数量或来客进货时发生栈溢出；保留原生 detour 和 trampoline。

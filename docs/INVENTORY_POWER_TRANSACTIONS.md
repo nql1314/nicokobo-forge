@@ -4,7 +4,7 @@ Forge 0.6.33 的通用接入。玩法容量、网络身份、材料保留量、�
 
 `ForgeInventoryAdmissionApi.Register(owner, itemId, inventoryId, allows)` 只给所属物品的直接原生 GameGridInventory 增加限制。Forge 在原生 `MayHaveValidInventorySlot` 成功后调用托管判据，false 不翻为 true；锁、归属、循环、尺寸及具体落位继续由原生校验。回调不写入原生准入字段，因为其 DynamicInvoke 不兼容转换后的托管委托。保存期间保持登记 lease，工厂只清除自有模板不适用的限制；普通库存和其他库存 ID 不受影响，底层 UncheckedAccept 不属于此准入契约。钩子不可用时登记拒绝，内容不能启用依赖端点。
 
-`ForgeMachineRecipe.Transaction` 可规划 `IForgeBatchTransaction`，返回 null 拒绝当批。Validate 只读；Apply 收到实际创建并已放入原输出槽的产物。内容状态与材料、输出、本地或外部电量共用同一事务，写入前登记 Restore，所有补偿都尝试，无法确认时 Fault 后隔离机器。Dispose 在规划失败、成功和补偿后都执行。唯一额度须在 Apply 中确认真实产物后提交，不能在预览、登记或工厂创建时占用。
+`ForgeMachineRecipe.Transaction` 可规划 `IForgeBatchTransaction`，返回 null 拒绝当批。Validate 只读；Apply 收到实际创建并已放入原输出槽的产物。内容状态与材料、输出、本地或外部电量共用同一事务，写入前登记 Restore，所有补偿都尝试，恢复失败仅记录错误，不调用参与者 Fault 或锁定机器。旧存档的机器故障标签不再参与准入。Dispose 在规划失败、成功和补偿后都执行。唯一额度须在 Apply 中确认真实产物后提交，不能在预览、登记或工厂创建时占用。
 
 0.6.42 新增 `ForgeExternalPowerApi.RegisterMachine(owner, callbackId, energy, plan)`，直接按机器接管供电。`energy(machine)` 返回负数表示未接管，沿用本地电池；非负数独占当前机器供电，空电网、暂停或故障返回 0，不能回退到本地电池。多个提供者同时接管或查询抛异常时按已接管但无可用电量处理。规划须返回包含冻结、真实扣电、最终核对与补偿的 `IForgePowerTransaction`，无收据拒绝耗电批次。
 
@@ -30,7 +30,7 @@ Forge 0.6.33 的通用接入。玩法容量、网络身份、材料保留量、�
 
 原生 `FireOnGameLoadedLate` 在 `LoadGame` 方法体内同步发出，不能等 LoadGame postfix 才解除端点的加载锁。端点在共享 `AfterGameLoadedLate` dispatcher 中以 `int.MinValue` 顺序清旧缓存并解除加载锁，再由内容重建端点；不使用另一个无序的 Late postfix 清理图。此准备不修改准入登记，随后的 LoadGame 返回与 finalizer 不再清理刚恢复的根。跨进程重复加载仍须验证完整库存图与UID，不能只读相同的内容状态 JSON。
 
-原生动作最终提交读回由 `NativeBatchFinalization` 保护：包括物品句柄和参与者 Verify 的任何异常都尝试全部补偿、Fault，并无条件 Dispose／清除批次上下文。补偿或 Fault 回调抛异常不能跳过后续资源与清理。
+原生动作最终提交读回由 `NativeBatchFinalization` 保护：包括物品句柄和参与者 Verify 的任何异常都尝试全部补偿并记录错误，无条件 Dispose／清除批次上下文。补偿或日志回调抛异常不能跳过后续资源与清理；不会写入机器故障标签，也不会关闭后续机器或供电操作。
 
 原生 `GameItem.Destroy` 为抽象方法，CLR生成wrapper的非abstract标志不能用于选择补丁目标。当前游戏的具体实现为 `GameItemElement.Destroy`，所有当前派生类型的销毁 override 都纳入元数据检查，运行时另核对真实methodPointer非零。事务只延迟快照中原实例的破坏：核对UID／identifier／parent后先执行原Expel，保留窗口、UID与Unity handler；失败恢复原槽形状、列表序号与handler本地位置并读回，成功先清除批次上下文再销毁。新物品及普通电池路径不受这条延迟影响。
 

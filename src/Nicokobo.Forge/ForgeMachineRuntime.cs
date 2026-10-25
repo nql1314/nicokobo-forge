@@ -14,13 +14,11 @@ internal static partial class ForgeMachineRuntime
         IReadOnlyList<LiquidChange> Liquids, IReadOnlyList<ForgeMachineLiquidPart>? Contents,
         LiquidChange? ContainerOutput, GameItem? Battery, int Energy, int Power,
         IForgePowerTransaction? ExternalPower, IForgeBatchTransaction? Transaction, bool DirectPower);
-    private const string FaultTag = "NICOKOBO_FORGE_MACHINE_FAULT";
     private static readonly HashSet<(int Slot, string Run, int Day, int Item)> Attempted = [];
-    private static readonly HashSet<int> Quarantined = [];
     private static readonly MachineBatchGate Batches = new();
     private static (int Slot, string Run, int Day) _night;
     internal static void BeforeLoadGame()
-    { ForgeMachineUi.Reset(); Attempted.Clear(); Quarantined.Clear(); _night = default; }
+    { ForgeMachineUi.Reset(); Attempted.Clear(); _night = default; }
     internal static void AfterLoadGame(ForgeLifecycleContext context)
     {
         try { foreach (var (machine, _) in FindMachines(context.Items)) ForgeMachineUi.TryGet(machine, out _); }
@@ -39,7 +37,6 @@ internal static partial class ForgeMachineRuntime
             if (_night != night)
             {
                 Attempted.Clear();
-                if (_night.Slot != night.saveSlotId || _night.Run != night.runID) Quarantined.Clear();
                 _night = night;
             }
             foreach (var (machine, profile) in FindMachines(context.Items))
@@ -93,14 +90,12 @@ internal static partial class ForgeMachineRuntime
         using var batch = Batches.TryEnter(machine.Pointer);
         if (batch == null) return "machine-busy";
         if (!GeneralHelper.IsItemOwned(machine)) return "machine-not-owned";
-        if (Quarantined.Contains(machine.GetUniqueID()) || !string.IsNullOrEmpty(machine.GetTagReadonly(FaultTag)?.valueString))
-            return "quarantined";
         if (!SlotsMatch(profile.Template, inventory)) return "slots-invalid";
         var automation = new ForgeMachineAutomationContext(machine, inventory);
         ForgeMachineAutomationApi.Dispatch(ForgeMachineAutomationPhase.BeforeBatch, automation);
         if (automation.Blocked) return "automation-blocked";
         string last = "input-short-or-condition";
-        foreach (var entry in profile.Recipes)
+        foreach (var entry in ForgeMachineRegistrationApi.ProcessingRecipes(profile, automation.PreferredRecipeId))
         {
             if (automation.RecipeId != null && entry.Value.RecipeId != automation.RecipeId) continue;
             if (!TryPlan(machine, profile, inventory, entry.Value, out var plan, out last)) continue;
@@ -312,19 +307,4 @@ internal static partial class ForgeMachineRuntime
             (ForgeExternalPowerApi.IsConnector(plan.Battery) || ForgePowerApi.ReadSource(plan.Battery) == plan.Energy)));
     }
 
-    private static void Quarantine(GameItem machine, string failure)
-    {
-        Quarantined.Add(machine.GetUniqueID());
-        try
-        {
-            var tags = machine.state.dict;
-            if (!tags.ContainsKey(FaultTag)) tags.Add(FaultTag, new TagState(FaultTag, FaultTag));
-            tags[FaultTag].Enable();
-            tags[FaultTag].SetString(failure);
-            machine.SyncModifiedState();
-            if (machine.GetTagReadonly(FaultTag)?.valueString != failure) throw new InvalidOperationException("Fault marker readback failed");
-        }
-        catch (Exception ex) { ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] fault marker failed: {ex.Message}"); }
-        ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] CRITICAL rollback failed; quarantined={machine.GetUniqueID()}; {failure}");
-    }
 }

@@ -1,14 +1,14 @@
 # Nicokobo Forge
 
-0.6.50 修复物品数量修改与来客进货的桥接栈溢出，统一 SetUnitCount／SetAmount 共用原生入口的补丁后端。目标 Build 26017150。
+0.6.53 为共用机器批次增加高级配方优先及同层配方偏好，配套机核协议 1.0.10。目标 Build 26017150。
 
 [English](#english) · [中文](#中文)
 
 ## English
 
-Author: Nicokobo · Source version: **0.6.50** · Source baseline: **Probably Stolen Demo, Steam Build `26017150`**
+Author: Nicokobo · Source version: **0.6.53** · Source baseline: **Probably Stolen Demo, Steam Build `26017150`**
 
-Compatible with Mechcore Protocol **1.0.8** (Synthesis 0.9.71, Aug 0.1.66, Matrix 1.1.10) and Automated Logistics 1.0.4. Version 0.6.50 fixes recursive quantity bridging and shares one patch backend for SetUnitCount/SetAmount when their native entry is identical. See [current progress](docs/FORGE_PROGRESS.md) for validation scope.
+Compatible with Mechcore Protocol **1.0.10** (Synthesis 0.9.73, Aug 0.1.67, Matrix 1.1.10) and Automated Logistics 1.0.7. Version 0.6.53 prioritizes higher-tier production recipes and adds same-tier recipe preferences while retaining explicit automation selections. See [current progress](docs/FORGE_PROGRESS.md) for validation scope.
 
 Forge provides native registration, lifecycle events, machine templates and transactions, dialogue, visits, reading windows, Nico Workshop, image resources and save inspection for content mods. It also owns the Universal Manufacturing Terminal, workshop cards and ten base-game achievements. Content mods own their items, recipes, prices, rewards and story rules.
 
@@ -28,9 +28,9 @@ Registration acceptance, native application and successful game/save behavior ar
 
 ## 中文
 
-作者：Nicokobo · 源码版本：**0.6.50** · 源码基线：**Probably Stolen Demo，Steam Build `26017150`**
+作者：Nicokobo · 源码版本：**0.6.53** · 源码基线：**Probably Stolen Demo，Steam Build `26017150`**
 
-兼容机核协议合集 **1.0.8**（合成扩展 0.9.71、机械飞升 0.1.66、模组矩阵 1.1.10）及自动化物流 1.0.4。0.6.50 修复数量桥接自回环，并统一 SetUnitCount／SetAmount 共用原生入口的补丁后端；验证范围见[当前进度](docs/FORGE_PROGRESS.md)。
+兼容机核协议合集 **1.0.10**（合成扩展 0.9.73、机械飞升 0.1.67、模组矩阵 1.1.10）及自动化物流 1.0.7。0.6.53 优先加工高级配方，新增同层配方偏好并保留物流显式选择；验证范围见[当前进度](docs/FORGE_PROGRESS.md)。
 
 Forge 为内容 Mod 提供原生注册、生命周期、机器模板与资源事务、对话／来访／阅读窗、Nico 工坊、图片资源及存档读取，内置全域制造终端、全开局工坊名片与十项原版成就。内容 Mod 维护物品、配方、价格、奖励和剧情规则。
 

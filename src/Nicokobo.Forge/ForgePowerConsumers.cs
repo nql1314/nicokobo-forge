@@ -55,7 +55,7 @@ public static partial class ForgeExternalPowerApi
         try { restored = action.Restore(); } catch { restored = false; }
         if (!restored)
         {
-            try { action.Fault("Power consumer debit could not be restored"); } catch { }
+            ReportBatchFailure("Power consumer debit could not be restored");
         }
         int after;
         try { after = ForgePowerApi.GetDeviceEnergy(device); } catch { after = -1; }

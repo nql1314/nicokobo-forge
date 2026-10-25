@@ -12,8 +12,16 @@ public sealed class ForgeMachineAutomationContext
     public GameItem Machine { get; }
     public ForgeMachineInventory Inventory { get; }
     public string? RecipeId { get; private set; }
+    public string? PreferredRecipeId { get; private set; }
     public bool Blocked { get; private set; }
     public string? Result { get; internal set; }
+    /// <summary>Prefer a variant among recipes at the same production depth.
+    /// Higher-tier recipes remain eligible; SelectRecipe is still authoritative.</summary>
+    public void PreferRecipe(string recipeId)
+    {
+        if (string.IsNullOrWhiteSpace(recipeId)) throw new ArgumentException("Recipe ID is missing", nameof(recipeId));
+        PreferredRecipeId = recipeId;
+    }
     public void SelectRecipe(string recipeId)
     {
         if (string.IsNullOrWhiteSpace(recipeId)) throw new ArgumentException("Recipe ID required");

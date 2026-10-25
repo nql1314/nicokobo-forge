@@ -25,7 +25,7 @@ Forge 持有通用声明、能力门控、原生适配和事件分派。物品�
 | `ForgeLiquidValueRuntime.cs` / `LiquidValueLedger.cs` | 容器变更／倾倒／读取钩子；液体价值账本的保存、解析与按比例重算 |
 | `NativeProductionValue.cs` | 原生内在／最终价值阶段与产物价值合成适配 |
 | `ForgeProductionValueApi.cs` / `ForgeProductionValueMath.cs` | 逐批生产价值汇总、加工倍率折算及产物基础价值的标签写入／读取 |
-| `ForgeMachineTransaction.cs` / `MachineTransaction.cs` | 统一资源事务、写后校验、反向恢复及故障隔离 |
+| `ForgeMachineTransaction.cs` / `MachineTransaction.cs` | 统一资源事务、写后校验、反向恢复及错误诊断 |
 
 投料判定使用注册时建立的索引；夜间扫描直接检查目录是否为空，发现机器时保留同次配置。输出预处理没有回调时不构造投入展开列表。固体和液体共享原生步骤，各自保留完整回滚。扣料、耗电、耗水和保存所需的逐批重检与读回不能以性能优化为由删除。
 

@@ -145,15 +145,7 @@ internal static partial class ForgeMachineRuntime
             }, plan.Transaction.Restore));
         var result = MachineTransaction.Run(steps, failure =>
             ForgeMachineRegistrationApi.Log($"[WARN] [NicokoboForge/Machine] rollback step failed: {failure}"));
-        if (!result.Committed)
-        {
-            if (!result.Restored)
-            {
-                plan.ExternalPower?.Fault(result.Status); plan.Transaction?.Fault(result.Status);
-                Quarantine(plan.Context.Machine, result.Status);
-            }
-            return result.Status;
-        }
+        if (!result.Committed) return result.Status;
         // Destruction happens only after the resource transaction commits.
         foreach (var item in detached)
             try { item.Destroy(); }

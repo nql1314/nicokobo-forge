@@ -77,7 +77,8 @@ internal static class MissingItemSaveRuntime
             var plan = MissingItemSaveMigration.Plan(inventories, pending, store!.playerCash, Keep);
             if (retained.Count != 0)
                 _log?.Invoke($"[WARN] [NicokoboForge/SaveCompatibility] Forge-registered IDs retained; provider removal not confirmed; count={retained.Count}; ids={string.Join(",", retained.OrderBy(id => id, StringComparer.Ordinal).Take(8))}");
-            if (plan.RemovedNodes == 0) return;
+            var recoveries = plan.Recoveries.Select(json => ForgeSaveGraphApi.CaptureRecoveryFeatures(json, store.savedItemFeatureList)).ToArray();
+            if (plan.RemovedNodes == 0 && recoveries.SequenceEqual(pending)) return;
             int cashBefore = store.playerCash;
             var oldData = store.modData;
             bool hadRecovery = oldData != null && oldData.ContainsKey(RecoveryKey);
@@ -85,7 +86,7 @@ internal static class MissingItemSaveRuntime
             try
             {
                 foreach (var (key, json) in plan.Inventories) Set(store, key, json);
-                WriteRecoveries(store, plan.Recoveries);
+                WriteRecoveries(store, recoveries);
                 store.playerCash = plan.Cash;
             }
             catch
@@ -225,9 +226,11 @@ internal static class MissingItemSaveRuntime
                     foreach (var node in state.saveItems)
                         if (!Registered(node.identifier, node.itemType))
                             throw new InvalidDataException("Recovery factory became unavailable");
+                    var features = ForgeSaveGraphApi.DecodeFeatures(pending[i], state);
                     item = SaveManager.DecodeNodes(state.saveItems);
                     if (item == null || item.Pointer == IntPtr.Zero || item.parentInventory != null || item.unitCount <= 0)
                         throw new InvalidDataException("Invalid recovered item");
+                    ForgeSaveGraphApi.RestoreFeatures(state, features);
                     RestoreLoadState(state);
                     int units = item.unitCount;
                     foreach (var destination in destinations)

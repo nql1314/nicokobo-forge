@@ -4,18 +4,22 @@
 
 ## English
 
-Author: Nicokobo · Version: **0.6.50** · Target: **Probably Stolen Demo, Steam Build `26017150`**
+Author: Nicokobo · Version: **0.6.53** · Target: **Probably Stolen Demo, Steam Build `26017150`**
 
-Mechcore Protocol 1.0.8 matches Forge 0.6.50 with Synthesis 0.9.71, Aug 0.1.66 and Matrix 1.1.10. These packages share the same Forge assembly.
+Compatible with Mechcore Protocol 1.0.10 (Synthesis 0.9.73, Aug 0.1.67 and Matrix 1.1.10) and Automated Logistics 1.0.7. Keep the newest Forge DLL when combining packages.
 
 Nicokobo Forge provides shared registration, native adapters, machine templates, resource transactions and Nico Workshop for content mods. It includes the Universal Manufacturing Terminal, a workshop card for every start and ten base-game achievements. Content mods supply their own items, recipes, prices, growth and unlock pages.
 
 In 0.6.49, the Universal Manufacturing Terminal enters the 40% night-shop roll only when at least one recipe is registered. Grid-powered Desequencers also retain correct input removal and transaction recovery when a card finishes.
 
+0.6.51 preserves water identification after partial consumption when purity is unchanged, and retains native item features in deferred recovery records after content-mod removal.
+
+0.6.53 prioritizes deeper production-chain recipes during automatic machine processing, rechecking remaining materials after every batch. Same-tier recipe preferences retain refiner mixtures, while explicit automation selections remain authoritative. It includes the 0.6.52 removal of saved failure locks.
+
 ### Installation and updates
 
 1. Install [MelonLoader](https://melonwiki.xyz/) and close the game.
-2. Copy `【Nicokobo 前置框架】Nicokobo.Forge-0.6.50.dll` and required content mod DLLs into `Mods/`.
+2. Copy `【Nicokobo 前置框架】Nicokobo.Forge-0.6.53.dll` and required content mod DLLs into `Mods/`.
 3. With MelonLoader 0.7.3, several versions of Forge or another mod may coexist: before loading, the loader groups DLLs by internal assembly name and selects only the highest assembly version. Older DLLs stay on disk; filenames and modification times do not affect selection.
 
 This compares `AssemblyVersion`, not the displayed mod version. If two files have the same assembly version, the loader keeps the first one it scans. A different internal assembly name is a separate mod even if the display name matches. For third-party mods that do not update their assembly version, keep the intended file manually.
@@ -90,16 +94,20 @@ Released under the MIT License.
 
 ## 中文
 
-作者：Nicokobo · 配套版本：**0.6.50** · 适用：**Probably Stolen Demo，Steam Build `26017150`**
+作者：Nicokobo · 配套版本：**0.6.53** · 适用：**Probably Stolen Demo，Steam Build `26017150`**
 
-机核协议 1.0.8 配套 Forge 0.6.50、合成扩展 0.9.71、机械飞升 0.1.66 与模组矩阵 1.1.10。各包共用同一 Forge 程序集。
+兼容机核协议 1.0.10（合成扩展 0.9.73、机械飞升 0.1.67、模组矩阵 1.1.10）及自动化物流 1.0.7。多个包同时安装时保留最新的 Forge DLL。
+
+0.6.51 在部分扣水后保留未改变纯度的水质识别，并在卸载内容 Mod 的延迟返还记录中保存原生物品特征。
+
+0.6.53 自动加工时优先尝试加工链更深的配方，每批重新检查剩余材料；同层配方偏好保留精炼配比，物流显式选择仍限定当前批次。包含此前 0.6.52 移除存档故障锁定的修正。
 
 Nicokobo Forge 为内容 Mod 提供通用注册、原生适配、机器模板、资源事务和 Nico 工坊，内置全域制造终端、全开局工坊名片与十项原版成就。各内容 Mod 维护自己的物品、配方、价格、成长和解锁页。
 
 ### 安装与更新
 
 1. 安装 [MelonLoader](https://melonwiki.xyz/)，关闭游戏。
-2. 将 `【Nicokobo 前置框架】Nicokobo.Forge-0.6.50.dll` 和所需内容 Mod DLL 放入 `Mods/`。
+2. 将 `【Nicokobo 前置框架】Nicokobo.Forge-0.6.53.dll` 和所需内容 Mod DLL 放入 `Mods/`。
 3. 使用 MelonLoader 0.7.3 时，Forge 或其他 Mod 的多个版本可以共存：加载前按 DLL 内部的程序集名称分组，只选程序集版本最高的一份。旧 DLL 留在磁盘，文件名与修改时间不参与选择。
 
 比较依据为 `AssemblyVersion`，并非 Mod 显示的版本号。同程序集版本相同时保留扫描到的第一份；内部程序集名称不同，即使显示名称相同，也会视作不同 Mod。第三方 Mod 若未更新程序集版本，需手动保留所需文件。

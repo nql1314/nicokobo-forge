@@ -36,6 +36,9 @@ namespace Nicokobo.Forge
         internal static MachineProfile Profile = new(new("lifecycle-machine",
             new(null, new(ForgeMachineOutputKind.Items, new(1, 1))), [], new()));
         internal static bool HasMachines => true;
+        internal static IReadOnlyList<RegisteredMachineRecipe> ProcessingRecipes(MachineProfile profile, string? preferredRecipeId) =>
+            new MachineRecipeOrder(Profiles.Values.SelectMany(machine => machine.Recipes).Concat(profile.Recipes)
+                .Select(entry => entry.Value)).Order(profile.Recipes, preferredRecipeId);
         internal static readonly Dictionary<string, MachineProfile> Profiles = [];
         internal static bool TryGet(string id, out MachineProfile? profile)
         { profile = Profiles.GetValueOrDefault(id) ?? (id == Profile.MachineId ? Profile : null); return profile != null; }
@@ -74,6 +77,7 @@ namespace Nicokobo.Forge
         internal ForgeMachineInventory Inventory { get; } = inventory;
         internal bool Blocked { get; set; }
         internal string? RecipeId { get; set; }
+        internal string? PreferredRecipeId { get; set; }
         internal string? Result { get; set; }
     }
     internal static class ForgeMachineAutomationApi
@@ -99,6 +103,11 @@ namespace Nicokobo.Forge
     internal static partial class ForgeMachineRuntime
     {
         internal static Func<string>? ExecuteBoundary;
-        private static string Execute(BatchPlan plan) => ExecuteBoundary?.Invoke() ?? throw new NotSupportedException("Resource commit is outside this lifecycle fixture");
+        internal static Action<ForgeMachineRecipe, ForgeMachineBatchContext>? ObserveExecution;
+        private static string Execute(BatchPlan plan)
+        {
+            ObserveExecution?.Invoke(plan.Recipe, plan.Context);
+            return ExecuteBoundary?.Invoke() ?? throw new NotSupportedException("Resource commit is outside this lifecycle fixture");
+        }
     }
 }

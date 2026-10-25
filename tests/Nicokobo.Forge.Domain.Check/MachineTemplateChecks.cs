@@ -252,6 +252,7 @@ internal static class MachineCatalogChecks
         Expect(containerEntry.Output.Amount == 0 && containerEntry.Output.Quantity!.Chinese == "依配方",
             "dynamic liquid composition was falsely displayed as fixed zero output");
         Expect(guideCallbacks == 0, "reading updated handbook executed gameplay rules");
+        MachineRecipePriorityChecks.Run(Expect);
         Console.WriteLine($"Machine template catalog checks passed: {checks} assertions.");
         MachineBatchChecks.Run();
     }

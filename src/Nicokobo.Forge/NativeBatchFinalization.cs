@@ -21,7 +21,7 @@ internal static class NativeBatchFinalization
     }
 
     internal static bool Complete(Func<bool> readCommit, IReadOnlyList<Func<bool>> restore,
-        Action<string> fault, Action cleanup)
+        Action<string> reportFailure, Action cleanup)
     {
         bool committed = false, restored = true;
         string? readError = null;
@@ -34,13 +34,13 @@ internal static class NativeBatchFinalization
                     try { if (!compensation()) restored = false; }
                     catch { restored = false; }
             if (readError != null || !restored)
-                try { fault(readError ?? "native batch rollback uncertain"); } catch { }
+                try { reportFailure(readError ?? "native batch rollback failed"); } catch { }
             return committed;
         }
         finally
         {
             try { cleanup(); }
-            catch (Exception ex) { try { fault("native batch cleanup failed: " + ex.Message); } catch { } }
+            catch (Exception ex) { try { reportFailure("native batch cleanup failed: " + ex.Message); } catch { } }
         }
     }
 }
