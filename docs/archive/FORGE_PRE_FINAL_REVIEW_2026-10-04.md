@@ -55,4 +55,4 @@ Forge Release 编译为 0 警告、0 错误，统一发布流程的内容编译�
 
 ## 历史证据
 
-[本轮审查前快照](archive/FORGE_REVIEW_BASELINE_2026-10-04.md)保留此前 0.6.11–0.6.14 的改动、安装和验证记录；[更早进度](archive/FORGE_HISTORY.md)及 `probes/` 保留各自日期与产物边界。历史结论只适用于当时明确受测的构建。
+[本轮审查前快照](FORGE_REVIEW_BASELINE_2026-10-04.md)保留此前 0.6.11–0.6.14 的改动、安装和验证记录；[更早进度](FORGE_HISTORY.md)及 `probes/` 保留各自日期与产物边界。历史结论只适用于当时明确受测的构建。

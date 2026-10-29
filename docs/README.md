@@ -1,6 +1,6 @@
 # Forge 文档索引
 
-目标 Demo Steam Build `25382790`。源码版本、配套组件和验证状态统一见[当前进度](FORGE_PROGRESS.md)。
+本索引对应 Demo IL2CPP / MelonLoader 框架，目标 Steam Build `25382790`。正式版公共层见[正式版 Forge](../../probably-stolen/mods-official/nicokobo-forge/README.md)。源码版本、配套组件和验证状态统一见[当前进度](FORGE_PROGRESS.md)。
 
 | 文档 | 用途 |
 | --- | --- |
